@@ -1,0 +1,122 @@
+function SessionRow({ session, onBet, sessionLocked }) {
+    const handleBet = (type, rate) => {
+        if (sessionLocked) return;
+        if (onBet) {
+            onBet(session.name, type, rate);
+        } else {
+            console.log(`Bet placed: ${session.name} - ${type} @ ${rate}`);
+        }
+    };
+
+    return (
+        <tr className="border-b border-[#CDD9E5] last:border-0">
+            <td className="py-2 px-3 text-sm font-semibold text-[#1A2B3C] font-nunito w-[45%]">
+                {session.name}
+            </td>
+            <td className="py-2 px-1 w-[22%] relative">
+                <button
+                    onClick={() => handleBet("no", session.no.rate)}
+                    disabled={sessionLocked}
+                    className="w-full bg-[#a8cce8] hover:bg-[#7fb3d9] transition-colors rounded text-center disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <div className="text-base font-bold text-[#1A2B3C] font-rajdhani leading-tight pt-1">
+                        {session.no.rate}
+                    </div>
+                    <div className="text-xs text-[#2B4A7A] pb-1">
+                        {session.no.size.toFixed(2)}
+                    </div>
+                </button>
+            </td>
+            <td className="py-2 px-1 w-[22%] relative">
+                <button
+                    onClick={() => handleBet("yes", session.yes.rate)}
+                    disabled={sessionLocked}
+                    className="w-full bg-[#f5c99a] hover:bg-[#f0b87a] transition-colors rounded text-center disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <div className="text-base font-bold text-[#1A2B3C] font-rajdhani leading-tight pt-1">
+                        {session.yes.rate}
+                    </div>
+                    <div className="text-xs text-[#7A4A2B] pb-1">
+                        {session.yes.size.toFixed(2)}
+                    </div>
+                </button>
+            </td>
+            <td className="py-2 px-2 w-[11%]">
+                <div className="flex gap-1 justify-center">
+                    <button className="text-[#4B75B8] hover:text-[#1E3A5F]">
+                        <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                        >
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                    </button>
+                    <button className="text-[#4B75B8] hover:text-[#1E3A5F]">
+                        <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                        >
+                            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                        </svg>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    );
+}
+
+export default function SessionMarket({ sessions, settings, onPlaceBet }) {
+    return (
+        <div className="bg-white mt-2 rounded shadow-sm overflow-hidden">
+            <div className="grid grid-cols-[1fr_auto] bg-[#4B75B8] px-3 py-2">
+                <span className="text-white text-sm font-bold font-rajdhani tracking-wider">
+                    SESSION
+                </span>
+                <span className="text-white text-sm font-bold font-rajdhani">0</span>
+            </div>
+
+            <div className="grid grid-cols-[45%_22%_22%_11%] bg-[#1E3A5F] text-white text-xs font-bold font-rajdhani px-3 py-1 tracking-wider">
+                <div>SESSION</div>
+                <div className="text-center">
+                    <div>No</div>
+                    <div className="font-normal opacity-70">RATE</div>
+                </div>
+                <div className="text-center">
+                    <div>Yes</div>
+                    <div className="font-normal opacity-70">RATE</div>
+                </div>
+                <div></div>
+            </div>
+
+            {settings.sessionLock && (
+                <div className="bg-black/5 px-3 py-1 text-xs font-semibold text-[#7A2B2B] text-center">
+                    Session betting is currently locked
+                </div>
+            )}
+
+            <table className="w-full">
+                <tbody>
+                    {sessions.map((s, i) => (
+                        <SessionRow
+                            key={i}
+                            session={s}
+                            onBet={onPlaceBet}
+                            sessionLocked={settings.sessionLock}
+                        />
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}

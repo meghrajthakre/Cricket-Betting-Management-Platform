@@ -7,7 +7,7 @@ import Settings from '../pages/dashboard/Settings'
 import Ledger from '../pages/dashboard/Ledger'
 import DashboardHome from '../pages/dashboard/DashboardHome'
 import Password from '../pages/dashboard/Password'
-import MatchDetail from '../pages/dashboard/matchDetails/MatchDetail'
+import MatchDetail from '../pages/dashboard/matchDetails/MatchDetails'
 
 const DashboardRoutes = () => {
 
