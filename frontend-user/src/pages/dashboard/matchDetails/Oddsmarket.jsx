@@ -30,12 +30,7 @@ export default function OddsMarket({
 }) {
     return (
         <div className="bg-white mt-2 rounded shadow-sm overflow-hidden">
-            <div className="bg-[#E8EDF3] px-3 py-2 text-center">
-                <p className="text-sm font-semibold text-[#1E3A5F]">Market : Bookmaker</p>
-                <div className="inline-block bg-[#1E3A5F] text-white text-xs px-3 py-0.5 rounded mt-0.5 font-rajdhani">
-                    Min : {bookmaker.min} | Max : {bookmaker.max.toLocaleString()}
-                </div>
-            </div>
+           
 
             <div className="grid grid-cols-4 bg-[#1E3A5F] text-white text-xs font-bold font-rajdhani px-3 py-1.5 tracking-wider">
                 <div>RUNNER</div>

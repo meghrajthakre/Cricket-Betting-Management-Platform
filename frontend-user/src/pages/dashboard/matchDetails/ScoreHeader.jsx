@@ -32,29 +32,9 @@ export default function ScoreHeader({
 }) {
     return (
         <>
-            <div className="text-xs text-center py-1 flex items-center justify-center gap-2">
-                {sseConnected ? (
-                    <span className="text-green-600 flex items-center gap-1">
-                        <span className="inline-block w-2 h-2 bg-green-600 rounded-full animate-pulse"></span>
-                        Live
-                    </span>
-                ) : (
-                    <span className="text-yellow-600 flex items-center gap-1">
-                        <span className="inline-block w-2 h-2 bg-yellow-600 rounded-full animate-pulse"></span>
-                        Connecting...
-                    </span>
-                )}
-                <span className="text-gray-400">|</span>
-                <span className="text-gray-500">Match ID: {matchId.slice(0, 8)}</span>
-                <button
-                    onClick={onRefresh}
-                    className="ml-2 text-blue-600 hover:text-blue-800 text-xs underline"
-                >
-                    Refresh
-                </button>
-            </div>
+           
 
-            <div className="bg-[#1E3A5F] flex items-center justify-between px-3 py-2 rounded-t">
+            <div className="bg-[#1E3A5F] flex items-center justify-between px-3 py-4 rounded-t">
                 <div className="flex items-center gap-3">
                     <svg
                         width="36"
