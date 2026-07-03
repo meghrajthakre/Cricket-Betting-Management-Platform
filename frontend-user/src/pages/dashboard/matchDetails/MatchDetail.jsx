@@ -158,7 +158,6 @@ export default function MatchDetails() {
     if (!matchId) return;
     
     try {
-      console.log("Fetching latest data for match:", matchId);
       const [stateRes, settingsRes] = await Promise.all([
         getManualState(matchId).catch(err => {
           console.error("Failed to load state:", err);
@@ -176,7 +175,6 @@ export default function MatchDetails() {
       }
 
       if (settingsRes?.data) {
-        console.log("Fetched settings:", settingsRes.data);
         setSettings(prev => ({ ...prev, ...settingsRes.data }));
       }
     } catch (e) {
@@ -214,7 +212,6 @@ export default function MatchDetails() {
     const connectSSE = () => {
       try {
         const sseUrl = getSSEUrl(matchId);
-        console.log("Connecting to SSE:", sseUrl);
 
         const es = new EventSource(sseUrl, {
           withCredentials: true,
@@ -222,7 +219,6 @@ export default function MatchDetails() {
         esRef.current = es;
 
         es.onopen = () => {
-          console.log("SSE connection established");
           setSseConnected(true);
           setReconnectAttempts(0);
           setError(null);
