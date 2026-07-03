@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
-import { getManualState } from "../../../api/userService";
+import { getManualState, getManualSettings, getSSEUrl } from "../../../api/userService";
 
-// Make sure this doesn't end with /api
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 // ─── Mock data ──────────────────────────────────────────────────────────────
@@ -53,12 +52,14 @@ function BallChip({ val }) {
   );
 }
 
-function OddsBtn({ value, type, suspended }) {
+function OddsBtn({ value, type, suspended, highlight }) {
   const isLagai = type === "lagai";
   const bg = isLagai ? "bg-[#a8cce8]" : "bg-[#f5c99a]";
   
+  const highlightClass = highlight ? 'ring-2 ring-yellow-400 ring-opacity-75 animate-pulse' : '';
+
   return (
-    <div className={`relative ${bg} rounded h-9 w-full flex items-center justify-center text-sm font-semibold text-[#1A2B3C]`}>
+    <div className={`relative ${bg} ${highlightClass} rounded h-9 w-full flex items-center justify-center text-sm font-semibold text-[#1A2B3C] transition-all duration-300`}>
       {value ?? "-"}
       {suspended && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded">
@@ -69,8 +70,9 @@ function OddsBtn({ value, type, suspended }) {
   );
 }
 
-function SessionRow({ session, onBet }) {
+function SessionRow({ session, onBet, sessionLocked }) {
   const handleBet = (type, rate) => {
+    if (sessionLocked) return;
     if (onBet) {
       onBet(session.name, type, rate);
     } else {
@@ -83,10 +85,11 @@ function SessionRow({ session, onBet }) {
       <td className="py-2 px-3 text-sm font-semibold text-[#1A2B3C] font-nunito w-[45%]">
         {session.name}
       </td>
-      <td className="py-2 px-1 w-[22%]">
+      <td className="py-2 px-1 w-[22%] relative">
         <button
           onClick={() => handleBet("no", session.no.rate)}
-          className="w-full bg-[#a8cce8] hover:bg-[#7fb3d9] transition-colors rounded text-center"
+          disabled={sessionLocked}
+          className="w-full bg-[#a8cce8] hover:bg-[#7fb3d9] transition-colors rounded text-center disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <div className="text-base font-bold text-[#1A2B3C] font-rajdhani leading-tight pt-1">
             {session.no.rate}
@@ -94,10 +97,11 @@ function SessionRow({ session, onBet }) {
           <div className="text-xs text-[#2B4A7A] pb-1">{session.no.size.toFixed(2)}</div>
         </button>
       </td>
-      <td className="py-2 px-1 w-[22%]">
+      <td className="py-2 px-1 w-[22%] relative">
         <button
           onClick={() => handleBet("yes", session.yes.rate)}
-          className="w-full bg-[#f5c99a] hover:bg-[#f0b87a] transition-colors rounded text-center"
+          disabled={sessionLocked}
+          className="w-full bg-[#f5c99a] hover:bg-[#f0b87a] transition-colors rounded text-center disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <div className="text-base font-bold text-[#1A2B3C] font-rajdhani leading-tight pt-1">
             {session.yes.rate}
@@ -132,12 +136,53 @@ export default function MatchDetails() {
   const { matchId } = useParams();
 
   const [runners, setRunners] = useState([]);
+  const [settings, setSettings] = useState({
+    rateDiff: 1,
+    betLock: false,
+    sessionLock: false,
+    mode: "Lagai",
+    marketStatus: "OPEN",
+  });
+
+  const [highlightedOdds, setHighlightedOdds] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [sseConnected, setSseConnected] = useState(false);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const esRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
+  const highlightTimeoutRef = useRef(null);
+
+  // Function to fetch latest data
+  const fetchLatestData = useCallback(async () => {
+    if (!matchId) return;
+    
+    try {
+      console.log("Fetching latest data for match:", matchId);
+      const [stateRes, settingsRes] = await Promise.all([
+        getManualState(matchId).catch(err => {
+          console.error("Failed to load state:", err);
+          return null;
+        }),
+        getManualSettings(matchId).catch(err => {
+          console.error("Failed to load settings:", err);
+          return null;
+        })
+      ]);
+
+      if (stateRes?.data) {
+        const data = stateRes.data;
+        setRunners(Array.isArray(data) ? data : []);
+      }
+
+      if (settingsRes?.data) {
+        console.log("Fetched settings:", settingsRes.data);
+        setSettings(prev => ({ ...prev, ...settingsRes.data }));
+      }
+    } catch (e) {
+      console.error("Failed to fetch latest data:", e);
+    }
+  }, [matchId]);
 
   useEffect(() => {
     if (!matchId) {
@@ -148,40 +193,29 @@ export default function MatchDetails() {
 
     let cancelled = false;
 
-    async function loadInitialState() {
+    async function loadInitialData() {
       setLoading(true);
       setError(null);
       try {
-        const res = await getManualState(matchId);
-        if (!cancelled) {
-          // Handle different response structures
-          const data = res?.data || res || [];
-          setRunners(Array.isArray(data) ? data : []);
-        }
+        await fetchLatestData();
       } catch (e) {
-        console.error("Failed to load initial state:", e);
+        console.error("Failed to load initial data:", e);
         if (!cancelled) {
-          setError(e?.response?.data?.message || e.message || "Failed to load odds");
+          setError(e?.response?.data?.message || e.message || "Failed to load data");
         }
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
 
-    loadInitialState();
+    loadInitialData();
 
     // ── SSE Connection ──────────────────────────────────────────────────────
     const connectSSE = () => {
       try {
-        // FIX: Remove duplicate /api from the URL
-        // If API_BASE already includes /api, use just /manual/events
-        // If API_BASE doesn't include /api, use /api/manual/events
-        const sseUrl = API_BASE.includes('/api') 
-          ? `${API_BASE}/manual/events?matchId=${matchId}`
-          : `${API_BASE}/api/manual/events?matchId=${matchId}`;
-        
+        const sseUrl = getSSEUrl(matchId);
         console.log("Connecting to SSE:", sseUrl);
-        
+
         const es = new EventSource(sseUrl, {
           withCredentials: true,
         });
@@ -198,9 +232,25 @@ export default function MatchDetails() {
           try {
             const parsed = JSON.parse(evt.data);
             console.log("SSE message received:", parsed);
-            
+
+            // Handle RUNNER_UPDATED
             if (parsed.type === "RUNNER_UPDATED" && parsed.payload) {
               const { runnerId, runnerName, lagai, khai, status } = parsed.payload;
+              
+              // Highlight the updated odds
+              setHighlightedOdds(prev => ({
+                ...prev,
+                [runnerId]: { lagai: true, khai: true }
+              }));
+              
+              // Clear highlight after 1.5 seconds
+              if (highlightTimeoutRef.current) {
+                clearTimeout(highlightTimeoutRef.current);
+              }
+              highlightTimeoutRef.current = setTimeout(() => {
+                setHighlightedOdds({});
+              }, 1500);
+
               setRunners((prev) => {
                 const idx = prev.findIndex((r) => r.runnerId === runnerId);
                 if (idx === -1) {
@@ -211,6 +261,27 @@ export default function MatchDetails() {
                 return next;
               });
             }
+
+            // Handle SETTINGS_UPDATED
+            if (parsed.type === "SETTINGS_UPDATED" && parsed.payload) {
+              console.log("Settings update received via SSE:", parsed.payload);
+              setSettings((prev) => {
+                const newSettings = { ...prev, ...parsed.payload };
+                console.log("Updated settings:", newSettings);
+                return newSettings;
+              });
+            }
+
+            // Handle full state update (if your backend sends this)
+            if (parsed.type === "STATE_UPDATED" && parsed.payload) {
+              console.log("Full state update received:", parsed.payload);
+              if (parsed.payload.runners) {
+                setRunners(parsed.payload.runners);
+              }
+              if (parsed.payload.settings) {
+                setSettings(prev => ({ ...prev, ...parsed.payload.settings }));
+              }
+            }
           } catch (err) {
             console.error("Failed to parse SSE event:", err);
           }
@@ -219,25 +290,23 @@ export default function MatchDetails() {
         es.onerror = (err) => {
           console.error("SSE connection error:", err);
           setSseConnected(false);
-          
-          // Close the broken connection
+
           if (esRef.current) {
             esRef.current.close();
           }
-          
-          // Attempt to reconnect with exponential backoff
+
           const maxAttempts = 5;
           const baseDelay = 2000;
           const currentAttempt = reconnectAttempts + 1;
-          
+
           if (currentAttempt <= maxAttempts) {
             const delay = baseDelay * Math.pow(1.5, currentAttempt - 1);
             console.log(`Reconnecting in ${delay}ms (attempt ${currentAttempt}/${maxAttempts})`);
-            
+
             if (reconnectTimeoutRef.current) {
               clearTimeout(reconnectTimeoutRef.current);
             }
-            
+
             reconnectTimeoutRef.current = setTimeout(() => {
               if (!cancelled) {
                 setReconnectAttempts(currentAttempt);
@@ -254,25 +323,39 @@ export default function MatchDetails() {
       }
     };
 
-    // Initial connection
     connectSSE();
+
+    // Polling fallback: fetch data every 5 seconds if SSE fails
+    const pollInterval = setInterval(() => {
+      if (!sseConnected && !cancelled) {
+        console.log("Polling for updates...");
+        fetchLatestData();
+      }
+    }, 5000);
 
     return () => {
       cancelled = true;
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
+      if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current);
+      }
       if (esRef.current) {
         esRef.current.close();
       }
+      clearInterval(pollInterval);
     };
-  }, [matchId]);
+  }, [matchId, fetchLatestData, sseConnected, reconnectAttempts]);
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
   const handlePlaceBet = (sessionName, type, rate) => {
+    if (settings.sessionLock) {
+      console.log("Session is locked, bet blocked:", sessionName);
+      return;
+    }
     console.log(`Bet placed: ${sessionName} - ${type} @ ${rate}`);
     // Implement your bet placement logic here
-    // You can call the placeBet API function here
   };
 
   // ─── Render ──────────────────────────────────────────────────────────────
@@ -297,7 +380,7 @@ export default function MatchDetails() {
     return (
       <div className="flex flex-col items-center justify-center h-40 bg-[#E8EDF3] gap-4">
         <p className="text-[#d23131] font-semibold">Error: {error}</p>
-        <button 
+        <button
           onClick={() => window.location.reload()}
           className="bg-[#4B75B8] text-white px-4 py-2 rounded hover:bg-[#1E3A5F] transition-colors"
         >
@@ -327,6 +410,12 @@ export default function MatchDetails() {
           )}
           <span className="text-gray-400">|</span>
           <span className="text-gray-500">Match ID: {matchId.slice(0, 8)}</span>
+          <button
+            onClick={fetchLatestData}
+            className="ml-2 text-blue-600 hover:text-blue-800 text-xs underline"
+          >
+            Refresh
+          </button>
         </div>
 
         {/* ── Match Header ────────────────────────────────────────────────── */}
@@ -346,7 +435,11 @@ export default function MatchDetails() {
             </div>
           </div>
           <div className="bg-[#4B75B8] text-white text-xs font-bold px-2 py-1 rounded font-rajdhani tracking-wide text-center">
-            BET<br/>OPEN
+            {settings.betLock ? (
+              <>BET<br/>LOCKED</>
+            ) : (
+              <>{settings.marketStatus === "OPEN" ? <>BET<br/>OPEN</> : <>{settings.marketStatus}</>}</>
+            )}
           </div>
         </div>
 
@@ -385,15 +478,27 @@ export default function MatchDetails() {
             </div>
           ) : (
             runners.map((r, index) => {
-              const isSuspended = r.status === "suspend";
+              const isSuspended = r.status === "suspend" || settings.betLock;
+              const highlight = highlightedOdds[r.runnerId] || {};
+              
               return (
                 <div key={r.runnerId || r.runnerName || index} className="grid grid-cols-4 items-center px-3 py-2 border-b border-[#CDD9E5] last:border-0">
                   <div className="text-sm font-semibold text-[#1A2B3C]">{r.runnerName}</div>
                   <div className="px-1">
-                    <OddsBtn value={r.lagai} type="lagai" suspended={isSuspended} />
+                    <OddsBtn 
+                      value={r.lagai} 
+                      type="lagai" 
+                      suspended={isSuspended}
+                      highlight={highlight.lagai}
+                    />
                   </div>
                   <div className="px-1">
-                    <OddsBtn value={r.khai} type="khai" suspended={isSuspended} />
+                    <OddsBtn 
+                      value={r.khai} 
+                      type="khai" 
+                      suspended={isSuspended}
+                      highlight={highlight.khai}
+                    />
                   </div>
                   <div className="text-right text-sm font-semibold text-[#1A2B3C]">0.00</div>
                 </div>
@@ -422,10 +527,21 @@ export default function MatchDetails() {
             <div></div>
           </div>
 
+          {settings.sessionLock && (
+            <div className="bg-black/5 px-3 py-1 text-xs font-semibold text-[#7A2B2B] text-center">
+              Session betting is currently locked
+            </div>
+          )}
+
           <table className="w-full">
             <tbody>
               {sessions.map((s, i) => (
-                <SessionRow key={i} session={s} onBet={handlePlaceBet} />
+                <SessionRow
+                  key={i}
+                  session={s}
+                  onBet={handlePlaceBet}
+                  sessionLocked={settings.sessionLock}
+                />
               ))}
             </tbody>
           </table>
@@ -462,6 +578,16 @@ export default function MatchDetails() {
               <div className="text-right text-sm font-semibold text-[#1A2B3C]">{r.position}</div>
             </div>
           ))}
+        </div>
+
+        {/* Debug: Show current settings */}
+        <div className="bg-gray-100 p-2 mb-4 rounded text-xs">
+          <details>
+            <summary className="font-bold cursor-pointer">Settings Debug</summary>
+            <pre className="mt-1 overflow-auto">
+              {JSON.stringify(settings, null, 2)}
+            </pre>
+          </details>
         </div>
       </div>
     </div>

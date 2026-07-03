@@ -107,7 +107,7 @@ const updateSettings = asyncHandler(async (req, res) => {
         throw new AppError('matchId is required', 400);
     }
 
-    const updated = await manualService.updateSettings({
+    const { settings, updatedRunners, rateDiffChanged } = await manualService.updateSettings({
         matchId,
         rateDiff,
         betLock,
@@ -117,14 +117,38 @@ const updateSettings = asyncHandler(async (req, res) => {
     });
 
     // Broadcast settings update via SSE
-    const event = {
+    sse.broadcast(matchId, {
         type: 'SETTINGS_UPDATED',
-        payload: updated
-    };
-    sse.broadcast(matchId, event);
+        payload: settings
+    });
 
-    res.status(200).json({ success: true, data: updated });
+    // If rateDiff changed, sync engine cache + broadcast each affected runner
+    if (rateDiffChanged && updatedRunners.length > 0) {
+        for (const runner of updatedRunners) {
+            engine.updateRunnerInCache(matchId, {
+                runnerId: runner.runnerId,
+                runnerName: runner.runnerName,
+                lagai: runner.lagai,
+                khai: runner.khai,
+                status: runner.status,
+                updatedAt: runner.updatedAt,
+            });
+
+            sse.broadcast(matchId, {
+                type: 'RUNNER_UPDATED',
+                payload: {
+                    matchId,
+                    runnerId: runner.runnerId,
+                    runnerName: runner.runnerName,
+                    lagai: runner.lagai,
+                    khai: runner.khai,
+                    status: runner.status,
+                },
+            });
+        }
+    }
+
+    res.status(200).json({ success: true, data: settings, updatedRunners });
 });
 
-// Export the new functions
 module.exports = { updateRunner, events, state, getSettings, updateSettings };
