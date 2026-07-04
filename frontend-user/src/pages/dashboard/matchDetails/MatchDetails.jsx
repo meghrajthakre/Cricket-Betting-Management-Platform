@@ -4,7 +4,6 @@ import { getManualState, getManualSettings, getSSEUrl } from "../../../api/userS
 import ScoreHeader from "./ScoreHeader";
 import OddsMarket from "./OddsMarket";
 import SessionMarket from "./SessionMarket";
-import EvenOddMarket from "./EvenOddMarket";
 import LoadingState from "./LoadingState";
 import ErrorState from "./ErrorState";
 import SettingsDebug from "./SettingsDebug";
@@ -282,7 +281,6 @@ export default function MatchDetails() {
                     onPlaceBet={handlePlaceBet}
                 />
 
-                <EvenOddMarket evenOdd={evenOdd} />
 
                 <SettingsDebug settings={settings} />
             </div>

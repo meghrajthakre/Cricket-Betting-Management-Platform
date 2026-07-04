@@ -10,14 +10,7 @@ function OddsBtn({ value, type, suspended, highlight }) {
         <div
             className={`relative ${bg} ${highlightClass} rounded h-9 w-full flex items-center justify-center text-sm font-semibold text-[#1A2B3C] transition-all duration-300`}
         >
-            {value ?? "-"}
-            {suspended && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded">
-                    <span className="text-white text-[10px] font-bold tracking-wide">
-                        SUSPENDED
-                    </span>
-                </div>
-            )}
+            {suspended ? 0 : value ?? "-"}
         </div>
     );
 }
