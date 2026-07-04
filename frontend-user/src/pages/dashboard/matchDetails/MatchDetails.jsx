@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
-import { getManualState, getManualSettings, getSSEUrl } from "../../../api/userService";
+import { getManualState, getManualSettings, getSSEUrl, getSavedMatchById } from "../../../api/userService";
 import ScoreHeader from "./ScoreHeader.jsx";
 import OddsMarket from "./Oddsmarket.jsx";
 import SessionMarket from "./Sessionmarket.jsx";
@@ -21,6 +21,11 @@ export default function MatchDetails() {
         marketStatus: "OPEN",
     });
 
+    // Dynamic match info (team names) pulled from the saved-match API.
+    // Everything else in MOCK_DATA.match (score, toss, badges, etc.) is left
+    // as-is until those fields have a real backend source too.
+    const [savedMatch, setSavedMatch] = useState(null);
+
     const [highlightedOdds, setHighlightedOdds] = useState({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -29,6 +34,28 @@ export default function MatchDetails() {
     const esRef = useRef(null);
     const reconnectTimeoutRef = useRef(null);
     const highlightTimeoutRef = useRef(null);
+
+    // Fetch the saved match (home/away teams) once per matchId.
+    useEffect(() => {
+        if (!matchId) return;
+        let cancelled = false;
+
+        (async () => {
+            try {
+                const res = await getSavedMatchById(matchId);
+                // getSavedMatchById already unwraps axios's `r.data`, so `res` is
+                // your API's JSON body. Adjust `res.data` below if your handler
+                // returns the match object directly instead of wrapped in `data`.
+                if (!cancelled) setSavedMatch(res?.data || null);
+            } catch (err) {
+                console.error("Failed to load saved match:", err?.response?.data || err.message);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [matchId]);
 
     const fetchLatestData = useCallback(async () => {
         if (!matchId) return;
@@ -252,8 +279,19 @@ export default function MatchDetails() {
         return <ErrorState error={error} onRetry={() => window.location.reload()} />;
     }
 
-    const { match, recentBalls, thisOver, bookmaker, sessions, evenOdd } =
-        MOCK_DATA;
+    const { recentBalls, thisOver, bookmaker, sessions, evenOdd } = MOCK_DATA;
+
+    // Overlay the real team names from the saved-match API onto the mock
+    // match object, mapped onto the field names ScoreHeader reads
+    // (team1 / team2). Score, toss, and everything else stay mocked until
+    // there's a real backend source for them.
+    const match = {
+        ...MOCK_DATA.match,
+        ...(savedMatch && {
+            team1: savedMatch.homeTeam,
+            team2: savedMatch.awayTeam,
+        }),
+    };
 
     return (
         <div className="bg-[#E8EDF3] min-h-screen">
