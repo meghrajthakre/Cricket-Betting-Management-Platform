@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { getManualState, getManualSettings, getSSEUrl } from "../../../api/userService";
-import ScoreHeader from "./ScoreHeader";
-import OddsMarket from "./OddsMarket";
+import ScoreHeader from "./ScoreHeader.jsx";
+import OddsMarket from "./Oddsmarket.jsx";
 import SessionMarket from "./SessionMarket";
 import LoadingState from "./LoadingState";
 import ErrorState from "./ErrorState";
