@@ -15,12 +15,25 @@ function OddsBtn({ value, type, suspended, highlight }) {
     );
 }
 
+// KHAI is always derived from LAGAI + the live rateDiff (from settings).
+// If lagai is 0 (or the runner is suspended), khai stays 0 regardless of rateDiff.
+// Whatever `khai` value arrives in the runner payload/SSE event is ignored on
+// purpose - this guarantees the displayed diff always matches the *current*
+// rateDiff setting, even if a stale khai was pushed before rateDiff changed.
+function computeKhai(lagai, rateDiff) {
+    const diff = Number(rateDiff) || 0;
+    if (lagai === 0 || lagai === undefined || lagai === null) return 0;
+    return lagai + diff;
+}
+
 export default function OddsMarket({
     runners,
     bookmaker,
     settings,
     highlightedOdds,
 }) {
+    const rateDiff = settings?.rateDiff ?? 0;
+
     return (
         <div className="bg-white mt-2 rounded shadow-sm overflow-hidden">
            
@@ -40,6 +53,7 @@ export default function OddsMarket({
                 runners.map((r, index) => {
                     const isSuspended = r.status === "suspend" || settings.betLock;
                     const highlight = highlightedOdds[r.runnerId] || {};
+                    const khaiValue = computeKhai(r.lagai, rateDiff);
 
                     return (
                         <div
@@ -59,7 +73,7 @@ export default function OddsMarket({
                             </div>
                             <div className="px-1">
                                 <OddsBtn
-                                    value={r.khai}
+                                    value={khaiValue}
                                     type="khai"
                                     suspended={isSuspended}
                                     highlight={highlight.khai}
