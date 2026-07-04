@@ -38,6 +38,7 @@ const allowedOrigins = [
   "http://localhost:5175",
   "https://firstfreelance-project.vercel.app",
   "https://superadmin-phi-eight.vercel.app",
+  "https://firstfreelance-project-4uv9.vercel.app",
   "firstfreelance-project-jsft8o6fm-meghrajthakres-projects.vercel.app",
   "https://superadmin-oy4sv2xkd-meghrajthakres-projects.vercel.app",
 ].filter(Boolean);
