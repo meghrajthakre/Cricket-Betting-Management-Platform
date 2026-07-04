@@ -295,7 +295,7 @@ export default function MatchDetails() {
 
     return (
         <div className="bg-[#E8EDF3] min-h-screen">
-            <div className="max-w-lg mx-auto">
+            <div className="max-w-4xl mx-auto px-2 py-2 ">
                 <ScoreHeader
                     sseConnected={sseConnected}
                     matchId={matchId}
