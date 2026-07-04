@@ -3,11 +3,11 @@ import { useParams } from "react-router-dom";
 import { getManualState, getManualSettings, getSSEUrl } from "../../../api/userService";
 import ScoreHeader from "./ScoreHeader.jsx";
 import OddsMarket from "./Oddsmarket.jsx";
-import SessionMarket from "./SessionMarket";
-import LoadingState from "./LoadingState";
-import ErrorState from "./ErrorState";
-import SettingsDebug from "./SettingsDebug";
-import { MOCK_DATA } from "./mockData";
+import SessionMarket from "./Sessionmarket.jsx";
+import LoadingState from "./LoadingState.jsx";
+import ErrorState from "./ErrorState.jsx";
+import SettingsDebug from "./SettingsDebug.jsx";
+import { MOCK_DATA } from "./mockData.js";
 
 export default function MatchDetails() {
     const { matchId } = useParams();
