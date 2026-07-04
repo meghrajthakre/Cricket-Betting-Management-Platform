@@ -1,13 +1,18 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { C, MATCH } from "./constants";
 
-export default function MatchHeader() {
+export default function MatchHeader({ match }) {
     const navigate = useNavigate();
     const { matchId } = useParams();
 
     const handleManual = () => {
         navigate(`/support/matches/${matchId}/play`);
     };
+
+    // Fall back to static constants for anything the saved-match API doesn't provide
+    // (Toss, live score, ball-by-ball) since that data likely comes from a different feed.
+    const homeTeam = match?.homeTeam || MATCH.homeTeam || "";
+    const awayTeam = match?.awayTeam || MATCH.awayTeam || "";
 
     return (
         <>
@@ -16,7 +21,7 @@ export default function MatchHeader() {
                     className="group text-white text-lg cursor-pointer font-bold px-6 py-2.5 rounded-lg transition-all duration-300 ease-out hover:scale-105 hover:shadow-lg active:scale-95 shadow-md relative overflow-hidden"
                     style={{ background: C.startManual }}
                 >
-                    <span  className="relative z-10 flex items-center gap-2">
+                    <span className="relative z-10 flex items-center gap-2">
                         Start automated match
                         <svg
                             className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1"
@@ -41,13 +46,13 @@ export default function MatchHeader() {
                     className="text-white text-sm font-semibold px-6 py-1.5 rounded-full"
                     style={{ background: C.matchBadge }}
                 >
-                    Match : {MATCH.homeTeam} VS {MATCH.awayTeam}
+                    Match : {homeTeam} VS {awayTeam}
                 </span>
             </div>
 
             <div className="grid grid-cols-3 border border-gray-300 rounded overflow-hidden mb-4 bg-white">
                 <div className="py-2.5 pl-4 text-sm font-bold" style={{ color: C.notText }}>
-                    {MATCH.homeTeam.slice(0, 3).toUpperCase()}
+                    {homeTeam.toUpperCase()}
                 </div>
                 <div
                     className="py-2.5 text-xl font-bold text-white text-center"
@@ -56,7 +61,7 @@ export default function MatchHeader() {
                     {MATCH.centerScore}
                 </div>
                 <div className="py-2.5 pr-4 text-sm font-bold text-right" style={{ color: C.notText }}>
-                    {MATCH.score}
+                    {awayTeam.toUpperCase()}
                 </div>
             </div>
         </>

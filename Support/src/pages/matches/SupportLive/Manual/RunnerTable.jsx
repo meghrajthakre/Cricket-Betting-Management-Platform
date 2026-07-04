@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { apiClient } from "../../../../services/api";
 import { C } from "./constants";
@@ -6,10 +6,19 @@ import { C } from "./constants";
 const ODDS_OPTIONS = Array.from({ length: 98 }, (_, i) => i); // 0 to 97
 const SUSPEND_VALUE = 97;
 
-const DEFAULT_RUNNERS = [
+const FALLBACK_RUNNERS = [
   { id: "runner_1", name: "West Indies", odds: 0 },
   { id: "runner_2", name: "Sri Lanka", odds: 0 },
 ];
+
+// Build the two runners from the fetched match's home/away teams,
+// falling back to the static defaults if match data isn't available yet.
+function buildDefaultRunners(match) {
+  return [
+    { id: "runner_1", name: match?.homeTeam || FALLBACK_RUNNERS[0].name, odds: 0 },
+    { id: "runner_2", name: match?.awayTeam || FALLBACK_RUNNERS[1].name, odds: 0 },
+  ];
+}
 
 function computeKhai(odds, rateDiff) {
   return odds === 0 || odds === SUSPEND_VALUE ? 0 : odds + rateDiff;
@@ -35,14 +44,32 @@ async function updateRunnerAPI(matchId, runnerId, runnerName, lagai, khai, statu
 // Accepts an optional `runners` prop so this can eventually be driven by the
 // same live match state (API + SSE) that MatchDetails maintains, instead of
 // always starting from a hardcoded two-team default.
-export default function RunnerTable({ rateDiff = 1, runners: runnersProp, onRunnersChange }) {
+// Also accepts an optional `match` prop (the fetched saved match) so the
+// default runner names reflect the real home/away teams instead of the
+// hardcoded West Indies / Sri Lanka placeholders.
+export default function RunnerTable({ rateDiff = 1, runners: runnersProp, onRunnersChange, match }) {
   const { matchId } = useParams();
 
-  const [localRunners, setLocalRunners] = useState(runnersProp ?? DEFAULT_RUNNERS);
+  const [localRunners, setLocalRunners] = useState(runnersProp ?? buildDefaultRunners(match));
   const [activeIndex, setActiveIndex] = useState(null);
   const [pushError, setPushError] = useState(null);
 
   const runners = runnersProp ?? localRunners;
+
+  // If `match` arrives after the initial render (e.g. it's still loading
+  // when this component mounts), update just the runner names once it's
+  // available — odds already entered by the user are left untouched.
+  useEffect(() => {
+    if (runnersProp) return; // parent owns the runners, don't touch them here
+    if (!match) return;
+
+    setLocalRunners((prev) =>
+      prev.map((r, i) => {
+        const newName = i === 0 ? match.homeTeam : i === 1 ? match.awayTeam : r.name;
+        return newName && newName !== r.name ? { ...r, name: newName } : r;
+      })
+    );
+  }, [match, runnersProp]);
 
   const applyRunners = useCallback(
     (updated) => {
