@@ -6,7 +6,7 @@ export const MOCK_DATA = {
         toss: "England Women opt to bat",
         status: "BET OPEN",
     },
-    recentBalls: ["4", "1", "4", "1"],
+    recentBalls: ["4", "1", "4", "1" , "6", "1", "1", "1", "1", "1", "1", "1"],
     thisOver: { runs: 12, balls: "Over 8 -", dot: "•", extraRuns: 0 },
     bookmaker: { min: 50, max: 500000 },
     sessions: [

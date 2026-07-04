@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 
 function BallChip({ val }) {
     const isFour = val === "4";
@@ -7,16 +7,18 @@ function BallChip({ val }) {
     const isWicket = val === "W";
 
     const style = isWicket
-        ? "bg-red-600 border-red-600 text-white"
-        : isFour || isSix
-            ? "bg-[#4B75B8] border-[#4B75B8] text-white"
-            : isDot
-                ? "bg-gray-400 border-gray-400 text-white"
-                : "bg-white border-[#1E3A5F] text-[#1E3A5F]";
+        ? "bg-[#E53935] border-[#E53935] text-white"
+        : isSix
+            ? "bg-[#75D793] border-[#75D793] text-white"
+            : isFour
+                ? "bg-[#73BBF8] border-[#73BBF8] text-white"
+                : isDot
+                    ? "bg-white border-gray-400 text-gray-400"
+                    : "bg-white border-[#1E3A5F] text-[#1E3A5F]";
 
     return (
         <span
-            className={`inline-flex items-center justify-center shrink-0 w-6 h-6 sm:w-9 sm:h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 rounded-full border sm:border-2 text-[10px] sm:text-sm lg:text-base font-bold font-serif ${style}`}
+            className={`flex items-center justify-center shrink-0 grow-0 aspect-square w-6 h-6 sm:w-9 sm:h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 min-w-6 min-h-6 sm:min-w-9 sm:min-h-9 md:min-w-10 md:min-h-10 lg:min-w-11 lg:min-h-11 rounded-full border sm:border-2 text-[10px] sm:text-sm lg:text-base font-bold font-serif leading-none ${style}`}
         >
             {val}
         </span>
@@ -32,6 +34,24 @@ export default function ScoreHeader({
     recentBalls,
     thisOver,
 }) {
+    const ballsContainerRef = useRef(null);
+    const prevBallsLength = useRef(0);
+
+    useEffect(() => {
+        if (ballsContainerRef.current && recentBalls.length > 0) {
+            const container = ballsContainerRef.current;
+            
+            // Only auto-scroll when a new ball is added (length increases)
+            if (recentBalls.length > prevBallsLength.current) {
+                requestAnimationFrame(() => {
+                    container.scrollLeft = container.scrollWidth;
+                });
+            }
+            
+            prevBallsLength.current = recentBalls.length;
+        }
+    }, [recentBalls]);
+
     return (
         <div className="w-full max-w-full overflow-hidden">
             {/* Top Section - Score and Bet Status */}
@@ -104,34 +124,52 @@ export default function ScoreHeader({
             </div>
 
             {/* Bottom Section - Recent Balls and Over Stats */}
-            <div className="bg-[#3A5F9A] flex items-center gap-2 sm:gap-3 lg:gap-4 px-3 sm:px-5 lg:px-6 py-2.5 sm:py-3 lg:py-4 mt-1.5 sm:mt-3 lg:mt-4 flex-wrap min-w-0">
-                <span className="text-white text-base sm:text-xl lg:text-2xl font-bold font-serif leading-none">
-                    {thisOver.dot}
-                </span>
+            <div className="bg-[#3A5F9A] flex items-center px-3 sm:px-5 lg:px-6 py-2.5 sm:py-3 lg:py-4 mt-1.5 sm:mt-3 lg:mt-4 overflow-hidden">
+                
+                {/* Left Side - Over Stats (will be clipped naturally when balls fill the space) */}
+                <div className="flex items-center gap-2 shrink-0 whitespace-nowrap overflow-hidden">
+                    <span className="text-white text-base sm:text-xl font-bold flex-shrink-0">
+                        {thisOver.dot}
+                    </span>
 
-                <span className="text-white text-[10px] sm:text-lg lg:text-xl font-bold font-serif whitespace-nowrap">
-                    {thisOver.runs} Runs
-                </span>
+                    <span className="text-white text-[10px] sm:text-lg font-bold font-serif flex-shrink-0">
+                        {thisOver.runs} Runs
+                    </span>
 
-                <span className="text-[#D6E4F5] text-xs sm:text-lg lg:text-xl font-serif">|</span>
+                    <span className="text-[#D6E4F5] flex-shrink-0">|</span>
 
-                <span className="text-white text-[10px] sm:text-lg lg:text-xl font-bold font-serif whitespace-nowrap">
-                    Over {thisOver.balls}
-                </span>
+                    <span className="text-white text-[10px] sm:text-lg font-bold font-serif flex-shrink-0">
+                        Over {thisOver.balls}
+                    </span>
 
-                <span className="text-white text-xs sm:text-lg lg:text-xl font-bold mx-0.5 sm:mx-1">-</span>
-
-                <div className="flex items-center gap-1 sm:gap-2 lg:gap-3 flex-wrap min-w-0">
-                    {recentBalls.map((b, i) => (
-                        <BallChip key={i} val={b} />
-                    ))}
+                    <span className="text-white flex-shrink-0">-</span>
                 </div>
 
-                <span className="text-white text-xs sm:text-lg lg:text-xl font-bold mx-0.5 sm:mx-1">-</span>
+                {/* Balls Container - Starts from LEFT, auto-scrolls only when new balls are added */}
+                <div 
+                    ref={ballsContainerRef}
+                    className="flex items-center gap-1 sm:gap-2 flex-1 overflow-x-auto scrollbar-hide"
+                    style={{
+                        scrollbarWidth: 'none',
+                        msOverflowStyle: 'none',
+                        overflowX: 'auto',
+                    }}
+                >
+                    <div className="flex items-center gap-1 sm:gap-2 flex-nowrap">
+                        {recentBalls.map((b, i) => (
+                            <BallChip key={i} val={b} />
+                        ))}
+                    </div>
+                </div>
 
-                <span className="text-white text-[10px] sm:text-lg lg:text-xl font-bold font-serif whitespace-nowrap">
-                    {thisOver.extraRuns} Runs
-                </span>
+                {/* Right Side - Extra Runs */}
+                <div className="flex items-center gap-2 ml-3 shrink-0 whitespace-nowrap">
+                    <span className="text-white flex-shrink-0">-</span>
+
+                    <span className="text-white text-[10px] sm:text-lg font-bold font-serif flex-shrink-0">
+                        {thisOver.extraRuns} Runs
+                    </span>
+                </div>
             </div>
         </div>
     );
