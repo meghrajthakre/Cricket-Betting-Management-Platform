@@ -41,10 +41,15 @@ export default function ScoreHeader({
         if (ballsContainerRef.current && recentBalls.length > 0) {
             const container = ballsContainerRef.current;
             
-            // Only auto-scroll when a new ball is added (length increases)
+            // Only auto-scroll when a new ball is added (length increases).
+            // Odds/rate updates re-render the component but don't change
+            // recentBalls.length, so the scroll position is left untouched.
             if (recentBalls.length > prevBallsLength.current) {
                 requestAnimationFrame(() => {
-                    container.scrollLeft = container.scrollWidth;
+                    container.scrollTo({
+                        left: container.scrollWidth,
+                        behavior: "smooth",
+                    });
                 });
             }
             
@@ -123,53 +128,54 @@ export default function ScoreHeader({
                 </div>
             </div>
 
-            {/* Bottom Section - Recent Balls and Over Stats */}
-            <div className="bg-[#3A5F9A] flex items-center px-3 sm:px-5 lg:px-6 py-2.5 sm:py-3 lg:py-4 mt-1.5 sm:mt-3 lg:mt-4 overflow-hidden">
-                
-                {/* Left Side - Over Stats (will be clipped naturally when balls fill the space) */}
-                <div className="flex items-center gap-2 shrink-0 whitespace-nowrap overflow-hidden">
-                    <span className="text-white text-base sm:text-xl font-bold flex-shrink-0">
-                        {thisOver.dot}
-                    </span>
-
-                    <span className="text-white text-[10px] sm:text-lg font-bold font-serif flex-shrink-0">
-                        {thisOver.runs} Runs
-                    </span>
-
-                    <span className="text-[#D6E4F5] flex-shrink-0">|</span>
-
-                    <span className="text-white text-[10px] sm:text-lg font-bold font-serif flex-shrink-0">
-                        Over {thisOver.balls}
-                    </span>
-
-                    <span className="text-white flex-shrink-0">-</span>
-                </div>
-
-                {/* Balls Container - Starts from LEFT, auto-scrolls only when new balls are added */}
-                <div 
+            {/* Bottom Section - single live ticker banner.
+                Everything (over stats, balls, extra runs) lives inside ONE
+                scrollable flex row, so the whole strip moves together and
+                older content slides off the left naturally via overflow-hidden
+                on the outer wrapper. */}
+            <div className="bg-[#3A5F9A] px-3 sm:px-5 lg:px-6 py-2.5 sm:py-3 lg:py-4 mt-1.5 sm:mt-3 lg:mt-4 overflow-hidden">
+                <div
                     ref={ballsContainerRef}
-                    className="flex items-center gap-1 sm:gap-2 flex-1 overflow-x-auto scrollbar-hide"
+                    className="score-ticker flex items-center gap-1 sm:gap-2 whitespace-nowrap overflow-x-auto overflow-y-hidden scroll-smooth"
                     style={{
                         scrollbarWidth: 'none',
                         msOverflowStyle: 'none',
-                        overflowX: 'auto',
                     }}
                 >
-                    <div className="flex items-center gap-1 sm:gap-2 flex-nowrap">
-                        {recentBalls.map((b, i) => (
-                            <BallChip key={i} val={b} />
-                        ))}
-                    </div>
-                </div>
+                    <span className="text-white text-base sm:text-xl font-bold shrink-0 grow-0">
+                        {thisOver.dot}
+                    </span>
 
-                {/* Right Side - Extra Runs */}
-                <div className="flex items-center gap-2 ml-3 shrink-0 whitespace-nowrap">
-                    <span className="text-white flex-shrink-0">-</span>
+                    <span className="text-white text-[10px] sm:text-lg font-bold font-serif shrink-0 grow-0">
+                        {thisOver.runs} Runs
+                    </span>
 
-                    <span className="text-white text-[10px] sm:text-lg font-bold font-serif flex-shrink-0">
+                    <span className="text-[#D6E4F5] shrink-0 grow-0">|</span>
+
+                    <span className="text-white text-[10px] sm:text-lg font-bold font-serif shrink-0 grow-0">
+                        Over {thisOver.balls}
+                    </span>
+
+                    <span className="text-white shrink-0 grow-0">-</span>
+
+                    {recentBalls.map((b, i) => (
+                        <BallChip key={i} val={b} />
+                    ))}
+
+                    <span className="text-white shrink-0 grow-0">-</span>
+
+                    <span className="text-white text-[10px] sm:text-lg font-bold font-serif shrink-0 grow-0">
                         {thisOver.extraRuns} Runs
                     </span>
                 </div>
+
+                {/* Hides the scrollbar in Chrome/Safari/Edge (webkit) — the inline
+                    scrollbarWidth/msOverflowStyle above already handle Firefox/IE. */}
+                <style>{`
+                    .score-ticker::-webkit-scrollbar {
+                        display: none;
+                    }
+                `}</style>
             </div>
         </div>
     );
