@@ -2,6 +2,7 @@
 
 const ManualRunner = require("../models/ManualModel/ManualRunner");
 const ManualSettings = require('../models/ManualModel/ManualSettings');
+const ManualScore = require('../models/ManualModel/ManualScore');
 
 async function saveRunner(matchId, runner) {
     // Upsert runner document by matchId + runnerId
@@ -99,11 +100,32 @@ async function updateSettings(data) {
     return { settings, updatedRunners, rateDiffChanged };
 }
 
+// Get current score/status for a match
+async function getScore(matchId) {
+    let score = await ManualScore.findOne({ matchId }).lean();
+    if (!score) {
+        score = { matchId, status: "" };
+    }
+    return score;
+}
+
+// Upsert the score/status for a match
+async function updateScore(matchId, status) {
+    const doc = await ManualScore.findOneAndUpdate(
+        { matchId },
+        { $set: { status } },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+    ).lean();
+    return doc;
+}
+
 module.exports = {
     saveRunner,
     getState,
     getSettings,
     updateSettings,
     computeOddsFromRateDiff,
-    recalculateRunnersForRateDiff
+    recalculateRunnersForRateDiff,
+    getScore,
+    updateScore,
 };

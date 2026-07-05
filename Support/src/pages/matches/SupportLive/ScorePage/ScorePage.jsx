@@ -1,10 +1,14 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import ScoreHeader from "./ScoreHeader";
 import ScoreOdds from "./ScoreOdds";
 import { apiClient } from "../../../../services/api";
 import ScoreButtons from "./ScoreButtons";
 import Controls from "./Controls";
+
+// Base URL used for the raw EventSource connection (apiClient's baseURL, e.g. "https://api.example.com/api")
+// Adjust the path below ("/manual/events") if your manual router is mounted under a different prefix.
+const API_BASE = apiClient.defaults.baseURL;
 
 export default function ScorePage() {
     const { matchId } = useParams();
@@ -13,6 +17,8 @@ export default function ScorePage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [selectedStatus, setSelectedStatus] = useState("");
+
+    const eventSourceRef = useRef(null);
 
     const fetchMatch = useCallback(async () => {
         if (!matchId) return;
@@ -28,9 +34,50 @@ export default function ScorePage() {
         }
     }, [matchId]);
 
+    // Fetch the current persisted score/status on load
+    const fetchScore = useCallback(async () => {
+        if (!matchId) return;
+        try {
+            const { data } = await apiClient.get(`/manual/score/${matchId}`);
+            if (data?.data?.status) {
+                setSelectedStatus(data.data.status);
+            }
+        } catch (err) {
+            console.error("Failed to fetch score:", err);
+        }
+    }, [matchId]);
+
     useEffect(() => {
         fetchMatch();
-    }, [fetchMatch]);
+        fetchScore();
+    }, [fetchMatch, fetchScore]);
+
+    // Subscribe to SSE for live score/status updates
+    useEffect(() => {
+        if (!matchId) return;
+
+        const es = new EventSource(`${API_BASE}/manual/events?matchId=${matchId}`);
+        eventSourceRef.current = es;
+
+        es.onmessage = (event) => {
+            try {
+                const parsed = JSON.parse(event.data);
+                if (parsed.type === "SCORE_UPDATED" && parsed.payload?.matchId === matchId) {
+                    setSelectedStatus(parsed.payload.status);
+                }
+            } catch (err) {
+                console.error("Failed to parse SSE message:", err);
+            }
+        };
+
+        es.onerror = (err) => {
+            console.error("SSE connection error:", err);
+        };
+
+        return () => {
+            es.close();
+        };
+    }, [matchId]);
 
     const team1 = match?.homeTeam || "";
     const team2 = match?.awayTeam || "";
@@ -42,11 +89,13 @@ export default function ScorePage() {
         ]
         : [];
 
-    const handleStatusSelect = (label) => {
-        setSelectedStatus(label);
-        // Optional: send this to the backend as the live match status
-        // apiClient.post(`/matches/saved/${matchId}/status`, { status: label });
-        console.log("Selected:", label);
+    const handleStatusSelect = async (label) => {
+        setSelectedStatus(label); // optimistic update
+        try {
+            await apiClient.post(`/manual/score/update`, { matchId, status: label });
+        } catch (err) {
+            console.error("Failed to update score:", err);
+        }
     };
 
     return (

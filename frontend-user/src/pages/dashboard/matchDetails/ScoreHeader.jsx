@@ -31,6 +31,7 @@ export default function ScoreHeader({
     onRefresh,
     match,
     settings,
+    scoreStatus,
     recentBalls,
     thisOver,
 }) {
@@ -40,10 +41,7 @@ export default function ScoreHeader({
     useEffect(() => {
         if (ballsContainerRef.current && recentBalls.length > 0) {
             const container = ballsContainerRef.current;
-            
-            // Only auto-scroll when a new ball is added (length increases).
-            // Odds/rate updates re-render the component but don't change
-            // recentBalls.length, so the scroll position is left untouched.
+
             if (recentBalls.length > prevBallsLength.current) {
                 requestAnimationFrame(() => {
                     container.scrollTo({
@@ -52,7 +50,7 @@ export default function ScoreHeader({
                     });
                 });
             }
-            
+
             prevBallsLength.current = recentBalls.length;
         }
     }, [recentBalls]);
@@ -104,10 +102,12 @@ export default function ScoreHeader({
                     </div>
                 </div>
 
-                {/* Right - Bet Status */}
+                {/* Right - Bet Status / Live Score Status */}
                 <div className="bg-[#1E3A5F] flex items-center justify-center px-4 sm:px-6 lg:px-8 shrink-0 sm:min-w-[120px] lg:min-w-[160px]">
                     <div className="text-white text-[13px] sm:text-2xl md:text-3xl lg:text-4xl font-bold font-serif text-center leading-tight whitespace-nowrap">
-                        {settings.betLock ? (
+                        {scoreStatus ? (
+                            <>{scoreStatus}</>
+                        ) : settings.betLock ? (
                             <>
                                 BET<br />
                                 LOCKED
@@ -128,11 +128,7 @@ export default function ScoreHeader({
                 </div>
             </div>
 
-            {/* Bottom Section - single live ticker banner.
-                Everything (over stats, balls, extra runs) lives inside ONE
-                scrollable flex row, so the whole strip moves together and
-                older content slides off the left naturally via overflow-hidden
-                on the outer wrapper. */}
+            {/* Bottom Section - single live ticker banner. */}
             <div className="bg-[#3A5F9A] px-3 sm:px-5 lg:px-6 py-2.5 sm:py-3 lg:py-4 mt-1.5 sm:mt-3 lg:mt-4 overflow-hidden">
                 <div
                     ref={ballsContainerRef}
@@ -169,8 +165,6 @@ export default function ScoreHeader({
                     </span>
                 </div>
 
-                {/* Hides the scrollbar in Chrome/Safari/Edge (webkit) — the inline
-                    scrollbarWidth/msOverflowStyle above already handle Firefox/IE. */}
                 <style>{`
                     .score-ticker::-webkit-scrollbar {
                         display: none;

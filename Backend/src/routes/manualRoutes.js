@@ -6,7 +6,9 @@ const {
     updateSettings,
     events,
     state,
-    getSettings,  
+    getSettings,
+    getScore,
+    updateScore,
 } = require("../controllers/manualController");
 
 const router = Router();
@@ -15,8 +17,12 @@ const router = Router();
 router.get("/state/:matchId", state);
 
 // Settings
-router.get("/settings/:matchId", getSettings);  // Add this
+router.get("/settings/:matchId", getSettings);
 router.post("/settings/update", updateSettings);
+
+// Score
+router.get("/score/:matchId", getScore);
+router.post("/score/update", updateScore);
 
 // SSE
 router.get("/events", events);

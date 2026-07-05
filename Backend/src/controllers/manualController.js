@@ -151,4 +151,35 @@ const updateSettings = asyncHandler(async (req, res) => {
     res.status(200).json({ success: true, data: settings, updatedRunners });
 });
 
-module.exports = { updateRunner, events, state, getSettings, updateSettings };
+// GET /api/manual/score/:matchId
+const getScore = asyncHandler(async (req, res) => {
+    const matchId = req.params.matchId;
+    if (!matchId) throw new AppError('matchId required', 400);
+
+    const score = await manualService.getScore(matchId);
+    res.status(200).json({ success: true, data: score });
+});
+
+// POST /api/manual/score/update
+const updateScore = asyncHandler(async (req, res) => {
+    const { matchId, status } = req.body || {};
+
+    if (!matchId || typeof status !== 'string' || !status.trim()) {
+        throw new AppError('matchId and status are required', 400);
+    }
+
+    const saved = await manualService.updateScore(matchId, status);
+
+    // Broadcast via SSE
+    sse.broadcast(matchId, {
+        type: 'SCORE_UPDATED',
+        payload: {
+            matchId: saved.matchId,
+            status: saved.status,
+        },
+    });
+
+    res.status(200).json({ success: true, data: saved });
+});
+
+module.exports = { updateRunner, events, state, getSettings, updateSettings, getScore, updateScore };

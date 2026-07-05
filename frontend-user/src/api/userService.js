@@ -57,3 +57,10 @@ export const getSSEUrl = (matchId) => {
   const baseUrl = API_BASE.endsWith('/api') ? API_BASE.slice(0, -4) : API_BASE;
   return `${baseUrl}/api/manual/events?matchId=${matchId}`;
 };
+
+// ========== Manual Score/Status ==========
+export const getManualScore = (matchId) =>
+  API.get(`/manual/score/${matchId}`).then((r) => r.data);
+
+export const updateManualScore = (matchId, status) =>
+  API.post(`/manual/score/update`, { matchId, status }).then((r) => r.data);

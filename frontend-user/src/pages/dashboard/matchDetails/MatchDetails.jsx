@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
-import { getManualState, getManualSettings, getSSEUrl, getSavedMatchById } from "../../../api/userService";
+import { getManualState, getManualSettings, getManualScore, getSSEUrl, getSavedMatchById } from "../../../api/userService";
 import ScoreHeader from "./ScoreHeader.jsx";
 import OddsMarket from "./Oddsmarket.jsx";
 import SessionMarket from "./Sessionmarket.jsx";
@@ -20,6 +20,9 @@ export default function MatchDetails() {
         mode: "Lagai",
         marketStatus: "OPEN",
     });
+
+    // Live match status set via the manual ScoreButtons (e.g. "OUT", "6 RUN", "Not Out")
+    const [scoreStatus, setScoreStatus] = useState("");
 
     // Dynamic match info (team names) pulled from the saved-match API.
     // Everything else in MOCK_DATA.match (score, toss, badges, etc.) is left
@@ -43,9 +46,6 @@ export default function MatchDetails() {
         (async () => {
             try {
                 const res = await getSavedMatchById(matchId);
-                // getSavedMatchById already unwraps axios's `r.data`, so `res` is
-                // your API's JSON body. Adjust `res.data` below if your handler
-                // returns the match object directly instead of wrapped in `data`.
                 if (!cancelled) setSavedMatch(res?.data || null);
             } catch (err) {
                 console.error("Failed to load saved match:", err?.response?.data || err.message);
@@ -61,13 +61,17 @@ export default function MatchDetails() {
         if (!matchId) return;
 
         try {
-            const [stateRes, settingsRes] = await Promise.all([
+            const [stateRes, settingsRes, scoreRes] = await Promise.all([
                 getManualState(matchId).catch((err) => {
                     console.error("Failed to load state:", err);
                     return null;
                 }),
                 getManualSettings(matchId).catch((err) => {
                     console.error("Failed to load settings:", err);
+                    return null;
+                }),
+                getManualScore(matchId).catch((err) => {
+                    console.error("Failed to load score:", err);
                     return null;
                 }),
             ]);
@@ -79,6 +83,10 @@ export default function MatchDetails() {
 
             if (settingsRes?.data) {
                 setSettings((prev) => ({ ...prev, ...settingsRes.data }));
+            }
+
+            if (scoreRes?.data?.status !== undefined) {
+                setScoreStatus(scoreRes.data.status);
             }
         } catch (e) {
             console.error("Failed to fetch latest data:", e);
@@ -170,6 +178,11 @@ export default function MatchDetails() {
                                 console.log("Updated settings:", newSettings);
                                 return newSettings;
                             });
+                        }
+
+                        if (parsed.type === "SCORE_UPDATED" && parsed.payload) {
+                            console.log("Score update received via SSE:", parsed.payload);
+                            setScoreStatus(parsed.payload.status);
                         }
 
                         if (parsed.type === "STATE_UPDATED" && parsed.payload) {
@@ -281,10 +294,6 @@ export default function MatchDetails() {
 
     const { recentBalls, thisOver, bookmaker, sessions, evenOdd } = MOCK_DATA;
 
-    // Overlay the real team names from the saved-match API onto the mock
-    // match object, mapped onto the field names ScoreHeader reads
-    // (team1 / team2). Score, toss, and everything else stay mocked until
-    // there's a real backend source for them.
     const match = {
         ...MOCK_DATA.match,
         ...(savedMatch && {
@@ -302,6 +311,7 @@ export default function MatchDetails() {
                     onRefresh={fetchLatestData}
                     match={match}
                     settings={settings}
+                    scoreStatus={scoreStatus}
                     recentBalls={recentBalls}
                     thisOver={thisOver}
                 />
@@ -318,7 +328,6 @@ export default function MatchDetails() {
                     settings={settings}
                     onPlaceBet={handlePlaceBet}
                 />
-
 
                 <SettingsDebug settings={settings} />
             </div>
