@@ -18,7 +18,7 @@ function BallChip({ val }) {
 
     return (
         <span
-            className={`flex items-center justify-center shrink-0 grow-0 aspect-square w-6 h-6 sm:w-9 sm:h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 min-w-6 min-h-6 sm:min-w-9 sm:min-h-9 md:min-w-10 md:min-h-10 lg:min-w-11 lg:min-h-11 rounded-full border sm:border-2 text-[10px] sm:text-sm lg:text-base font-bold font-serif leading-none ${style}`}
+            className={`flex items-center justify-center shrink-0 grow-0 aspect-square w-6 h-6 sm:w-9 sm:h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 min-w-6 min-h-6 sm:min-w-9 sm:min-h-9 md:min-w-10 md:min-h-10 lg:min-w-11 lg:min-h-11 rounded-full border sm:border-2 text-[10px] sm:text-sm lg:text-base font-bold font-rajdhani leading-none ${style}`}
         >
             {val}
         </span>
