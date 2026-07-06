@@ -162,24 +162,35 @@ const getScore = asyncHandler(async (req, res) => {
 
 // POST /api/manual/score/update
 const updateScore = asyncHandler(async (req, res) => {
-    const { matchId, status } = req.body || {};
+    const { matchId, status, firstBattingTeam, secondBattingTeam, runs, wickets, overs } = req.body || {};
 
-    if (!matchId || typeof status !== 'string' || !status.trim()) {
-        throw new AppError('matchId and status are required', 400);
+    if (!matchId) throw new AppError('matchId is required', 400);
+
+    const hasAnyField =
+        status !== undefined || firstBattingTeam !== undefined || secondBattingTeam !== undefined ||
+        runs !== undefined || wickets !== undefined || overs !== undefined;
+
+    if (!hasAnyField) {
+        throw new AppError('At least one field is required', 400);
     }
 
-    const saved = await manualService.updateScore(matchId, status);
+    const saved = await manualService.updateScore(matchId, {
+        status, firstBattingTeam, secondBattingTeam, runs, wickets, overs,
+    });
 
-    // Broadcast via SSE
     sse.broadcast(matchId, {
         type: 'SCORE_UPDATED',
         payload: {
             matchId: saved.matchId,
             status: saved.status,
+            firstBattingTeam: saved.firstBattingTeam,
+            secondBattingTeam: saved.secondBattingTeam,
+            runs: saved.runs,
+            wickets: saved.wickets,
+            overs: saved.overs,
         },
     });
 
     res.status(200).json({ success: true, data: saved });
 });
-
 module.exports = { updateRunner, events, state, getSettings, updateSettings, getScore, updateScore };

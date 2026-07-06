@@ -79,6 +79,8 @@ export default function Controls({ teams = [], onAction }) {
   const updateLastScoreField = (field) => (val) =>
     setLastScore((prev) => ({ ...prev, [field]: val }));
 
+  
+
   const selectClasses =
     "border border-gray-400 rounded px-2 py-1.5 text-sm text-[#3a4a63] bg-[#eef1f3] cursor-pointer focus:outline-none focus:border-[#4a80a0] focus:ring-1 focus:ring-[#4a80a0] min-w-[140px]";
 

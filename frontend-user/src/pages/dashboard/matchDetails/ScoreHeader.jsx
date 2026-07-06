@@ -34,6 +34,13 @@ export default function ScoreHeader({
     scoreStatus,
     recentBalls,
     thisOver,
+    // New props for real score data
+    firstBattingTeam = "",
+    runs = 0,
+    wickets = 0,
+    overs = 0,
+    team1Score = "",
+    team2Score = "",
 }) {
     const ballsContainerRef = useRef(null);
     const prevBallsLength = useRef(0);
@@ -54,6 +61,55 @@ export default function ScoreHeader({
             prevBallsLength.current = recentBalls.length;
         }
     }, [recentBalls]);
+
+    // Format the score string: runs/wickets (overs)
+    const formatScore = (runs, wickets, overs) => {
+        const formattedOvers = Number(overs).toFixed(1);
+        return `${runs}/${wickets} (${formattedOvers})`;
+    };
+
+    // Check if a team is batting
+    const normalize = (s) => (s || "").trim().toLowerCase();
+    const isBatting = (team) =>
+        !!firstBattingTeam && !!team && normalize(firstBattingTeam) === normalize(team);
+
+    const isTeam1Batting = isBatting(match?.team1);
+    const isTeam2Batting = isBatting(match?.team2);
+
+    // Get the formatted score for display
+    const getFormattedScore = () => {
+        return formatScore(runs, wickets, overs);
+    };
+
+    // Get team display with or without score
+    const getTeamDisplay = (team, isBattingTeam) => {
+        if (isBattingTeam) {
+            return `${team} ${getFormattedScore()}`;
+        }
+        return team;
+    };
+
+    // Determine what to show in the middle badge
+    const getMiddleBadgeText = () => {
+        // Priority 1: Use scoreStatus if provided
+        if (scoreStatus) {
+            return scoreStatus;
+        }
+        // Priority 2: Use formatted score if a team is batting
+        if (firstBattingTeam) {
+            return getFormattedScore();
+        }
+        // Priority 3: Show BET OPEN/LOCKED/CLOSED
+        if (settings?.betLock) {
+            return "BET LOCKED";
+        }
+        if (settings?.marketStatus === "OPEN") {
+            return "BET OPEN";
+        }
+        return settings?.marketStatus || "";
+    };
+
+    const middleText = getMiddleBadgeText();
 
     return (
         <div className="w-full max-w-full overflow-hidden">
@@ -91,13 +147,13 @@ export default function ScoreHeader({
 
                     <div className="min-w-0 flex flex-col gap-1 sm:gap-2 lg:gap-2">
                         <p className="text-white text-xs sm:text-base md:text-lg lg:text-xl font-bold font-serif leading-tight py-1 sm:py-1.5 lg:py-2 truncate">
-                            {match.team1} {match.score}
+                            {isTeam1Batting ? getTeamDisplay(match?.team1, true) : match?.team1}
                         </p>
                         <p className="text-[#D6E4F5] text-[10px] sm:text-sm md:text-base lg:text-lg font-bold font-serif leading-tight py-1 sm:py-1.5 lg:py-2 truncate">
-                            {match.team2}
+                            {isTeam2Batting ? getTeamDisplay(match?.team2, true) : match?.team2}
                         </p>
                         <p className="text-[#90B4D4] text-[10px] sm:text-xs md:text-sm lg:text-base font-semibold font-serif leading-tight py-1 sm:py-1.5 lg:py-2 truncate">
-                            {match.toss}
+                            {match?.toss || "Toss pending"}
                         </p>
                     </div>
                 </div>
@@ -105,30 +161,17 @@ export default function ScoreHeader({
                 {/* Right - Bet Status / Live Score Status */}
                 <div className="bg-[#1E3A5F] flex items-center justify-center px-4 sm:px-6 lg:px-8 shrink-0 sm:min-w-[120px] lg:min-w-[160px]">
                     <div className="text-white text-[13px] sm:text-2xl md:text-3xl lg:text-4xl font-bold font-serif text-center leading-tight whitespace-nowrap">
-                        {scoreStatus ? (
-                            <>{scoreStatus}</>
-                        ) : settings.betLock ? (
-                            <>
-                                BET<br />
-                                LOCKED
-                            </>
-                        ) : (
-                            <>
-                                {settings.marketStatus === "OPEN" ? (
-                                    <>
-                                        BET<br />
-                                        OPEN
-                                    </>
-                                ) : (
-                                    <>{settings.marketStatus}</>
-                                )}
-                            </>
-                        )}
+                        {middleText.split(' ').map((word, i) => (
+                            <React.Fragment key={i}>
+                                {word}
+                                {i < middleText.split(' ').length - 1 && <br />}
+                            </React.Fragment>
+                        ))}
                     </div>
                 </div>
             </div>
 
-            {/* Bottom Section - single live ticker banner. */}
+            {/* Bottom Section - single live ticker banner */}
             <div className="bg-[#3A5F9A] px-3 sm:px-5 lg:px-6 py-2.5 sm:py-3 lg:py-4 mt-1.5 sm:mt-3 lg:mt-4 overflow-hidden">
                 <div
                     ref={ballsContainerRef}
@@ -139,29 +182,29 @@ export default function ScoreHeader({
                     }}
                 >
                     <span className="text-white text-base sm:text-xl font-bold shrink-0 grow-0">
-                        {thisOver.dot}
+                        {thisOver?.dot || "•"}
                     </span>
 
                     <span className="text-white text-[10px] sm:text-lg font-bold font-serif shrink-0 grow-0">
-                        {thisOver.runs} Runs
+                        {thisOver?.runs || 0} Runs
                     </span>
 
                     <span className="text-[#D6E4F5] shrink-0 grow-0">|</span>
 
                     <span className="text-white text-[10px] sm:text-lg font-bold font-serif shrink-0 grow-0">
-                        Over {thisOver.balls}
+                        Over {thisOver?.balls || "0.0"}
                     </span>
 
                     <span className="text-white shrink-0 grow-0">-</span>
 
-                    {recentBalls.map((b, i) => (
+                    {recentBalls?.map((b, i) => (
                         <BallChip key={i} val={b} />
                     ))}
 
                     <span className="text-white shrink-0 grow-0">-</span>
 
                     <span className="text-white text-[10px] sm:text-lg font-bold font-serif shrink-0 grow-0">
-                        {thisOver.extraRuns} Runs
+                        {thisOver?.extraRuns || 0} Runs
                     </span>
                 </div>
 

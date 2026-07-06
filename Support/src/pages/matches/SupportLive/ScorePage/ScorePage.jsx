@@ -10,6 +10,70 @@ import Controls from "./Controls";
 // Adjust the path below ("/manual/events") if your manual router is mounted under a different prefix.
 const API_BASE = apiClient.defaults.baseURL;
 
+// ---- Score-button label parsing -------------------------------------
+// Turns a ScoreButtons label into a scoring delta.
+// See assumptions in chat: N RUN, OUT, N + WIDE BALL / No Ball, etc.
+function parseButtonAction(label) {
+    const upper = (label || "").toUpperCase().trim();
+
+    // Non-scoring market controls
+    if (upper === "BET OPEN") return { marketStatus: "OPEN", statusLabel: "BET OPEN" };
+    if (upper === "BET CLOSED") return { marketStatus: "CLOSED", statusLabel: "BET CLOSED" };
+
+    // "NOT OUT" must be checked before generic OUT matching
+    if (upper === "NOT OUT") return { statusLabel: "NOT OUT" };
+
+    // Combo: "N + WIDE BALL" or "N + No Ball" or "N + OUT"
+    const comboMatch = upper.match(/^(\d+)\s*\+\s*(WIDE BALL|NO BALL|OUT)$/);
+    if (comboMatch) {
+        const n = parseInt(comboMatch[1], 10) || 0;
+        const kind = comboMatch[2];
+        if (kind === "OUT") {
+            return { runs: n, wickets: 1, advanceBall: true, statusLabel: label };
+        }
+        // wide/no ball extra: n scored runs + 1 for the extra itself, no legal ball bowled
+        return { runs: n + 1, advanceBall: false, statusLabel: label };
+    }
+
+    // "WIDE BALL + OUT"
+    if (upper === "WIDE BALL + OUT") {
+        return { runs: 1, wickets: 1, advanceBall: false, statusLabel: label };
+    }
+
+    // Plain "N RUN"
+    const runMatch = upper.match(/^(\d+)\s*RUN$/);
+    if (runMatch) {
+        return { runs: parseInt(runMatch[1], 10) || 0, advanceBall: true, statusLabel: label };
+    }
+
+    // Plain wide/no ball
+    if (upper === "WIDE BALL" || upper === "NO BALL") {
+        return { runs: 1, advanceBall: false, statusLabel: label };
+    }
+
+    // OUT on its own
+    if (upper === "OUT") {
+        return { wickets: 1, advanceBall: true, statusLabel: label };
+    }
+
+    // Everything else (breaks, checks, reviews, umpire calls, TIE, etc.)
+    // is a non-scoring status update only.
+    return { statusLabel: label };
+}
+
+// Advance overs by one legal ball: N.B -> N.(B+1), rolling over at 6 balls.
+function advanceOverByOneBall(overs) {
+    const value = Number(overs) || 0;
+    const wholeOvers = Math.floor(value);
+    // Round to avoid float artifacts like 1.2999999
+    let balls = Math.round((value - wholeOvers) * 10);
+    balls += 1;
+    if (balls >= 6) {
+        return wholeOvers + 1;
+    }
+    return Number(`${wholeOvers}.${balls}`);
+}
+
 export default function ScorePage() {
     const { matchId } = useParams();
 
@@ -17,6 +81,16 @@ export default function ScorePage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [selectedStatus, setSelectedStatus] = useState("");
+
+    // Betting-format score state (first/second batting team, runs, wickets, overs)
+    const [scoreData, setScoreData] = useState({
+        firstBattingTeam: "",
+        secondBattingTeam: "",
+        runs: 0,
+        wickets: 0,
+        overs: 0,
+    });
+    const [marketStatus, setMarketStatus] = useState("OPEN");
 
     const eventSourceRef = useRef(null);
 
@@ -34,25 +108,43 @@ export default function ScorePage() {
         }
     }, [matchId]);
 
-    // Fetch the current persisted score/status on load
+    // Fetch the current persisted score on load
     const fetchScore = useCallback(async () => {
         if (!matchId) return;
         try {
             const { data } = await apiClient.get(`/manual/score/${matchId}`);
-            if (data?.data?.status) {
-                setSelectedStatus(data.data.status);
+            if (data?.data) {
+                setScoreData((prev) => ({ ...prev, ...data.data }));
+                // Only set status if it's not a market status
+                if (data.data.status) {
+                    setSelectedStatus(data.data.status);
+                }
             }
         } catch (err) {
             console.error("Failed to fetch score:", err);
         }
     }, [matchId]);
 
+    // Fetch settings for marketStatus (OPEN / SUSPEND / CLOSED)
+    const fetchSettings = useCallback(async () => {
+        if (!matchId) return;
+        try {
+            const { data } = await apiClient.get(`/manual/settings/${matchId}`);
+            if (data?.data?.marketStatus) {
+                setMarketStatus(data.data.marketStatus);
+            }
+        } catch (err) {
+            console.error("Failed to fetch settings:", err);
+        }
+    }, [matchId]);
+
     useEffect(() => {
         fetchMatch();
         fetchScore();
-    }, [fetchMatch, fetchScore]);
+        fetchSettings();
+    }, [fetchMatch, fetchScore, fetchSettings]);
 
-    // Subscribe to SSE for live score/status updates
+    // Subscribe to SSE for live score/status/settings updates
     useEffect(() => {
         if (!matchId) return;
 
@@ -62,8 +154,18 @@ export default function ScorePage() {
         es.onmessage = (event) => {
             try {
                 const parsed = JSON.parse(event.data);
+
                 if (parsed.type === "SCORE_UPDATED" && parsed.payload?.matchId === matchId) {
-                    setSelectedStatus(parsed.payload.status);
+                    setScoreData((prev) => ({ ...prev, ...parsed.payload }));
+                    if (parsed.payload.status !== undefined) {
+                        setSelectedStatus(parsed.payload.status);
+                    }
+                }
+
+                if (parsed.type === "SETTINGS_UPDATED" && parsed.payload?.matchId === matchId) {
+                    if (parsed.payload.marketStatus) {
+                        setMarketStatus(parsed.payload.marketStatus);
+                    }
                 }
             } catch (err) {
                 console.error("Failed to parse SSE message:", err);
@@ -89,13 +191,105 @@ export default function ScorePage() {
         ]
         : [];
 
+    // Handles every ScoreButtons click: 0 RUN, 4 RUN, OUT, BET OPEN, breaks, etc.
     const handleStatusSelect = async (label) => {
-        setSelectedStatus(label); // optimistic update
-        try {
-            await apiClient.post(`/manual/score/update`, { matchId, status: label });
-        } catch (err) {
-            console.error("Failed to update score:", err);
+        const action = parseButtonAction(label);
+        
+        // Always update the selected status for display
+        setSelectedStatus(label);
+
+        // Market status buttons (BET OPEN / BET CLOSED) go through settings, not score
+        if (action.marketStatus) {
+            // Set the status label for BET OPEN/CLOSED
+            if (action.statusLabel) {
+                setSelectedStatus(action.statusLabel);
+            }
+            setMarketStatus(action.marketStatus); // optimistic
+            try {
+                await apiClient.post(`/manual/settings/update`, {
+                    matchId,
+                    marketStatus: action.marketStatus,
+                });
+                // Also persist the status label so it survives refresh
+                await apiClient.post(`/manual/score/update`, { 
+                    matchId, 
+                    status: action.statusLabel || label 
+                });
+            } catch (err) {
+                console.error("Failed to update market status:", err);
+            }
+            return;
         }
+
+        // Pure status label (breaks, checks, reviews) with no scoring change —
+        // just persist the label so it survives refresh/SSE for other clients.
+        if (action.runs === undefined && action.wickets === undefined) {
+            try {
+                await apiClient.post(`/manual/score/update`, { matchId, status: label });
+            } catch (err) {
+                console.error("Failed to update status:", err);
+            }
+            return;
+        }
+
+        // Scoring action: compute new totals and persist
+        setScoreData((prev) => {
+            const newRuns = prev.runs + (action.runs || 0);
+            const newWickets = prev.wickets + (action.wickets || 0);
+            const newOvers = action.advanceBall ? advanceOverByOneBall(prev.overs) : prev.overs;
+
+            const next = { ...prev, runs: newRuns, wickets: newWickets, overs: newOvers };
+
+            apiClient
+                .post(`/manual/score/update`, {
+                    matchId,
+                    status: label,
+                    runs: newRuns,
+                    wickets: newWickets,
+                    overs: newOvers,
+                })
+                .catch((err) => console.error("Failed to update score:", err));
+
+            return next;
+        });
+    };
+
+    const handleAction = async (action, payload) => {
+        try {
+            if (action === "firstInnBat") {
+                setScoreData((prev) => ({ ...prev, firstBattingTeam: payload.team })); // optimistic
+                await apiClient.post(`/manual/score/update`, { matchId, firstBattingTeam: payload.team });
+            } else if (action === "secondInnBat") {
+                setScoreData((prev) => ({ ...prev, secondBattingTeam: payload.team })); // optimistic
+                await apiClient.post(`/manual/score/update`, { matchId, secondBattingTeam: payload.team });
+            } else if (action === "updateLastScore") {
+                const overs = `${payload.over || 0}.${payload.ball || 0}`;
+                setScoreData((prev) => ({
+                    ...prev,
+                    runs: Number(payload.run) || 0,
+                    wickets: Number(payload.wicket) || 0,
+                    overs: Number(overs),
+                })); // optimistic
+                await apiClient.post(`/manual/score/update`, {
+                    matchId,
+                    runs: payload.run,
+                    wickets: payload.wicket,
+                    overs,
+                });
+            }
+        } catch (err) {
+            console.error("Failed to update:", err);
+        }
+    };
+
+    // Determine what to show in the middle badge
+    const getScoreText = () => {
+        // If we have a selected status, show it (including BET OPEN/CLOSED)
+        if (selectedStatus) {
+            return selectedStatus;
+        }
+        // Otherwise show match status or empty
+        return match?.status || "";
     };
 
     return (
@@ -116,7 +310,12 @@ export default function ScorePage() {
                             team2={team2}
                             team1Score={match?.team1Score || ""}
                             team2Score={match?.team2Score || ""}
-                            scoreText={selectedStatus || match?.status || ""}
+                            firstBattingTeam={scoreData.firstBattingTeam}
+                            runs={scoreData.runs}
+                            wickets={scoreData.wickets}
+                            overs={scoreData.overs}
+                            marketStatus={marketStatus}
+                            scoreText={getScoreText()}
                         />
                         <ScoreOdds runners={runners} />
 
@@ -125,8 +324,14 @@ export default function ScorePage() {
                             Match Score &amp; Status
                         </div>
 
+                        {/* Current control-button status, always visible regardless of ScoreHeader state */}
+                        <div className="bg-white border border-gray-200 border-t-0 px-4 py-2 text-center text-sm">
+                            <span className="text-[#5a6b85] font-semibold">Last Action:</span>{" "}
+                            <span className="text-[#c0392b] font-bold">{selectedStatus || "—"}</span>
+                        </div>
+
                         <ScoreButtons selected={selectedStatus} onSelect={handleStatusSelect} />
-                        <Controls teams={[team1, team2]} onAction={(action) => console.log("Control action:", action)} />
+                        <Controls teams={[team1, team2]} onAction={handleAction} />
                     </>
                 )}
             </div>

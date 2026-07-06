@@ -25,9 +25,15 @@ export default function MatchDetails() {
     const [scoreStatus, setScoreStatus] = useState("");
 
     // Dynamic match info (team names) pulled from the saved-match API.
-    // Everything else in MOCK_DATA.match (score, toss, badges, etc.) is left
-    // as-is until those fields have a real backend source too.
     const [savedMatch, setSavedMatch] = useState(null);
+
+    // Real score data from the API
+    const [scoreData, setScoreData] = useState({
+        firstBattingTeam: "",
+        runs: 0,
+        wickets: 0,
+        overs: 0,
+    });
 
     const [highlightedOdds, setHighlightedOdds] = useState({});
     const [loading, setLoading] = useState(true);
@@ -85,8 +91,17 @@ export default function MatchDetails() {
                 setSettings((prev) => ({ ...prev, ...settingsRes.data }));
             }
 
-            if (scoreRes?.data?.status !== undefined) {
-                setScoreStatus(scoreRes.data.status);
+            if (scoreRes?.data) {
+                // Update score data
+                setScoreData({
+                    firstBattingTeam: scoreRes.data.firstBattingTeam || "",
+                    runs: scoreRes.data.runs || 0,
+                    wickets: scoreRes.data.wickets || 0,
+                    overs: scoreRes.data.overs || 0,
+                });
+                if (scoreRes.data.status !== undefined) {
+                    setScoreStatus(scoreRes.data.status);
+                }
             }
         } catch (e) {
             console.error("Failed to fetch latest data:", e);
@@ -182,7 +197,17 @@ export default function MatchDetails() {
 
                         if (parsed.type === "SCORE_UPDATED" && parsed.payload) {
                             console.log("Score update received via SSE:", parsed.payload);
-                            setScoreStatus(parsed.payload.status);
+                            // Update score data from SSE
+                            setScoreData((prev) => ({
+                                ...prev,
+                                firstBattingTeam: parsed.payload.firstBattingTeam || prev.firstBattingTeam,
+                                runs: parsed.payload.runs !== undefined ? parsed.payload.runs : prev.runs,
+                                wickets: parsed.payload.wickets !== undefined ? parsed.payload.wickets : prev.wickets,
+                                overs: parsed.payload.overs !== undefined ? parsed.payload.overs : prev.overs,
+                            }));
+                            if (parsed.payload.status !== undefined) {
+                                setScoreStatus(parsed.payload.status);
+                            }
                         }
 
                         if (parsed.type === "STATE_UPDATED" && parsed.payload) {
@@ -195,6 +220,15 @@ export default function MatchDetails() {
                                     ...prev,
                                     ...parsed.payload.settings,
                                 }));
+                            }
+                            if (parsed.payload.score) {
+                                setScoreData((prev) => ({
+                                    ...prev,
+                                    ...parsed.payload.score,
+                                }));
+                                if (parsed.payload.score.status) {
+                                    setScoreStatus(parsed.payload.score.status);
+                                }
                             }
                         }
                     } catch (err) {
@@ -314,6 +348,11 @@ export default function MatchDetails() {
                     scoreStatus={scoreStatus}
                     recentBalls={recentBalls}
                     thisOver={thisOver}
+                    // Pass real score data
+                    firstBattingTeam={scoreData.firstBattingTeam}
+                    runs={scoreData.runs}
+                    wickets={scoreData.wickets}
+                    overs={scoreData.overs}
                 />
 
                 <OddsMarket

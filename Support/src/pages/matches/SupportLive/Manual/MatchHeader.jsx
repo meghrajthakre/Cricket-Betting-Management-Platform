@@ -1,7 +1,25 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { C, MATCH } from "./constants";
 
-export default function MatchHeader({ match }) {
+const MARKET_COLORS = {
+  OPEN: "bg-[#2f7a34]",
+  SUSPEND: "bg-[#c9861a]",
+  CLOSED: "bg-[#b3261e]",
+};
+
+const normalize = (s) => (s || "").trim().toLowerCase();
+
+export default function MatchHeader({ 
+    match,
+    team1 = "",
+    team2 = "",
+    firstBattingTeam = "",
+    runs = 0,
+    wickets = 0,
+    overs = 0,
+    marketStatus = "OPEN",
+    scoreText = "",
+}) {
     const navigate = useNavigate();
     const { matchId } = useParams();
 
@@ -9,10 +27,45 @@ export default function MatchHeader({ match }) {
         navigate(`/support/matches/${matchId}/play`);
     };
 
-    // Fall back to static constants for anything the saved-match API doesn't provide
-    // (Toss, live score, ball-by-ball) since that data likely comes from a different feed.
-    const homeTeam = match?.homeTeam || MATCH.homeTeam || "";
-    const awayTeam = match?.awayTeam || MATCH.awayTeam || "";
+    // Check if a team is batting
+    const isBatting = (team) =>
+        !!firstBattingTeam && !!team && normalize(firstBattingTeam) === normalize(team);
+
+    // Format the score string
+    const formatScore = (runs, wickets, overs) => {
+        const formattedOvers = Number(overs).toFixed(1);
+        return `${runs}/${wickets} (${formattedOvers})`;
+    };
+
+    const isTeam1Batting = isBatting(team1);
+    const isTeam2Batting = isBatting(team2);
+    const badgeColor = MARKET_COLORS[marketStatus] || MARKET_COLORS.OPEN;
+
+    // Get the formatted score
+    const getFormattedScore = () => {
+        return formatScore(runs, wickets, overs);
+    };
+
+    // Get team display with score
+    const getTeamDisplay = (team, isBattingTeam) => {
+        if (isBattingTeam) {
+            return `${team} ${getFormattedScore()}`;
+        }
+        return team;
+    };
+
+    // Get middle badge text
+    const getMiddleText = () => {
+        if (scoreText) {
+            return scoreText;
+        }
+        if (firstBattingTeam) {
+            return getFormattedScore();
+        }
+        return MATCH.centerScore || "";
+    };
+
+    const middleText = getMiddleText();
 
     return (
         <>
@@ -46,22 +99,31 @@ export default function MatchHeader({ match }) {
                     className="text-white text-sm font-semibold px-6 py-1.5 rounded-full"
                     style={{ background: C.matchBadge }}
                 >
-                    Match : {homeTeam} VS {awayTeam}
+                    Match : {team1} VS {team2}
                 </span>
             </div>
 
+            {/* Score strip - updated with new design */}
             <div className="grid grid-cols-3 border border-gray-300 rounded overflow-hidden mb-4 bg-white">
+                {/* Left team */}
                 <div className="py-2.5 pl-4 text-sm font-bold" style={{ color: C.notText }}>
-                    {homeTeam.toUpperCase()}
+                    {isTeam1Batting ? getTeamDisplay(team1, true) : team1.toUpperCase()}
                 </div>
-                <div
-                    className="py-2.5 text-xl font-bold text-white text-center"
-                    style={{ background: C.openBtn }}
-                >
-                    {MATCH.centerScore}
+
+                {/* Center status pill */}
+                <div className="flex items-center justify-center py-1.5">
+                    {middleText ? (
+                        <div className={`${badgeColor} text-white font-bold text-sm sm:text-base px-6 py-1.5 rounded-full text-center min-w-[120px] leading-tight`}>
+                            {middleText}
+                        </div>
+                    ) : (
+                        <div className="bg-[#2f7a34] rounded-full px-6 py-1.5 w-[120px] h-[34px]" />
+                    )}
                 </div>
+
+                {/* Right team */}
                 <div className="py-2.5 pr-4 text-sm font-bold text-right" style={{ color: C.notText }}>
-                    {awayTeam.toUpperCase()}
+                    {isTeam2Batting ? getTeamDisplay(team2, true) : team2.toUpperCase()}
                 </div>
             </div>
         </>

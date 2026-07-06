@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import MatchHeader from "./MatchHeader";
 import RunnerTable from "./RunnerTable";
@@ -8,6 +8,9 @@ import SessionManagement from "./SessionManagement";
 import { apiClient } from "../../../../services/api"; 
 import { C, MATCH } from "./constants";
 
+// Base URL used for the raw EventSource connection
+const API_BASE = apiClient.defaults.baseURL;
+
 export default function ManualPage() {
     const { matchId } = useParams();
     const [rateDiff, setRateDiff] = useState(1);
@@ -15,6 +18,18 @@ export default function ManualPage() {
     const [match, setMatch] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+
+    // Score state for the manual page
+    const [scoreData, setScoreData] = useState({
+        firstBattingTeam: "",
+        runs: 0,
+        wickets: 0,
+        overs: 0,
+    });
+    const [selectedStatus, setSelectedStatus] = useState("");
+    const [marketStatus, setMarketStatus] = useState("OPEN");
+
+    const eventSourceRef = useRef(null);
 
     const fetchMatch = useCallback(async () => {
         if (!matchId) return;
@@ -30,9 +45,105 @@ export default function ManualPage() {
         }
     }, [matchId]);
 
+    // Fetch the current persisted score on load
+    const fetchScore = useCallback(async () => {
+        if (!matchId) return;
+        try {
+            const { data } = await apiClient.get(`/manual/score/${matchId}`);
+            if (data?.data) {
+                setScoreData((prev) => ({ ...prev, ...data.data }));
+                if (data.data.status) {
+                    setSelectedStatus(data.data.status);
+                }
+            }
+        } catch (err) {
+            console.error("Failed to fetch score:", err);
+        }
+    }, [matchId]);
+
+    // Fetch settings for marketStatus
+    const fetchSettings = useCallback(async () => {
+        if (!matchId) return;
+        try {
+            const { data } = await apiClient.get(`/manual/settings/${matchId}`);
+            if (data?.data?.marketStatus) {
+                setMarketStatus(data.data.marketStatus);
+            }
+        } catch (err) {
+            console.error("Failed to fetch settings:", err);
+        }
+    }, [matchId]);
+
     useEffect(() => {
         fetchMatch();
-    }, [fetchMatch]);
+        fetchScore();
+        fetchSettings();
+    }, [fetchMatch, fetchScore, fetchSettings]);
+
+    // Subscribe to SSE for live score/status/settings updates
+    useEffect(() => {
+        if (!matchId) return;
+
+        const es = new EventSource(`${API_BASE}/manual/events?matchId=${matchId}`);
+        eventSourceRef.current = es;
+
+        es.onmessage = (event) => {
+            try {
+                const parsed = JSON.parse(event.data);
+
+                if (parsed.type === "SCORE_UPDATED" && parsed.payload?.matchId === matchId) {
+                    setScoreData((prev) => ({ ...prev, ...parsed.payload }));
+                    if (parsed.payload.status !== undefined) {
+                        setSelectedStatus(parsed.payload.status);
+                    }
+                }
+
+                if (parsed.type === "SETTINGS_UPDATED" && parsed.payload?.matchId === matchId) {
+                    if (parsed.payload.marketStatus) {
+                        setMarketStatus(parsed.payload.marketStatus);
+                    }
+                }
+
+                // Also handle match updates if needed
+                if (parsed.type === "MATCH_UPDATED" && parsed.payload?.matchId === matchId) {
+                    setMatch((prev) => ({ ...prev, ...parsed.payload }));
+                }
+            } catch (err) {
+                console.error("Failed to parse SSE message:", err);
+            }
+        };
+
+        es.onerror = (err) => {
+            console.error("SSE connection error:", err);
+            // Optionally attempt to reconnect after a delay
+            setTimeout(() => {
+                if (eventSourceRef.current?.readyState === EventSource.CLOSED) {
+                    eventSourceRef.current = new EventSource(`${API_BASE}/manual/events?matchId=${matchId}`);
+                }
+            }, 3000);
+        };
+
+        return () => {
+            if (eventSourceRef.current) {
+                eventSourceRef.current.close();
+                eventSourceRef.current = null;
+            }
+        };
+    }, [matchId]);
+
+    const team1 = match?.homeTeam || "";
+    const team2 = match?.awayTeam || "";
+
+    // Determine what to show in the middle badge
+    const getScoreText = () => {
+        if (selectedStatus) {
+            return selectedStatus;
+        }
+        if (scoreData.firstBattingTeam) {
+            return `${scoreData.runs}/${scoreData.wickets} (${Number(scoreData.overs).toFixed(1)})`;
+        }
+        return match?.status || "";
+    };
 
     return (
         <div className="min-h-screen bg-gray-100 font-sans text-sm">
@@ -48,7 +159,17 @@ export default function ManualPage() {
 
                     {!loading && !error && (
                         <>
-                            <MatchHeader match={match} />
+                            <MatchHeader 
+                                match={match}
+                                team1={team1}
+                                team2={team2}
+                                firstBattingTeam={scoreData.firstBattingTeam}
+                                runs={scoreData.runs}
+                                wickets={scoreData.wickets}
+                                overs={scoreData.overs}
+                                marketStatus={marketStatus}
+                                scoreText={getScoreText()}
+                            />
                             <RunnerTable rateDiff={rateDiff} match={match} />
                             <SessionTable match={match} />
                             <Controls rateDiff={rateDiff} setRateDiff={setRateDiff} />

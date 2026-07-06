@@ -109,16 +109,25 @@ async function getScore(matchId) {
     return score;
 }
 
-// Upsert the score/status for a match
-async function updateScore(matchId, status) {
+// Upsert the score/status for a match.
+// `updates` can include any subset of: status, firstBattingTeam, secondBattingTeam, runs, overs
+async function updateScore(matchId, updates) {
+    const setFields = {};
+
+    if (updates.status !== undefined) setFields.status = updates.status;
+    if (updates.firstBattingTeam !== undefined) setFields.firstBattingTeam = updates.firstBattingTeam;
+    if (updates.secondBattingTeam !== undefined) setFields.secondBattingTeam = updates.secondBattingTeam;
+    if (updates.runs !== undefined) setFields.runs = Number(updates.runs) || 0;
+    if (updates.wickets !== undefined) setFields.wickets = Number(updates.wickets) || 0;
+    if (updates.overs !== undefined) setFields.overs = Number(updates.overs) || 0;
+
     const doc = await ManualScore.findOneAndUpdate(
         { matchId },
-        { $set: { status } },
+        { $set: setFields },
         { upsert: true, new: true, setDefaultsOnInsert: true }
     ).lean();
     return doc;
 }
-
 module.exports = {
     saveRunner,
     getState,
