@@ -5,6 +5,7 @@ import ScoreOdds from "./ScoreOdds";
 import { apiClient } from "../../../../services/api";
 import ScoreButtons from "./ScoreButtons";
 import Controls from "./Controls";
+import SlidingBalls from "./SlidingBalls";
 
 // Base URL used for the raw EventSource connection (apiClient's baseURL, e.g. "https://api.example.com/api")
 // Adjust the path below ("/manual/events") if your manual router is mounted under a different prefix.
@@ -293,7 +294,7 @@ export default function ScorePage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#f0f0f0] flex justify-center py-6 px-3">
+        <div className="min-h-screen bg-[#f0f0f0] flex justify-center py-12 px-3">
             <div className="w-full max-w-3xl">
                 {loading && (
                     <div className="text-center text-gray-400 py-10">Loading match...</div>
@@ -305,6 +306,7 @@ export default function ScorePage() {
 
                 {!loading && !error && match && (
                     <>
+                        <SlidingBalls balls={scoreData.balls || []} />
                         <ScoreHeader
                             team1={team1}
                             team2={team2}
