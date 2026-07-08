@@ -33,12 +33,12 @@ function parseButtonAction(label) {
             return { runs: n, wickets: 1, advanceBall: true, statusLabel: label };
         }
         // wide/no ball extra: n scored runs + 1 for the extra itself, no legal ball bowled
-        return { runs: n + 1, advanceBall: false, statusLabel: label };
+        return { runs: n + 1, advanceBall: false, statusLabel: label, isExtra: true };
     }
 
     // "WIDE BALL + OUT"
     if (upper === "WIDE BALL + OUT") {
-        return { runs: 1, wickets: 1, advanceBall: false, statusLabel: label };
+        return { runs: 1, wickets: 1, advanceBall: false, statusLabel: label, isExtra: true };
     }
 
     // Plain "N RUN"
@@ -49,7 +49,7 @@ function parseButtonAction(label) {
 
     // Plain wide/no ball
     if (upper === "WIDE BALL" || upper === "NO BALL") {
-        return { runs: 1, advanceBall: false, statusLabel: label };
+        return { runs: 1, advanceBall: false, statusLabel: label, isExtra: true };
     }
 
     // OUT on its own
@@ -83,13 +83,14 @@ export default function ScorePage() {
     const [error, setError] = useState("");
     const [selectedStatus, setSelectedStatus] = useState("");
 
-    // Betting-format score state (first/second batting team, runs, wickets, overs)
+    // Betting-format score state (first/second batting team, runs, wickets, overs, ball-by-ball history)
     const [scoreData, setScoreData] = useState({
         firstBattingTeam: "",
         secondBattingTeam: "",
         runs: 0,
         wickets: 0,
         overs: 0,
+        balls: [],
     });
     const [marketStatus, setMarketStatus] = useState("OPEN");
 
@@ -115,7 +116,11 @@ export default function ScorePage() {
         try {
             const { data } = await apiClient.get(`/manual/score/${matchId}`);
             if (data?.data) {
-                setScoreData((prev) => ({ ...prev, ...data.data }));
+                setScoreData((prev) => ({
+                    ...prev,
+                    ...data.data,
+                    balls: Array.isArray(data.data.balls) ? data.data.balls : prev.balls,
+                }));
                 // Only set status if it's not a market status
                 if (data.data.status) {
                     setSelectedStatus(data.data.status);
@@ -157,7 +162,11 @@ export default function ScorePage() {
                 const parsed = JSON.parse(event.data);
 
                 if (parsed.type === "SCORE_UPDATED" && parsed.payload?.matchId === matchId) {
-                    setScoreData((prev) => ({ ...prev, ...parsed.payload }));
+                    setScoreData((prev) => ({
+                        ...prev,
+                        ...parsed.payload,
+                        balls: Array.isArray(parsed.payload.balls) ? parsed.payload.balls : prev.balls,
+                    }));
                     if (parsed.payload.status !== undefined) {
                         setSelectedStatus(parsed.payload.status);
                     }
@@ -195,7 +204,7 @@ export default function ScorePage() {
     // Handles every ScoreButtons click: 0 RUN, 4 RUN, OUT, BET OPEN, breaks, etc.
     const handleStatusSelect = async (label) => {
         const action = parseButtonAction(label);
-        
+
         // Always update the selected status for display
         setSelectedStatus(label);
 
@@ -212,9 +221,9 @@ export default function ScorePage() {
                     marketStatus: action.marketStatus,
                 });
                 // Also persist the status label so it survives refresh
-                await apiClient.post(`/manual/score/update`, { 
-                    matchId, 
-                    status: action.statusLabel || label 
+                await apiClient.post(`/manual/score/update`, {
+                    matchId,
+                    status: action.statusLabel || label,
                 });
             } catch (err) {
                 console.error("Failed to update market status:", err);
@@ -233,13 +242,29 @@ export default function ScorePage() {
             return;
         }
 
-        // Scoring action: compute new totals and persist
+        // Scoring action: compute new totals, append the real ball, and persist
         setScoreData((prev) => {
             const newRuns = prev.runs + (action.runs || 0);
             const newWickets = prev.wickets + (action.wickets || 0);
             const newOvers = action.advanceBall ? advanceOverByOneBall(prev.overs) : prev.overs;
 
-            const next = { ...prev, runs: newRuns, wickets: newWickets, overs: newOvers };
+            // Build the ball entry that actually happened, from real button data
+            const newBall = {
+                over: Math.floor(prev.overs) || 0,
+                label,
+                runs: action.runs || 0,
+                isWicket: !!action.wickets,
+                isExtra: !!action.isExtra,
+            };
+            const newBalls = [...(prev.balls || []), newBall];
+
+            const next = {
+                ...prev,
+                runs: newRuns,
+                wickets: newWickets,
+                overs: newOvers,
+                balls: newBalls,
+            };
 
             apiClient
                 .post(`/manual/score/update`, {
@@ -248,6 +273,7 @@ export default function ScorePage() {
                     runs: newRuns,
                     wickets: newWickets,
                     overs: newOvers,
+                    balls: newBalls,
                 })
                 .catch((err) => console.error("Failed to update score:", err));
 
@@ -319,19 +345,6 @@ export default function ScorePage() {
                             marketStatus={marketStatus}
                             scoreText={getScoreText()}
                         />
-                        <ScoreOdds runners={runners} />
-
-                        {/* Footer bar */}
-                        <div className="mt-3 bg-[#4f6a9c] text-white font-bold text-center text-sm sm:text-base py-3 rounded-sm">
-                            Match Score &amp; Status
-                        </div>
-
-                        {/* Current control-button status, always visible regardless of ScoreHeader state */}
-                        <div className="bg-white border border-gray-200 border-t-0 px-4 py-2 text-center text-sm">
-                            <span className="text-[#5a6b85] font-semibold">Last Action:</span>{" "}
-                            <span className="text-[#c0392b] font-bold">{selectedStatus || "—"}</span>
-                        </div>
-
                         <ScoreButtons selected={selectedStatus} onSelect={handleStatusSelect} />
                         <Controls teams={[team1, team2]} onAction={handleAction} />
                     </>

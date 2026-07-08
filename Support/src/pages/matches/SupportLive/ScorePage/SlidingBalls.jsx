@@ -1,4 +1,16 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
+
+// Short display label + full label (used as tooltip)
+function getShortLabel(ball) {
+    if (ball.isWicket) return "W";
+    if (ball.isExtra) {
+        const upper = (ball.label || "").toUpperCase();
+        if (upper.includes("WIDE")) return "Wd";
+        if (upper.includes("NO BALL") || upper.includes("NB")) return "Nb";
+        return "Ex";
+    }
+    return String(ball.runs ?? 0);
+}
 
 // Ball chip component for individual balls
 function BallChip({ ball }) {
@@ -15,64 +27,21 @@ function BallChip({ ball }) {
             className={`flex items-center justify-center shrink-0 w-8 h-8 rounded-full border-2 text-xs font-bold ${getStyle()}`}
             title={ball.label}
         >
-            {ball.label}
+            {getShortLabel(ball)}
         </span>
     );
 }
 
-// Generate dummy ball data
-const generateDummyBalls = () => {
-    const ballLabels = ['0', '1', '2', '3', '4', '6', 'W', 'WB', 'NB'];
-    const dummyBalls = [];
-    
-    // Generate 25 overs of dummy data
-    for (let over = 0; over < 25; over++) {
-        // Each over has 6 balls (some overs might have extras)
-        const ballsInOver = Math.random() > 0.3 ? 6 : 6 + Math.floor(Math.random() * 3);
-        
-        for (let ball = 0; ball < ballsInOver; ball++) {
-            const label = ballLabels[Math.floor(Math.random() * ballLabels.length)];
-            const isWicket = label === 'W';
-            const isExtra = label === 'WB' || label === 'NB';
-            let runs = 0;
-            
-            if (label === 'W') runs = 0;
-            else if (label === 'WB' || label === 'NB') runs = 1;
-            else runs = parseInt(label) || 0;
-            
-            dummyBalls.push({
-                over: over,
-                label: label,
-                runs: runs,
-                isWicket: isWicket,
-                isExtra: isExtra,
-            });
-        }
-    }
-    
-    return dummyBalls;
-};
-
-// Sliding balls component with dummy data
-export default function SlidingBalls({ balls: propBalls = [], useDummyData = true }) {
+// Sliding balls component — driven purely by real data passed in via props
+export default function SlidingBalls({ balls = [] }) {
     const containerRef = useRef(null);
     const prevLength = useRef(0);
-    const [balls, setBalls] = useState([]);
 
-    // Initialize with dummy data if no props provided
-    useEffect(() => {
-        if (useDummyData && propBalls.length === 0) {
-            setBalls(generateDummyBalls());
-        } else {
-            setBalls(propBalls);
-        }
-    }, [propBalls, useDummyData]);
-
-    // Auto-scroll to show latest balls
+    // Auto-scroll to show latest balls whenever new balls arrive
     useEffect(() => {
         if (containerRef.current && balls.length > 0) {
             const container = containerRef.current;
-            
+
             if (balls.length > prevLength.current) {
                 requestAnimationFrame(() => {
                     container.scrollTo({
@@ -81,7 +50,7 @@ export default function SlidingBalls({ balls: propBalls = [], useDummyData = tru
                     });
                 });
             }
-            
+
             prevLength.current = balls.length;
         }
     }, [balls]);
