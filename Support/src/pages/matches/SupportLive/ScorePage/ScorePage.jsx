@@ -11,6 +11,9 @@ import SlidingBalls from "./SlidingBalls";
 // Adjust the path below ("/manual/events") if your manual router is mounted under a different prefix.
 const API_BASE = apiClient.defaults.baseURL;
 
+// Only the last N balls are kept in history / persisted.
+const MAX_BALLS = 15;
+
 // ---- Score-button label parsing -------------------------------------
 // Turns a ScoreButtons label into a scoring delta.
 // See assumptions in chat: N RUN, OUT, N + WIDE BALL / No Ball, etc.
@@ -21,8 +24,12 @@ function parseButtonAction(label) {
     if (upper === "BET OPEN") return { marketStatus: "OPEN", statusLabel: "BET OPEN" };
     if (upper === "BET CLOSED") return { marketStatus: "CLOSED", statusLabel: "BET CLOSED" };
 
-    // "NOT OUT" must be checked before generic OUT matching
-    if (upper === "NOT OUT") return { statusLabel: "NOT OUT" };
+    // Undo last scoring ball
+    if (upper === "SCORE BACK") return { isUndo: true, statusLabel: label };
+
+    // "NOT OUT" - if the previous ball was a wicket pending review (e.g. THIRD UMPIRE),
+    // this reverses that wicket. Checked before generic OUT matching.
+    if (upper === "NOT OUT") return { statusLabel: "NOT OUT", isNotOutReview: true };
 
     // Combo: "N + WIDE BALL" or "N + No Ball" or "N + OUT"
     const comboMatch = upper.match(/^(\d+)\s*\+\s*(WIDE BALL|NO BALL|OUT)$/);
@@ -75,6 +82,19 @@ function advanceOverByOneBall(overs) {
     return Number(`${wholeOvers}.${balls}`);
 }
 
+// Inverse of advanceOverByOneBall — used by SCORE BACK to undo a legal ball.
+function reverseOverByOneBall(overs) {
+    const value = Number(overs) || 0;
+    const wholeOvers = Math.floor(value);
+    let balls = Math.round((value - wholeOvers) * 10);
+    balls -= 1;
+    if (balls < 0) {
+        // Was at X.0 (start of an over) — step back into the previous over's 5th ball.
+        return Number(`${Math.max(0, wholeOvers - 1)}.5`);
+    }
+    return Number(`${wholeOvers}.${balls}`);
+}
+
 export default function ScorePage() {
     const { matchId } = useParams();
 
@@ -119,7 +139,9 @@ export default function ScorePage() {
                 setScoreData((prev) => ({
                     ...prev,
                     ...data.data,
-                    balls: Array.isArray(data.data.balls) ? data.data.balls : prev.balls,
+                    balls: Array.isArray(data.data.balls)
+                        ? data.data.balls.slice(-MAX_BALLS)
+                        : prev.balls,
                 }));
                 // Only set status if it's not a market status
                 if (data.data.status) {
@@ -165,7 +187,9 @@ export default function ScorePage() {
                     setScoreData((prev) => ({
                         ...prev,
                         ...parsed.payload,
-                        balls: Array.isArray(parsed.payload.balls) ? parsed.payload.balls : prev.balls,
+                        balls: Array.isArray(parsed.payload.balls)
+                            ? parsed.payload.balls.slice(-MAX_BALLS)
+                            : prev.balls,
                     }));
                     if (parsed.payload.status !== undefined) {
                         setSelectedStatus(parsed.payload.status);
@@ -210,7 +234,6 @@ export default function ScorePage() {
 
         // Market status buttons (BET OPEN / BET CLOSED) go through settings, not score
         if (action.marketStatus) {
-            // Set the status label for BET OPEN/CLOSED
             if (action.statusLabel) {
                 setSelectedStatus(action.statusLabel);
             }
@@ -220,7 +243,6 @@ export default function ScorePage() {
                     matchId,
                     marketStatus: action.marketStatus,
                 });
-                // Also persist the status label so it survives refresh
                 await apiClient.post(`/manual/score/update`, {
                     matchId,
                     status: action.statusLabel || label,
@@ -228,6 +250,80 @@ export default function ScorePage() {
             } catch (err) {
                 console.error("Failed to update market status:", err);
             }
+            return;
+        }
+
+        // SCORE BACK — undo the most recent scoring ball (runs/wickets/overs + history)
+        if (action.isUndo) {
+            setScoreData((prev) => {
+                const balls = prev.balls || [];
+                if (balls.length === 0) {
+                    return prev; // nothing to undo
+                }
+                const lastBall = balls[balls.length - 1];
+                const newBalls = balls.slice(0, -1);
+                const newRuns = Math.max(0, prev.runs - (lastBall.runs || 0));
+                const newWickets = Math.max(0, prev.wickets - (lastBall.isWicket ? 1 : 0));
+                const newOvers = lastBall.advanceBall
+                    ? reverseOverByOneBall(prev.overs)
+                    : prev.overs;
+
+                const next = {
+                    ...prev,
+                    runs: newRuns,
+                    wickets: newWickets,
+                    overs: newOvers,
+                    balls: newBalls,
+                };
+
+                apiClient
+                    .post(`/manual/score/update`, {
+                        matchId,
+                        status: label,
+                        runs: newRuns,
+                        wickets: newWickets,
+                        overs: newOvers,
+                        balls: newBalls,
+                    })
+                    .catch((err) => console.error("Failed to undo score:", err));
+
+                return next;
+            });
+            return;
+        }
+
+        // NOT OUT — if the last ball recorded was a wicket (e.g. under THIRD UMPIRE review),
+        // reverse just the wicket. The ball itself already happened, so runs/overs stay put.
+        if (action.isNotOutReview) {
+            setScoreData((prev) => {
+                const balls = prev.balls || [];
+                const lastBall = balls[balls.length - 1];
+
+                if (!lastBall || !lastBall.isWicket) {
+                    // No pending wicket to reverse — treat as a plain status update.
+                    apiClient
+                        .post(`/manual/score/update`, { matchId, status: label })
+                        .catch((err) => console.error("Failed to update status:", err));
+                    return prev;
+                }
+
+                const updatedBall = { ...lastBall, isWicket: false, label: "NOT OUT" };
+                const newBalls = [...balls.slice(0, -1), updatedBall];
+                const newWickets = Math.max(0, prev.wickets - 1);
+
+                const next = { ...prev, wickets: newWickets, balls: newBalls };
+
+                apiClient
+                    .post(`/manual/score/update`, {
+                        matchId,
+                        status: label,
+                        wickets: newWickets,
+                        balls: newBalls,
+                    })
+                    .catch((err) => console.error("Failed to reverse wicket:", err));
+
+                return next;
+            });
             return;
         }
 
@@ -248,15 +344,17 @@ export default function ScorePage() {
             const newWickets = prev.wickets + (action.wickets || 0);
             const newOvers = action.advanceBall ? advanceOverByOneBall(prev.overs) : prev.overs;
 
-            // Build the ball entry that actually happened, from real button data
+            // Build the ball entry that actually happened, from real button data.
+            // advanceBall is stored so SCORE BACK can correctly reverse the over count.
             const newBall = {
                 over: Math.floor(prev.overs) || 0,
                 label,
                 runs: action.runs || 0,
                 isWicket: !!action.wickets,
                 isExtra: !!action.isExtra,
+                advanceBall: !!action.advanceBall,
             };
-            const newBalls = [...(prev.balls || []), newBall];
+            const newBalls = [...(prev.balls || []), newBall].slice(-MAX_BALLS);
 
             const next = {
                 ...prev,
@@ -311,11 +409,9 @@ export default function ScorePage() {
 
     // Determine what to show in the middle badge
     const getScoreText = () => {
-        // If we have a selected status, show it (including BET OPEN/CLOSED)
         if (selectedStatus) {
             return selectedStatus;
         }
-        // Otherwise show match status or empty
         return match?.status || "";
     };
 

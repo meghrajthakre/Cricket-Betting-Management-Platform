@@ -55,8 +55,8 @@ export default function SlidingBalls({ balls = [] }) {
         }
     }, [balls]);
 
-    // Get last 30 balls for display
-    const displayBalls = balls.filter(ball => ball && ball.label).slice(-30);
+    // Get last 15 balls for display
+    const displayBalls = balls.filter(ball => ball && ball.label).slice(-15);
 
     return (
         <div className="w-full max-w-lg mx-auto px-4">
