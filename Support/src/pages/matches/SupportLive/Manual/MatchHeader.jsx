@@ -1,5 +1,6 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { C, MATCH } from "./constants";
+import SlidingBalls from "../../../../constants/SlidingBalls";
 
 const MARKET_COLORS = {
   OPEN: "bg-[#2f7a34]",
@@ -19,6 +20,7 @@ export default function MatchHeader({
     overs = 0,
     marketStatus = "OPEN",
     scoreText = "",
+    balls = [],
 }) {
     const navigate = useNavigate();
     const { matchId } = useParams();
@@ -90,9 +92,8 @@ export default function MatchHeader({
 
             <div className="text-center text-gray-500 text-sm mb-2">{MATCH.Toss}</div>
 
-            <div className="flex justify-center gap-4 mb-3 text-gray-600 text-sm">
-                {MATCH.balls.map((b, i) => <span key={i}>{b}</span>)}
-            </div>
+            {/* Real ball-by-ball history, replaces the old static MATCH.balls row */}
+            <SlidingBalls balls={balls} />
 
             <div className="flex justify-center mb-3">
                 <span

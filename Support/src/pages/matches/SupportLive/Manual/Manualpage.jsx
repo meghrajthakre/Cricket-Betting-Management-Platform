@@ -11,6 +11,9 @@ import { C, MATCH } from "./constants";
 // Base URL used for the raw EventSource connection
 const API_BASE = apiClient.defaults.baseURL;
 
+// Only the last N balls are kept in history / displayed.
+const MAX_BALLS = 10;
+
 export default function ManualPage() {
     const { matchId } = useParams();
     const [rateDiff, setRateDiff] = useState(1);
@@ -25,6 +28,7 @@ export default function ManualPage() {
         runs: 0,
         wickets: 0,
         overs: 0,
+        balls: [],
     });
     const [selectedStatus, setSelectedStatus] = useState("");
     const [marketStatus, setMarketStatus] = useState("OPEN");
@@ -51,7 +55,13 @@ export default function ManualPage() {
         try {
             const { data } = await apiClient.get(`/manual/score/${matchId}`);
             if (data?.data) {
-                setScoreData((prev) => ({ ...prev, ...data.data }));
+                setScoreData((prev) => ({
+                    ...prev,
+                    ...data.data,
+                    balls: Array.isArray(data.data.balls)
+                        ? data.data.balls.slice(-MAX_BALLS)
+                        : prev.balls,
+                }));
                 if (data.data.status) {
                     setSelectedStatus(data.data.status);
                 }
@@ -92,7 +102,13 @@ export default function ManualPage() {
                 const parsed = JSON.parse(event.data);
 
                 if (parsed.type === "SCORE_UPDATED" && parsed.payload?.matchId === matchId) {
-                    setScoreData((prev) => ({ ...prev, ...parsed.payload }));
+                    setScoreData((prev) => ({
+                        ...prev,
+                        ...parsed.payload,
+                        balls: Array.isArray(parsed.payload.balls)
+                            ? parsed.payload.balls.slice(-MAX_BALLS)
+                            : prev.balls,
+                    }));
                     if (parsed.payload.status !== undefined) {
                         setSelectedStatus(parsed.payload.status);
                     }
@@ -159,6 +175,7 @@ export default function ManualPage() {
 
                     {!loading && !error && (
                         <>
+
                             <MatchHeader 
                                 match={match}
                                 team1={team1}
@@ -169,6 +186,7 @@ export default function ManualPage() {
                                 overs={scoreData.overs}
                                 marketStatus={marketStatus}
                                 scoreText={getScoreText()}
+                                balls={scoreData.balls || []}
                             />
                             <RunnerTable rateDiff={rateDiff} match={match} />
                             <SessionTable match={match} />
