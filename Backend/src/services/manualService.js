@@ -110,16 +110,23 @@ async function getScore(matchId) {
 }
 
 // Upsert the score/status for a match.
-// `updates` can include any subset of: status, firstBattingTeam, secondBattingTeam, runs, overs
+// `updates` can include any subset of: status, firstBattingTeam, secondBattingTeam,
+// currentInnings, runs, wickets, overs, balls, firstInnScore1, firstInnScore2, trailRun, leadRun
 async function updateScore(matchId, updates) {
     const setFields = {};
 
     if (updates.status !== undefined) setFields.status = updates.status;
     if (updates.firstBattingTeam !== undefined) setFields.firstBattingTeam = updates.firstBattingTeam;
     if (updates.secondBattingTeam !== undefined) setFields.secondBattingTeam = updates.secondBattingTeam;
+    if (updates.currentInnings !== undefined) setFields.currentInnings = Number(updates.currentInnings) || 1;
     if (updates.runs !== undefined) setFields.runs = Number(updates.runs) || 0;
     if (updates.wickets !== undefined) setFields.wickets = Number(updates.wickets) || 0;
     if (updates.overs !== undefined) setFields.overs = Number(updates.overs) || 0;
+    if (updates.balls !== undefined) setFields.balls = Array.isArray(updates.balls) ? updates.balls : [];
+    if (updates.firstInnScore1 !== undefined) setFields.firstInnScore1 = updates.firstInnScore1;
+    if (updates.firstInnScore2 !== undefined) setFields.firstInnScore2 = updates.firstInnScore2;
+    if (updates.trailRun !== undefined) setFields.trailRun = updates.trailRun;
+    if (updates.leadRun !== undefined) setFields.leadRun = updates.leadRun;
 
     const doc = await ManualScore.findOneAndUpdate(
         { matchId },
@@ -128,6 +135,7 @@ async function updateScore(matchId, updates) {
     ).lean();
     return doc;
 }
+
 module.exports = {
     saveRunner,
     getState,

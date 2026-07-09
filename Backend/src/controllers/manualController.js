@@ -162,20 +162,47 @@ const getScore = asyncHandler(async (req, res) => {
 
 // POST /api/manual/score/update
 const updateScore = asyncHandler(async (req, res) => {
-    const { matchId, status, firstBattingTeam, secondBattingTeam, runs, wickets, overs } = req.body || {};
+    const {
+        matchId,
+        status,
+        firstBattingTeam,
+        secondBattingTeam,
+        currentInnings,
+        runs,
+        wickets,
+        overs,
+        balls,
+        firstInnScore1,
+        firstInnScore2,
+        trailRun,
+        leadRun,
+    } = req.body || {};
 
     if (!matchId) throw new AppError('matchId is required', 400);
 
     const hasAnyField =
         status !== undefined || firstBattingTeam !== undefined || secondBattingTeam !== undefined ||
-        runs !== undefined || wickets !== undefined || overs !== undefined;
+        currentInnings !== undefined || runs !== undefined || wickets !== undefined ||
+        overs !== undefined || balls !== undefined || firstInnScore1 !== undefined ||
+        firstInnScore2 !== undefined || trailRun !== undefined || leadRun !== undefined;
 
     if (!hasAnyField) {
         throw new AppError('At least one field is required', 400);
     }
 
     const saved = await manualService.updateScore(matchId, {
-        status, firstBattingTeam, secondBattingTeam, runs, wickets, overs,
+        status,
+        firstBattingTeam,
+        secondBattingTeam,
+        currentInnings,
+        runs,
+        wickets,
+        overs,
+        balls,
+        firstInnScore1,
+        firstInnScore2,
+        trailRun,
+        leadRun,
     });
 
     sse.broadcast(matchId, {
@@ -185,9 +212,15 @@ const updateScore = asyncHandler(async (req, res) => {
             status: saved.status,
             firstBattingTeam: saved.firstBattingTeam,
             secondBattingTeam: saved.secondBattingTeam,
+            currentInnings: saved.currentInnings,
             runs: saved.runs,
             wickets: saved.wickets,
             overs: saved.overs,
+            balls: saved.balls,
+            firstInnScore1: saved.firstInnScore1,
+            firstInnScore2: saved.firstInnScore2,
+            trailRun: saved.trailRun,
+            leadRun: saved.leadRun,
         },
     });
 
