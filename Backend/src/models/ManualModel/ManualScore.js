@@ -21,8 +21,18 @@ const manualScoreSchema = new mongoose.Schema(
     currentInnings: { type: Number, default: 1 }, // 1 or 2
     runs: { type: Number, default: 0 },
     wickets: { type: Number, default: 0 },
-    overs: { type: Number, default: 0 }, // e.g. 18.2 = 18 overs, 2 balls
+    overs: { type: Number, default: 0 }, 
     balls: { type: [ballSchema], default: [] },
+    firstInningsScore: {
+      runs: { type: Number, default: 0 },
+      wickets: { type: Number, default: 0 },
+      overs: { type: Number, default: 0 },
+    },
+    secondInningsScore: {
+      runs: { type: Number, default: 0 },
+      wickets: { type: Number, default: 0 },
+      overs: { type: Number, default: 0 },
+    },
     firstInnScore1: { type: String, default: "" },
     firstInnScore2: { type: String, default: "" },
     trailRun: { type: String, default: "0" },

@@ -107,6 +107,9 @@ export default function ScorePage() {
     const [scoreData, setScoreData] = useState({
         firstBattingTeam: "",
         secondBattingTeam: "",
+        currentInnings: 1, // 1 = 1st inn live, 2 = 2nd inn live, 3 = match complete (both frozen)
+        firstInningsScore: null, // { runs, wickets, overs } — frozen once 2nd inn starts
+        secondInningsScore: null, // { runs, wickets, overs } — frozen once innings marked complete
         runs: 0,
         wickets: 0,
         overs: 0,
@@ -139,6 +142,9 @@ export default function ScorePage() {
                 setScoreData((prev) => ({
                     ...prev,
                     ...data.data,
+                    currentInnings: data.data.currentInnings ?? prev.currentInnings,
+                    firstInningsScore: data.data.firstInningsScore ?? prev.firstInningsScore,
+                    secondInningsScore: data.data.secondInningsScore ?? prev.secondInningsScore,
                     balls: Array.isArray(data.data.balls)
                         ? data.data.balls.slice(-MAX_BALLS)
                         : prev.balls,
@@ -187,6 +193,9 @@ export default function ScorePage() {
                     setScoreData((prev) => ({
                         ...prev,
                         ...parsed.payload,
+                        currentInnings: parsed.payload.currentInnings ?? prev.currentInnings,
+                        firstInningsScore: parsed.payload.firstInningsScore ?? prev.firstInningsScore,
+                        secondInningsScore: parsed.payload.secondInningsScore ?? prev.secondInningsScore,
                         balls: Array.isArray(parsed.payload.balls)
                             ? parsed.payload.balls.slice(-MAX_BALLS)
                             : prev.balls,
@@ -382,11 +391,64 @@ export default function ScorePage() {
     const handleAction = async (action, payload) => {
         try {
             if (action === "firstInnBat") {
-                setScoreData((prev) => ({ ...prev, firstBattingTeam: payload.team })); // optimistic
-                await apiClient.post(`/manual/score/update`, { matchId, firstBattingTeam: payload.team });
+                setScoreData((prev) => ({
+                    ...prev,
+                    firstBattingTeam: payload.team,
+                    currentInnings: 1,
+                })); // optimistic
+                await apiClient.post(`/manual/score/update`, {
+                    matchId,
+                    firstBattingTeam: payload.team,
+                    currentInnings: 1,
+                });
             } else if (action === "secondInnBat") {
-                setScoreData((prev) => ({ ...prev, secondBattingTeam: payload.team })); // optimistic
-                await apiClient.post(`/manual/score/update`, { matchId, secondBattingTeam: payload.team });
+                // Freeze whatever the current (1st innings) totals are before resetting
+                const frozenFirstInnings = {
+                    runs: scoreData.runs,
+                    wickets: scoreData.wickets,
+                    overs: scoreData.overs,
+                };
+
+                setScoreData((prev) => ({
+                    ...prev,
+                    secondBattingTeam: payload.team,
+                    firstInningsScore: frozenFirstInnings,
+                    currentInnings: 2,
+                    runs: 0,
+                    wickets: 0,
+                    overs: 0,
+                    balls: [], // fresh ball-by-ball history for the new innings
+                })); // optimistic
+
+                await apiClient.post(`/manual/score/update`, {
+                    matchId,
+                    secondBattingTeam: payload.team,
+                    firstInningsScore: frozenFirstInnings,
+                    currentInnings: 2,
+                    runs: 0,
+                    wickets: 0,
+                    overs: 0,
+                    balls: [],
+                });
+            } else if (action === "completeSecondInn") {
+                // Freeze the live (2nd innings) totals as the final score; mark match complete
+                const frozenSecondInnings = {
+                    runs: scoreData.runs,
+                    wickets: scoreData.wickets,
+                    overs: scoreData.overs,
+                };
+
+                setScoreData((prev) => ({
+                    ...prev,
+                    secondInningsScore: frozenSecondInnings,
+                    currentInnings: 3,
+                })); // optimistic
+
+                await apiClient.post(`/manual/score/update`, {
+                    matchId,
+                    secondInningsScore: frozenSecondInnings,
+                    currentInnings: 3,
+                });
             } else if (action === "updateLastScore") {
                 const overs = `${payload.over || 0}.${payload.ball || 0}`;
                 setScoreData((prev) => ({
@@ -435,6 +497,10 @@ export default function ScorePage() {
                             team1Score={match?.team1Score || ""}
                             team2Score={match?.team2Score || ""}
                             firstBattingTeam={scoreData.firstBattingTeam}
+                            secondBattingTeam={scoreData.secondBattingTeam}
+                            currentInnings={scoreData.currentInnings || 1}
+                            firstInningsScore={scoreData.firstInningsScore}
+                            secondInningsScore={scoreData.secondInningsScore}
                             runs={scoreData.runs}
                             wickets={scoreData.wickets}
                             overs={scoreData.overs}

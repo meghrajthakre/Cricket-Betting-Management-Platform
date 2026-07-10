@@ -3,8 +3,9 @@ import React, { useState } from "react";
 /* ------------------------------------------------------------------ */
 /*  Controls                                                           */
 /*  - Table-style control panel for manual match updates               */
-/*  - Matches: First Inn Bat / Second Inn Bat / Update Last Score /     */
-/*    1st Inn Score / 1st Inn Score / Trail Run / Lead Run             */
+/*  - Matches: First Inn Bat / Second Inn Bat / Complete 2nd Inn /      */
+/*    Update Last Score / 1st Inn Score / 1st Inn Score /               */
+/*    Trail Run / Lead Run                                             */
 /* ------------------------------------------------------------------ */
 
 function Row({ label, children, borderBottom = true, striped = false }) {
@@ -45,7 +46,7 @@ function LabeledInput({ label, value, onChange, width = "w-24", placeholder = ""
   );
 }
 
-function SubmitButton({ onClick, small = false }) {
+function SubmitButton({ onClick, small = false, label = "Submit" }) {
   return (
     <button
       type="button"
@@ -54,7 +55,7 @@ function SubmitButton({ onClick, small = false }) {
         small ? "text-xs px-4 py-1.5" : "text-sm px-6 py-2"
       } rounded cursor-pointer transition-colors whitespace-nowrap shadow-sm`}
     >
-      Submit
+      {label}
     </button>
   );
 }
@@ -78,8 +79,6 @@ export default function Controls({ teams = [], onAction }) {
 
   const updateLastScoreField = (field) => (val) =>
     setLastScore((prev) => ({ ...prev, [field]: val }));
-
-  
 
   const selectClasses =
     "border border-gray-400 rounded px-2 py-1.5 text-sm text-[#3a4a63] bg-[#eef1f3] cursor-pointer focus:outline-none focus:border-[#4a80a0] focus:ring-1 focus:ring-[#4a80a0] min-w-[140px]";
@@ -120,8 +119,20 @@ export default function Controls({ teams = [], onAction }) {
         <SubmitButton onClick={() => onAction?.("secondInnBat", { team: secondInnBat })} />
       </Row>
 
+      {/* Complete 2nd Inn — freezes the live score into secondInningsScore */}
+      <Row label="Complete 2nd Inn">
+        <span className="text-xs text-[#5a6b85]">
+          Freezes the current score as the final 2nd innings total.
+        </span>
+        <SubmitButton
+          small
+          label="End Innings"
+          onClick={() => onAction?.("completeSecondInn", {})}
+        />
+      </Row>
+
       {/* Update Last Score */}
-      <Row label="Update Last Score">
+      <Row label="Update Last Score" striped>
         <LabeledInput label="Run" value={lastScore.run} onChange={updateLastScoreField("run")} width="w-20" placeholder="0" />
         <LabeledInput label="Wicket" value={lastScore.wicket} onChange={updateLastScoreField("wicket")} width="w-20" placeholder="0" />
         <LabeledInput label="Over" value={lastScore.over} onChange={updateLastScoreField("over")} width="w-20" placeholder="0" />
@@ -133,7 +144,7 @@ export default function Controls({ teams = [], onAction }) {
       </Row>
 
       {/* 1st Inn Score - Row 1 */}
-      <Row label="1st Inn" striped>
+      <Row label="1st Inn">
         <LabeledInput label="Score" value={firstInnScore1} onChange={setFirstInnScore1} width="w-32" placeholder="Enter score" />
         <div className="self-end">
           <SubmitButton small onClick={() => onAction?.("firstInnScore1", { score: firstInnScore1 })} />
@@ -141,7 +152,7 @@ export default function Controls({ teams = [], onAction }) {
       </Row>
 
       {/* 1st Inn Score - Row 2 */}
-      <Row label="1st Inn">
+      <Row label="1st Inn" striped>
         <LabeledInput label="Score" value={firstInnScore2} onChange={setFirstInnScore2} width="w-32" placeholder="Enter score" />
         <div className="self-end">
           <SubmitButton small onClick={() => onAction?.("firstInnScore2", { score: firstInnScore2 })} />
@@ -149,13 +160,13 @@ export default function Controls({ teams = [], onAction }) {
       </Row>
 
       {/* Trail Run */}
-      <Row label="Trail Run" striped>
+      <Row label="Trail Run">
         <TextInput value={trailRun} onChange={setTrailRun} width="w-32" placeholder="0" />
         <SubmitButton small onClick={() => onAction?.("trailRun", { value: trailRun })} />
       </Row>
 
       {/* Lead Run */}
-      <Row label="Lead Run" borderBottom={false}>
+      <Row label="Lead Run" borderBottom={false} striped>
         <TextInput value={leadRun} onChange={setLeadRun} width="w-32" placeholder="0" />
         <SubmitButton small onClick={() => onAction?.("leadRun", { value: leadRun })} />
       </Row>

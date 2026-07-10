@@ -168,6 +168,8 @@ const updateScore = asyncHandler(async (req, res) => {
         firstBattingTeam,
         secondBattingTeam,
         currentInnings,
+        firstInningsScore,
+        secondInningsScore,
         runs,
         wickets,
         overs,
@@ -182,7 +184,8 @@ const updateScore = asyncHandler(async (req, res) => {
 
     const hasAnyField =
         status !== undefined || firstBattingTeam !== undefined || secondBattingTeam !== undefined ||
-        currentInnings !== undefined || runs !== undefined || wickets !== undefined ||
+        currentInnings !== undefined || firstInningsScore !== undefined || secondInningsScore !== undefined ||
+        runs !== undefined || wickets !== undefined ||
         overs !== undefined || balls !== undefined || firstInnScore1 !== undefined ||
         firstInnScore2 !== undefined || trailRun !== undefined || leadRun !== undefined;
 
@@ -195,6 +198,8 @@ const updateScore = asyncHandler(async (req, res) => {
         firstBattingTeam,
         secondBattingTeam,
         currentInnings,
+        firstInningsScore,
+        secondInningsScore,
         runs,
         wickets,
         overs,
@@ -213,6 +218,8 @@ const updateScore = asyncHandler(async (req, res) => {
             firstBattingTeam: saved.firstBattingTeam,
             secondBattingTeam: saved.secondBattingTeam,
             currentInnings: saved.currentInnings,
+            firstInningsScore: saved.firstInningsScore,
+            secondInningsScore: saved.secondInningsScore,
             runs: saved.runs,
             wickets: saved.wickets,
             overs: saved.overs,
@@ -226,4 +233,5 @@ const updateScore = asyncHandler(async (req, res) => {
 
     res.status(200).json({ success: true, data: saved });
 });
+
 module.exports = { updateRunner, events, state, getSettings, updateSettings, getScore, updateScore };

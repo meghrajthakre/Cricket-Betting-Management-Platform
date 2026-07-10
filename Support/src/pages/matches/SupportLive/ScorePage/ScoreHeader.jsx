@@ -20,55 +20,73 @@ export default function ScoreHeader({
   team1Score = "",
   team2Score = "",
   firstBattingTeam = "",
+  secondBattingTeam = "",
+  currentInnings = 1, // 1 = 1st inn live, 2 = 2nd inn live, 3 = match complete
+  firstInningsScore = null, // { runs, wickets, overs }
+  secondInningsScore = null, // { runs, wickets, overs }
   runs = 0,
   wickets = 0,
   overs = 0,
   marketStatus = "OPEN",
   scoreText = "",
 }) {
-  // Helper to check if a team is currently batting
-  const isBatting = (team) =>
+  const isFirstBatter = (team) =>
     !!firstBattingTeam && !!team && normalize(firstBattingTeam) === normalize(team);
+  const isSecondBatter = (team) =>
+    !!secondBattingTeam && !!team && normalize(secondBattingTeam) === normalize(team);
 
-  // Format the score string: runs/wickets (overs)
-  const formatScore = (runs, wickets, overs) => {
-    const formattedOvers = Number(overs).toFixed(1);
-    return `${runs}/${wickets} (${formattedOvers})`;
+  const formatScore = (r, w, o) => `${r}/${w} (${Number(o).toFixed(1)})`;
+
+  // Live score = current runs/wickets/overs from scoreData (always reflects whichever
+  // innings is currently in progress).
+  const getLiveScore = () => formatScore(runs, wickets, overs);
+
+  // Decide what score (if any) belongs under a given physical team (team1 or team2)
+  const getTeamScoreText = (team) => {
+    // Team batted first
+    if (isFirstBatter(team)) {
+      if (currentInnings === 1) {
+        // Still batting first — show live score
+        return getLiveScore();
+      }
+      // 2nd innings in progress or match complete — first innings is frozen
+      if (firstInningsScore) {
+        return formatScore(firstInningsScore.runs, firstInningsScore.wickets, firstInningsScore.overs);
+      }
+      return null;
+    }
+
+    // Team batted second
+    if (isSecondBatter(team)) {
+      if (currentInnings === 2) {
+        // Second innings in progress — show live score
+        return getLiveScore();
+      }
+      if (currentInnings === 3 && secondInningsScore) {
+        // Match complete — show frozen second innings total
+        return formatScore(secondInningsScore.runs, secondInningsScore.wickets, secondInningsScore.overs);
+      }
+      return null; // second team named but hasn't started batting yet
+    }
+
+    return null;
   };
 
-  // Get the formatted score string
-  const getFormattedScore = () => {
-    return formatScore(runs, wickets, overs);
+  const getTeamDisplay = (team) => {
+    const scoreStr = getTeamScoreText(team);
+    return scoreStr ? `${team} ${scoreStr}` : team;
   };
 
-  // Determine batting teams
-  const isTeam1Batting = isBatting(team1);
-  const isTeam2Batting = isBatting(team2);
-
-  // Get the display text for middle badge
+  // Middle badge: prefer explicit status text; otherwise show the live score
+  // for whichever innings is currently active.
   const getMiddleBadgeText = () => {
-    // Priority 1: Use scoreText if provided (for custom messages like "Yet to Bat", "Innings Break")
-    if (scoreText) {
-      return scoreText;
-    }
-    // Priority 2: Use formatted score if a team is batting
-    if (firstBattingTeam) {
-      return getFormattedScore();
-    }
+    if (scoreText) return scoreText;
+    if (currentInnings === 3) return "MATCH COMPLETE";
+    if (firstBattingTeam || secondBattingTeam) return getLiveScore();
     return "";
   };
 
-  // Get team display with or without score
-  const getTeamDisplay = (team, isBattingTeam) => {
-    if (isBattingTeam) {
-      return `${team} ${getFormattedScore()}`;
-    }
-    return team;
-  };
-
-  // Get badge color based on market status
   const badgeColor = MARKET_COLORS[marketStatus] || MARKET_COLORS.OPEN;
-
   const middleText = getMiddleBadgeText();
 
   return (
@@ -85,7 +103,7 @@ export default function ScoreHeader({
         {/* Left team score */}
         <div className="flex-1 text-left">
           <span className="text-[#c0392b] font-bold text-sm sm:text-base text-left">
-            {isTeam1Batting ? getTeamDisplay(team1, true) : team1}
+            {getTeamDisplay(team1)}
           </span>
         </div>
 
@@ -103,7 +121,7 @@ export default function ScoreHeader({
         {/* Right team score */}
         <div className="flex-1 text-right">
           <span className="text-[#c0392b] font-bold text-sm sm:text-base text-right">
-            {isTeam2Batting ? getTeamDisplay(team2, true) : team2}
+            {getTeamDisplay(team2)}
           </span>
         </div>
       </div>

@@ -111,7 +111,8 @@ async function getScore(matchId) {
 
 // Upsert the score/status for a match.
 // `updates` can include any subset of: status, firstBattingTeam, secondBattingTeam,
-// currentInnings, runs, wickets, overs, balls, firstInnScore1, firstInnScore2, trailRun, leadRun
+// currentInnings, firstInningsScore, secondInningsScore, runs, wickets, overs, balls,
+// firstInnScore1, firstInnScore2, trailRun, leadRun
 async function updateScore(matchId, updates) {
     const setFields = {};
 
@@ -119,6 +120,8 @@ async function updateScore(matchId, updates) {
     if (updates.firstBattingTeam !== undefined) setFields.firstBattingTeam = updates.firstBattingTeam;
     if (updates.secondBattingTeam !== undefined) setFields.secondBattingTeam = updates.secondBattingTeam;
     if (updates.currentInnings !== undefined) setFields.currentInnings = Number(updates.currentInnings) || 1;
+    if (updates.firstInningsScore !== undefined) setFields.firstInningsScore = updates.firstInningsScore;
+    if (updates.secondInningsScore !== undefined) setFields.secondInningsScore = updates.secondInningsScore;
     if (updates.runs !== undefined) setFields.runs = Number(updates.runs) || 0;
     if (updates.wickets !== undefined) setFields.wickets = Number(updates.wickets) || 0;
     if (updates.overs !== undefined) setFields.overs = Number(updates.overs) || 0;
