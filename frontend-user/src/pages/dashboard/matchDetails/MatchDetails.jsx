@@ -30,6 +30,10 @@ export default function MatchDetails() {
     // Real score data from the API
     const [scoreData, setScoreData] = useState({
         firstBattingTeam: "",
+        secondBattingTeam: "",
+        currentInnings: 1, // 1 = 1st inn live, 2 = 2nd inn live, 3 = match complete
+        firstInningsScore: null, // { runs, wickets, overs } — frozen once 2nd inn starts
+        secondInningsScore: null, // { runs, wickets, overs } — frozen once match complete
         runs: 0,
         wickets: 0,
         overs: 0,
@@ -93,12 +97,17 @@ export default function MatchDetails() {
 
             if (scoreRes?.data) {
                 // Update score data
-                setScoreData({
+                setScoreData((prev) => ({
+                    ...prev,
                     firstBattingTeam: scoreRes.data.firstBattingTeam || "",
+                    secondBattingTeam: scoreRes.data.secondBattingTeam || "",
+                    currentInnings: scoreRes.data.currentInnings ?? prev.currentInnings,
+                    firstInningsScore: scoreRes.data.firstInningsScore ?? prev.firstInningsScore,
+                    secondInningsScore: scoreRes.data.secondInningsScore ?? prev.secondInningsScore,
                     runs: scoreRes.data.runs || 0,
                     wickets: scoreRes.data.wickets || 0,
                     overs: scoreRes.data.overs || 0,
-                });
+                }));
                 if (scoreRes.data.status !== undefined) {
                     setScoreStatus(scoreRes.data.status);
                 }
@@ -200,7 +209,11 @@ export default function MatchDetails() {
                             // Update score data from SSE
                             setScoreData((prev) => ({
                                 ...prev,
-                                firstBattingTeam: parsed.payload.firstBattingTeam || prev.firstBattingTeam,
+                                firstBattingTeam: parsed.payload.firstBattingTeam ?? prev.firstBattingTeam,
+                                secondBattingTeam: parsed.payload.secondBattingTeam ?? prev.secondBattingTeam,
+                                currentInnings: parsed.payload.currentInnings ?? prev.currentInnings,
+                                firstInningsScore: parsed.payload.firstInningsScore ?? prev.firstInningsScore,
+                                secondInningsScore: parsed.payload.secondInningsScore ?? prev.secondInningsScore,
                                 runs: parsed.payload.runs !== undefined ? parsed.payload.runs : prev.runs,
                                 wickets: parsed.payload.wickets !== undefined ? parsed.payload.wickets : prev.wickets,
                                 overs: parsed.payload.overs !== undefined ? parsed.payload.overs : prev.overs,
@@ -225,6 +238,8 @@ export default function MatchDetails() {
                                 setScoreData((prev) => ({
                                     ...prev,
                                     ...parsed.payload.score,
+                                    firstInningsScore: parsed.payload.score.firstInningsScore ?? prev.firstInningsScore,
+                                    secondInningsScore: parsed.payload.score.secondInningsScore ?? prev.secondInningsScore,
                                 }));
                                 if (parsed.payload.score.status) {
                                     setScoreStatus(parsed.payload.score.status);
@@ -350,6 +365,10 @@ export default function MatchDetails() {
                     thisOver={thisOver}
                     // Pass real score data
                     firstBattingTeam={scoreData.firstBattingTeam}
+                    secondBattingTeam={scoreData.secondBattingTeam}
+                    currentInnings={scoreData.currentInnings}
+                    firstInningsScore={scoreData.firstInningsScore}
+                    secondInningsScore={scoreData.secondInningsScore}
                     runs={scoreData.runs}
                     wickets={scoreData.wickets}
                     overs={scoreData.overs}

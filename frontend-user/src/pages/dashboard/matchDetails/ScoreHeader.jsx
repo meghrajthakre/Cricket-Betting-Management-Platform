@@ -34,8 +34,12 @@ export default function ScoreHeader({
     scoreStatus,
     recentBalls,
     thisOver,
-    // New props for real score data
+    // Innings-aware score props
     firstBattingTeam = "",
+    secondBattingTeam = "",
+    currentInnings = 1, // 1 = 1st inn live, 2 = 2nd inn live, 3 = match complete
+    firstInningsScore = null, // { runs, wickets, overs } — frozen once 2nd inn starts
+    secondInningsScore = null, // { runs, wickets, overs } — frozen once match complete
     runs = 0,
     wickets = 0,
     overs = 0,
@@ -63,30 +67,45 @@ export default function ScoreHeader({
     }, [recentBalls]);
 
     // Format the score string: runs/wickets (overs)
-    const formatScore = (runs, wickets, overs) => {
-        const formattedOvers = Number(overs).toFixed(1);
-        return `${runs}/${wickets} (${formattedOvers})`;
-    };
+    const formatScore = (r, w, o) => `${r}/${w} (${Number(o).toFixed(1)})`;
 
-    // Check if a team is batting
     const normalize = (s) => (s || "").trim().toLowerCase();
-    const isBatting = (team) =>
+    const isFirstBatter = (team) =>
         !!firstBattingTeam && !!team && normalize(firstBattingTeam) === normalize(team);
+    const isSecondBatter = (team) =>
+        !!secondBattingTeam && !!team && normalize(secondBattingTeam) === normalize(team);
 
-    const isTeam1Batting = isBatting(match?.team1);
-    const isTeam2Batting = isBatting(match?.team2);
+    // Live score always reflects whichever innings is currently in progress
+    const getLiveScore = () => formatScore(runs, wickets, overs);
 
-    // Get the formatted score for display
-    const getFormattedScore = () => {
-        return formatScore(runs, wickets, overs);
+    // Decide what score (if any) belongs under a given physical team (match.team1 / match.team2)
+    const getTeamScoreText = (team) => {
+        if (isFirstBatter(team)) {
+            if (currentInnings === 1) {
+                return getLiveScore();
+            }
+            if (firstInningsScore) {
+                return formatScore(firstInningsScore.runs, firstInningsScore.wickets, firstInningsScore.overs);
+            }
+            return null;
+        }
+
+        if (isSecondBatter(team)) {
+            if (currentInnings === 2) {
+                return getLiveScore();
+            }
+            if (currentInnings === 3 && secondInningsScore) {
+                return formatScore(secondInningsScore.runs, secondInningsScore.wickets, secondInningsScore.overs);
+            }
+            return null;
+        }
+
+        return null;
     };
 
-    // Get team display with or without score
-    const getTeamDisplay = (team, isBattingTeam) => {
-        if (isBattingTeam) {
-            return `${team} ${getFormattedScore()}`;
-        }
-        return team;
+    const getTeamDisplay = (team) => {
+        const scoreStr = getTeamScoreText(team);
+        return scoreStr ? `${team} ${scoreStr}` : team;
     };
 
     // Determine what to show in the middle badge
@@ -95,11 +114,15 @@ export default function ScoreHeader({
         if (scoreStatus) {
             return scoreStatus;
         }
-        // Priority 2: Use formatted score if a team is batting
-        if (firstBattingTeam) {
-            return getFormattedScore();
+        // Priority 2: Match complete
+        if (currentInnings === 3) {
+            return "MATCH COMPLETE";
         }
-        // Priority 3: Show BET OPEN/LOCKED/CLOSED
+        // Priority 3: Use live score if a team is batting
+        if (firstBattingTeam || secondBattingTeam) {
+            return getLiveScore();
+        }
+        // Priority 4: Show BET OPEN/LOCKED/CLOSED
         if (settings?.betLock) {
             return "BET LOCKED";
         }
@@ -147,10 +170,10 @@ export default function ScoreHeader({
 
                     <div className="min-w-0 flex flex-col gap-1 sm:gap-2 lg:gap-2">
                         <p className="text-white text-xs sm:text-base md:text-lg lg:text-xl font-bold font-serif leading-tight py-1 sm:py-1.5 lg:py-2 truncate">
-                            {isTeam1Batting ? getTeamDisplay(match?.team1, true) : match?.team1}
+                            {getTeamDisplay(match?.team1)}
                         </p>
                         <p className="text-[#D6E4F5] text-[10px] sm:text-sm md:text-base lg:text-lg font-bold font-serif leading-tight py-1 sm:py-1.5 lg:py-2 truncate">
-                            {isTeam2Batting ? getTeamDisplay(match?.team2, true) : match?.team2}
+                            {getTeamDisplay(match?.team2)}
                         </p>
                         <p className="text-[#90B4D4] text-[10px] sm:text-xs md:text-sm lg:text-base font-semibold font-serif leading-tight py-1 sm:py-1.5 lg:py-2 truncate">
                             {match?.toss || "Toss pending"}
