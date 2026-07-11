@@ -235,8 +235,9 @@ export default function ScoreHeader({
                 </div>
 
                 {/* Right - Bet Status / Live Score Status */}
-                <div className="bg-[#1E3A5F] flex items-center justify-center px-4 sm:px-6 lg:px-8 shrink-0 sm:min-w-[120px] lg:min-w-[160px]">
-                    <div className="text-white text-[13px] sm:text-2xl md:text-3xl lg:text-4xl font-bold font-serif text-center leading-tight whitespace-nowrap">
+                {/* Right - Bet Status / Live Score Status */}
+                <div className="bg-[#1E3A5F] flex items-center justify-center px-2 sm:px-4 lg:px-6 shrink-0 w-[110px] sm:w-[160px] md:w-[190px] lg:w-[220px]">
+                    <div className="text-white text-[11px] sm:text-xl md:text-2xl lg:text-3xl font-bold font-serif text-center leading-tight break-words">
                         {middleText.split(' ').map((word, i) => (
                             <React.Fragment key={i}>
                                 {word}
@@ -265,7 +266,7 @@ export default function ScoreHeader({
                         overGroups.map((group, gIdx) => (
                             <React.Fragment key={`${group.over}-${gIdx}`}>
                                 <span className="text-white text-[10px] sm:text-lg font-bold font-serif shrink-0 grow-0">
-                                    Over {group.over}
+                                    Over {group.over + 1}
                                 </span>
                                 <span className="text-[#D6E4F5] shrink-0 grow-0">|</span>
 
