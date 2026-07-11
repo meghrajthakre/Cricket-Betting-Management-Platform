@@ -71,8 +71,7 @@ export default function MatchDetails() {
                     match={match}
                     settings={settings}
                     scoreStatus={scoreStatus}
-                    recentBalls={recentBalls}
-                    thisOver={thisOver}
+                    balls={scoreData.balls}
                     firstBattingTeam={scoreData.firstBattingTeam}
                     secondBattingTeam={scoreData.secondBattingTeam}
                     currentInnings={scoreData.currentInnings}

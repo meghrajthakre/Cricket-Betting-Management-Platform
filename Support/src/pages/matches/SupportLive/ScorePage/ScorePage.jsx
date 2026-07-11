@@ -11,8 +11,10 @@ import SlidingBalls from "./SlidingBalls";
 // Adjust the path below ("/manual/events") if your manual router is mounted under a different prefix.
 const API_BASE = apiClient.defaults.baseURL;
 
-// Only the last N balls are kept in history / persisted.
-const MAX_BALLS = 15;
+// Balls kept in history / persisted per innings. Raised from 15 -> 150 so a
+// full innings' worth of deliveries (well beyond a T20's 120) isn't dropped
+// from the ticker. Adjust higher if you score longer formats (Test/ODI).
+const MAX_BALLS = 150;
 
 // ---- Score-button label parsing -------------------------------------
 // Turns a ScoreButtons label into a scoring delta.

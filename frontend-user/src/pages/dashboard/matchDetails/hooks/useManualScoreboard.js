@@ -17,6 +17,7 @@ const INITIAL_SCORE_DATA = {
     runs: 0,
     wickets: 0,
     overs: 0,
+    balls: [], // ball-by-ball history: { over, label, runs, isWicket, isExtra, advanceBall }
 };
 
 const INITIAL_SETTINGS = {

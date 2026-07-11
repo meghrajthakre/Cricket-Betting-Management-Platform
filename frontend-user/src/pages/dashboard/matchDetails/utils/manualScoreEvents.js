@@ -2,6 +2,11 @@
 // Kept side-effect free so they're easy to unit test independently
 // of the SSE plumbing / React lifecycle.
 
+const MAX_BALLS = 150;
+
+const sliceBalls = (balls, prevBalls) =>
+    Array.isArray(balls) ? balls.slice(-MAX_BALLS) : prevBalls;
+
 export function nextScoreDataFromFetch(prev, data) {
     return {
         ...prev,
@@ -13,6 +18,7 @@ export function nextScoreDataFromFetch(prev, data) {
         runs: data.runs || 0,
         wickets: data.wickets || 0,
         overs: data.overs || 0,
+        balls: sliceBalls(data.balls, prev.balls),
     };
 }
 
@@ -27,6 +33,7 @@ export function nextScoreDataFromSSE(prev, payload) {
         runs: payload.runs !== undefined ? payload.runs : prev.runs,
         wickets: payload.wickets !== undefined ? payload.wickets : prev.wickets,
         overs: payload.overs !== undefined ? payload.overs : prev.overs,
+        balls: sliceBalls(payload.balls, prev.balls),
     };
 }
 
@@ -36,6 +43,7 @@ export function nextScoreDataFromFullState(prev, score) {
         ...score,
         firstInningsScore: score.firstInningsScore ?? prev.firstInningsScore,
         secondInningsScore: score.secondInningsScore ?? prev.secondInningsScore,
+        balls: sliceBalls(score.balls, prev.balls),
     };
 }
 

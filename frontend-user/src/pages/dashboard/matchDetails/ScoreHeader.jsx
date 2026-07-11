@@ -1,28 +1,79 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 
-function BallChip({ val }) {
-    const isFour = val === "4";
-    const isSix = val === "6";
-    const isDot = val === "0" || val === "•";
-    const isWicket = val === "W";
+// Short display label for a single ball chip.
+// Reads the actual label text first so combo balls (e.g. "1 + OUT",
+// "4 + WIDE BALL") keep their run count instead of collapsing to just "W"/"Ex".
+function getShortLabel(ball) {
+    const upper = (ball.label || "").toUpperCase();
 
-    const style = isWicket
-        ? "bg-[#E53935] border-[#E53935] text-white"
-        : isSix
-            ? "bg-[#75D793] border-[#75D793] text-white"
-            : isFour
-                ? "bg-[#73BBF8] border-[#73BBF8] text-white"
-                : isDot
-                    ? "bg-white border-gray-400 text-gray-400"
-                    : "bg-white border-[#1E3A5F] text-[#1E3A5F]";
+    // "N + WIDE BALL" / "N + No Ball" / "N + OUT"
+    const comboMatch = upper.match(/^(\d+)\s*\+\s*(WIDE BALL|NO BALL|OUT)$/);
+    if (comboMatch) {
+        const n = comboMatch[1];
+        const kind = comboMatch[2];
+        const suffix = kind === "OUT" ? "W" : kind === "WIDE BALL" ? "Wd" : "Nb";
+        return `${n}+${suffix}`;
+    }
+
+    // "WIDE BALL + OUT"
+    if (upper === "WIDE BALL + OUT") return "Wd+W";
+
+    if (ball.isWicket) return "W";
+
+    if (ball.isExtra) {
+        if (upper.includes("WIDE")) return "Wd";
+        if (upper.includes("NO BALL") || upper.includes("NB")) return "Nb";
+        return "Ex";
+    }
+
+    if (ball.runs === 0) return "•";
+    return String(ball.runs ?? 0);
+}
+
+function BallChip({ ball }) {
+    const getStyle = () => {
+        if (ball.isWicket) return "bg-[#E53935] text-white border-[#E53935]";
+        if (ball.runs === 4 || ball.runs === 6) return "bg-[#73BBF8] text-white border-[#73BBF8]";
+        if (ball.isExtra) return "bg-[#c9861a] text-white border-[#c9861a]";
+        if (ball.runs === 0) return "bg-white text-gray-400 border-gray-400";
+        return "bg-white text-[#1E3A5F] border-[#1E3A5F]";
+    };
 
     return (
         <span
-            className={`flex items-center justify-center shrink-0 grow-0 aspect-square w-6 h-6 sm:w-9 sm:h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 min-w-6 min-h-6 sm:min-w-9 sm:min-h-9 md:min-w-10 md:min-h-10 lg:min-w-11 lg:min-h-11 rounded-full border sm:border-2 text-[10px] sm:text-sm lg:text-base font-bold font-rajdhani leading-none ${style}`}
+            className={`flex items-center justify-center shrink-0 grow-0 aspect-square
+                w-6 h-6 sm:w-9 sm:h-9 md:w-10 md:h-10 lg:w-11 lg:h-11
+                min-w-6 min-h-6 sm:min-w-9 sm:min-h-9 md:min-w-10 md:min-h-10 lg:min-w-11 lg:min-h-11
+                rounded-full border sm:border-2
+                text-[10px] sm:text-sm lg:text-base font-bold font-rajdhani leading-none ${getStyle()}`}
+            title={ball.label}
         >
-            {val}
+            {getShortLabel(ball)}
         </span>
     );
+}
+
+// Groups a flat balls[] array (each ball already has an `over` field) into
+// consecutive per-over segments: { over, balls: [...], totalRuns }.
+// Consecutive-only grouping (not a full re-sort) so ordering always matches
+// how the balls actually happened, even across MAX_BALLS truncation.
+function groupBallsByOver(balls) {
+    const groups = [];
+    let current = null;
+
+    for (const ball of balls) {
+        if (!ball || ball.label === undefined) continue;
+
+        if (!current || current.over !== ball.over) {
+            current = { over: ball.over, balls: [], totalRuns: 0 };
+            groups.push(current);
+        }
+
+        current.balls.push(ball);
+        current.totalRuns += ball.runs || 0;
+    }
+
+    return groups;
 }
 
 export default function ScoreHeader({
@@ -32,8 +83,8 @@ export default function ScoreHeader({
     match,
     settings,
     scoreStatus,
-    recentBalls,
-    thisOver,
+    // Real ball-by-ball history — replaces the old recentBalls/thisOver mock shape
+    balls = [],
     // Innings-aware score props
     firstBattingTeam = "",
     secondBattingTeam = "",
@@ -46,14 +97,14 @@ export default function ScoreHeader({
     team1Score = "",
     team2Score = "",
 }) {
-    const ballsContainerRef = useRef(null);
+    const containerRef = useRef(null);
     const prevBallsLength = useRef(0);
 
     useEffect(() => {
-        if (ballsContainerRef.current && recentBalls.length > 0) {
-            const container = ballsContainerRef.current;
+        if (containerRef.current && balls.length > 0) {
+            const container = containerRef.current;
 
-            if (recentBalls.length > prevBallsLength.current) {
+            if (balls.length > prevBallsLength.current) {
                 requestAnimationFrame(() => {
                     container.scrollTo({
                         left: container.scrollWidth,
@@ -62,9 +113,11 @@ export default function ScoreHeader({
                 });
             }
 
-            prevBallsLength.current = recentBalls.length;
+            prevBallsLength.current = balls.length;
         }
-    }, [recentBalls]);
+    }, [balls]);
+
+    const overGroups = useMemo(() => groupBallsByOver(balls), [balls]);
 
     // Format the score string: runs/wickets (overs)
     const formatScore = (r, w, o) => `${r}/${w} (${Number(o).toFixed(1)})`;
@@ -194,41 +247,43 @@ export default function ScoreHeader({
                 </div>
             </div>
 
-            {/* Bottom Section - single live ticker banner */}
+            {/* Bottom Section - grouped-by-over ball ticker, driven by real balls[] */}
             <div className="bg-[#3A5F9A] px-3 sm:px-5 lg:px-6 py-2.5 sm:py-3 lg:py-4 mt-1.5 sm:mt-3 lg:mt-4 overflow-hidden">
                 <div
-                    ref={ballsContainerRef}
-                    className="score-ticker flex items-center gap-1 sm:gap-2 whitespace-nowrap overflow-x-auto overflow-y-hidden scroll-smooth"
+                    ref={containerRef}
+                    className="score-ticker flex items-center gap-1.5 sm:gap-2 md:gap-3 whitespace-nowrap overflow-x-auto overflow-y-hidden scroll-smooth"
                     style={{
                         scrollbarWidth: 'none',
                         msOverflowStyle: 'none',
                     }}
                 >
-                    <span className="text-white text-base sm:text-xl font-bold shrink-0 grow-0">
-                        {thisOver?.dot || "•"}
-                    </span>
+                    {overGroups.length === 0 ? (
+                        <span className="text-white/70 text-[11px] sm:text-sm px-1">
+                            No balls bowled yet
+                        </span>
+                    ) : (
+                        overGroups.map((group, gIdx) => (
+                            <React.Fragment key={`${group.over}-${gIdx}`}>
+                                <span className="text-white text-[10px] sm:text-lg font-bold font-serif shrink-0 grow-0">
+                                    Over {group.over}
+                                </span>
+                                <span className="text-[#D6E4F5] shrink-0 grow-0">|</span>
 
-                    <span className="text-white text-[10px] sm:text-lg font-bold font-serif shrink-0 grow-0">
-                        {thisOver?.runs || 0} Runs
-                    </span>
+                                {group.balls.map((ball, bIdx) => (
+                                    <BallChip key={bIdx} ball={ball} />
+                                ))}
 
-                    <span className="text-[#D6E4F5] shrink-0 grow-0">|</span>
+                                <span className="text-white shrink-0 grow-0">-</span>
+                                <span className="text-white text-[10px] sm:text-lg font-bold font-serif shrink-0 grow-0">
+                                    {group.totalRuns} Runs
+                                </span>
 
-                    <span className="text-white text-[10px] sm:text-lg font-bold font-serif shrink-0 grow-0">
-                        Over {thisOver?.balls || "0.0"}
-                    </span>
-
-                    <span className="text-white shrink-0 grow-0">-</span>
-
-                    {recentBalls?.map((b, i) => (
-                        <BallChip key={i} val={b} />
-                    ))}
-
-                    <span className="text-white shrink-0 grow-0">-</span>
-
-                    <span className="text-white text-[10px] sm:text-lg font-bold font-serif shrink-0 grow-0">
-                        {thisOver?.extraRuns || 0} Runs
-                    </span>
+                                {gIdx < overGroups.length - 1 && (
+                                    <span className="text-[#D6E4F5] shrink-0 grow-0">|</span>
+                                )}
+                            </React.Fragment>
+                        ))
+                    )}
                 </div>
 
                 <style>{`

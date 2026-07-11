@@ -1,14 +1,31 @@
 import React, { useRef, useEffect, useMemo } from 'react';
 
-// Short display label for a single ball chip
+// Short display label for a single ball chip.
+// Reads the actual label text first so combo balls (e.g. "1 + OUT",
+// "4 + WIDE BALL") keep their run count instead of collapsing to just "W"/"Ex".
 function getShortLabel(ball) {
+    const upper = (ball.label || "").toUpperCase();
+
+    // "N + WIDE BALL" / "N + No Ball" / "N + OUT"
+    const comboMatch = upper.match(/^(\d+)\s*\+\s*(WIDE BALL|NO BALL|OUT)$/);
+    if (comboMatch) {
+        const n = comboMatch[1];
+        const kind = comboMatch[2];
+        const suffix = kind === "OUT" ? "W" : kind === "WIDE BALL" ? "Wd" : "Nb";
+        return `${n}+${suffix}`;
+    }
+
+    // "WIDE BALL + OUT"
+    if (upper === "WIDE BALL + OUT") return "Wd+W";
+
     if (ball.isWicket) return "W";
+
     if (ball.isExtra) {
-        const upper = (ball.label || "").toUpperCase();
         if (upper.includes("WIDE")) return "Wd";
         if (upper.includes("NO BALL") || upper.includes("NB")) return "Nb";
         return "Ex";
     }
+
     if (ball.runs === 0) return "•";
     return String(ball.runs ?? 0);
 }
