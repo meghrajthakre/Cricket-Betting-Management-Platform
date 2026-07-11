@@ -23,7 +23,17 @@ function OddsBtn({ value, type, suspended, highlight }) {
 function computeKhai(lagai, rateDiff) {
     const diff = Number(rateDiff) || 0;
     if (lagai === 0 || lagai === undefined || lagai === null) return 0;
-    return lagai + diff;
+    return Number(lagai) + diff;
+}
+
+// Special rule: For England or India, when lagai is exactly 97, khai should be 0
+const SPECIAL_TEAMS = ["england", "india"];
+const SPECIAL_LAGAI_VALUE = 97;
+
+function shouldShowZeroKhai(runnerName, lagai) {
+    const lagaiNum = Number(lagai);
+    const normalizedName = (runnerName || "").trim().toLowerCase();
+    return SPECIAL_TEAMS.includes(normalizedName) && lagaiNum === SPECIAL_LAGAI_VALUE;
 }
 
 export default function OddsMarket({
@@ -36,8 +46,6 @@ export default function OddsMarket({
 
     return (
         <div className="bg-white mt-2 rounded shadow-sm overflow-hidden">
-           
-
             <div className="grid grid-cols-4 bg-[#1E3A5F] text-white text-xs font-bold font-rajdhani px-3 py-1.5 tracking-wider">
                 <div>RUNNER</div>
                 <div className="text-center">LAGAI</div>
@@ -53,7 +61,15 @@ export default function OddsMarket({
                 runners.map((r, index) => {
                     const isSuspended = r.status === "suspend" || settings.betLock;
                     const highlight = highlightedOdds[r.runnerId] || {};
-                    const khaiValue = computeKhai(r.lagai, rateDiff);
+                    
+                    // Convert lagai to number
+                    const lagaiNum = Number(r.lagai);
+                    
+                    // Check if special rule applies (England/India with lagai=97)
+                    const shouldShowZero = shouldShowZeroKhai(r.runnerName, lagaiNum);
+                    
+                    // Compute khai value: 0 for special case, otherwise lagai + rateDiff
+                    const khaiValue = shouldShowZero ? 0 : computeKhai(lagaiNum, rateDiff);
 
                     return (
                         <div
@@ -65,7 +81,7 @@ export default function OddsMarket({
                             </div>
                             <div className="px-1">
                                 <OddsBtn
-                                    value={r.lagai}
+                                    value={lagaiNum}
                                     type="lagai"
                                     suspended={isSuspended}
                                     highlight={highlight.lagai}
