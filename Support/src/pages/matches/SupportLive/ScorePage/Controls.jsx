@@ -46,16 +46,29 @@ function LabeledInput({ label, value, onChange, width = "w-24", placeholder = ""
   );
 }
 
-function SubmitButton({ onClick, small = false, label = "Submit" }) {
+function SubmitButton({ onClick, small = false, label = "Submit", isLoading = false }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={isLoading}
       className={`bg-[#4a80a0] hover:bg-[#3d6c88] active:bg-[#345a73] text-white font-semibold ${
         small ? "text-xs px-4 py-1.5" : "text-sm px-6 py-2"
-      } rounded cursor-pointer transition-colors whitespace-nowrap shadow-sm`}
+      } rounded cursor-pointer transition-colors whitespace-nowrap shadow-sm ${
+        isLoading ? "opacity-70 cursor-not-allowed" : ""
+      }`}
     >
-      {label}
+      {isLoading ? (
+        <span className="flex items-center gap-2">
+          <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          {label}
+        </span>
+      ) : (
+        label
+      )}
     </button>
   );
 }
@@ -77,8 +90,45 @@ export default function Controls({ teams = [], onAction }) {
   const [trailRun, setTrailRun] = useState("0");
   const [leadRun, setLeadRun] = useState("0");
 
+  const [loadingStates, setLoadingStates] = useState({
+    firstInnBat: false,
+    secondInnBat: false,
+    completeSecondInn: false,
+    updateLastScore: false,
+    firstInnScore1: false,
+    firstInnScore2: false,
+    trailRun: false,
+    leadRun: false,
+  });
+
   const updateLastScoreField = (field) => (val) =>
     setLastScore((prev) => ({ ...prev, [field]: val }));
+
+  const handleAction = async (action, data, loadingKey) => {
+    // Set loading state for this specific button
+    setLoadingStates(prev => ({ ...prev, [loadingKey]: true }));
+
+    try {
+      // Call the action
+      await onAction?.(action, data);
+    } finally {
+      // Reset loading state
+      setLoadingStates(prev => ({ ...prev, [loadingKey]: false }));
+    }
+
+    // Reset only input fields that should be cleared (not the team selections)
+    setLastScore({
+      run: "",
+      wicket: "",
+      over: "",
+      ball: "",
+      decl: "",
+    });
+    setFirstInnScore1("");
+    setFirstInnScore2("");
+    setTrailRun("0");
+    setLeadRun("0");
+  };
 
   const selectClasses =
     "border border-gray-400 rounded px-2 py-1.5 text-sm text-[#3a4a63] bg-[#eef1f3] cursor-pointer focus:outline-none focus:border-[#4a80a0] focus:ring-1 focus:ring-[#4a80a0] min-w-[140px]";
@@ -99,7 +149,10 @@ export default function Controls({ teams = [], onAction }) {
             </option>
           ))}
         </select>
-        <SubmitButton onClick={() => onAction?.("firstInnBat", { team: firstInnBat })} />
+        <SubmitButton 
+          onClick={() => handleAction("firstInnBat", { team: firstInnBat }, "firstInnBat")} 
+          isLoading={loadingStates.firstInnBat}
+        />
       </Row>
 
       {/* Second Inn Bat */}
@@ -116,7 +169,10 @@ export default function Controls({ teams = [], onAction }) {
             </option>
           ))}
         </select>
-        <SubmitButton onClick={() => onAction?.("secondInnBat", { team: secondInnBat })} />
+        <SubmitButton 
+          onClick={() => handleAction("secondInnBat", { team: secondInnBat }, "secondInnBat")} 
+          isLoading={loadingStates.secondInnBat}
+        />
       </Row>
 
       {/* Complete 2nd Inn — freezes the live score into secondInningsScore */}
@@ -127,7 +183,8 @@ export default function Controls({ teams = [], onAction }) {
         <SubmitButton
           small
           label="End Innings"
-          onClick={() => onAction?.("completeSecondInn", {})}
+          onClick={() => handleAction("completeSecondInn", {}, "completeSecondInn")}
+          isLoading={loadingStates.completeSecondInn}
         />
       </Row>
 
@@ -139,7 +196,11 @@ export default function Controls({ teams = [], onAction }) {
         <LabeledInput label="Ball" value={lastScore.ball} onChange={updateLastScoreField("ball")} width="w-20" placeholder="0" />
         <LabeledInput label="Decl." value={lastScore.decl} onChange={updateLastScoreField("decl")} width="w-20" placeholder="0" />
         <div className="self-end ml-1">
-          <SubmitButton small onClick={() => onAction?.("updateLastScore", lastScore)} />
+          <SubmitButton 
+            small 
+            onClick={() => handleAction("updateLastScore", lastScore, "updateLastScore")} 
+            isLoading={loadingStates.updateLastScore}
+          />
         </div>
       </Row>
 
@@ -147,7 +208,11 @@ export default function Controls({ teams = [], onAction }) {
       <Row label="1st Inn">
         <LabeledInput label="Score" value={firstInnScore1} onChange={setFirstInnScore1} width="w-32" placeholder="Enter score" />
         <div className="self-end">
-          <SubmitButton small onClick={() => onAction?.("firstInnScore1", { score: firstInnScore1 })} />
+          <SubmitButton 
+            small 
+            onClick={() => handleAction("firstInnScore1", { score: firstInnScore1 }, "firstInnScore1")} 
+            isLoading={loadingStates.firstInnScore1}
+          />
         </div>
       </Row>
 
@@ -155,20 +220,32 @@ export default function Controls({ teams = [], onAction }) {
       <Row label="1st Inn" striped>
         <LabeledInput label="Score" value={firstInnScore2} onChange={setFirstInnScore2} width="w-32" placeholder="Enter score" />
         <div className="self-end">
-          <SubmitButton small onClick={() => onAction?.("firstInnScore2", { score: firstInnScore2 })} />
+          <SubmitButton 
+            small 
+            onClick={() => handleAction("firstInnScore2", { score: firstInnScore2 }, "firstInnScore2")} 
+            isLoading={loadingStates.firstInnScore2}
+          />
         </div>
       </Row>
 
       {/* Trail Run */}
       <Row label="Trail Run">
         <TextInput value={trailRun} onChange={setTrailRun} width="w-32" placeholder="0" />
-        <SubmitButton small onClick={() => onAction?.("trailRun", { value: trailRun })} />
+        <SubmitButton 
+          small 
+          onClick={() => handleAction("trailRun", { value: trailRun }, "trailRun")} 
+          isLoading={loadingStates.trailRun}
+        />
       </Row>
 
       {/* Lead Run */}
       <Row label="Lead Run" borderBottom={false} striped>
         <TextInput value={leadRun} onChange={setLeadRun} width="w-32" placeholder="0" />
-        <SubmitButton small onClick={() => onAction?.("leadRun", { value: leadRun })} />
+        <SubmitButton 
+          small 
+          onClick={() => handleAction("leadRun", { value: leadRun }, "leadRun")} 
+          isLoading={loadingStates.leadRun}
+        />
       </Row>
     </div>
   );
