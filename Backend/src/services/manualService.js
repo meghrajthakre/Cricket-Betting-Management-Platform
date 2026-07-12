@@ -13,6 +13,7 @@ async function saveRunner(matchId, runner) {
             lagai: runner.lagai ?? 0,
             khai: runner.khai ?? 0,
             status: runner.status ?? 'open',
+            touched: runner.touched === true,
         },
     };
     const opts = {
@@ -55,12 +56,21 @@ function computeOddsFromRateDiff(lagai, rateDiff) {
     return Math.round((safeLagai + safeDiff) * 100) / 100;
 }
 
-// Recompute khai for every runner in a match based on a new rateDiff
+// Recompute khai for runners in a match based on a new rateDiff.
+// IMPORTANT: only runners the user has explicitly touched (picked a value
+// from the dropdown, including 0) get recalculated. Untouched runners must
+// stay at khai 0 regardless of rateDiff - otherwise every match would show
+// stale/phantom khai values on runners nobody has set odds for yet.
 async function recalculateRunnersForRateDiff(matchId, rateDiff) {
     const runners = await ManualRunner.find({ matchId }).lean();
     const updated = [];
 
     for (const runner of runners) {
+        if (!runner.touched) {
+            // Leave untouched runners alone entirely - don't even rewrite khai.
+            continue;
+        }
+
         const newKhai = computeOddsFromRateDiff(runner.lagai, rateDiff);
         const doc = await ManualRunner.findOneAndUpdate(
             { matchId, runnerId: runner.runnerId },

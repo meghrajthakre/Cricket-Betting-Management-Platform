@@ -8,7 +8,7 @@ const sse = require("../ManualEngine/sseServer");
 
 // POST /api/manual/update
 const updateRunner = asyncHandler(async (req, res) => {
-    const { matchId, runnerId, runnerName, lagai, khai, status } = req.body || {};
+    const { matchId, runnerId, runnerName, lagai, khai, status, touched } = req.body || {};
 
     if (!matchId || !runnerId) {
         throw new AppError("matchId and runnerId are required", 400);
@@ -21,6 +21,10 @@ const updateRunner = asyncHandler(async (req, res) => {
         lagai: typeof lagai === 'number' ? lagai : Number(lagai) || 0,
         khai: typeof khai === 'number' ? khai : Number(khai) || 0,
         status: status ?? 'open',
+        // Whether the user has explicitly picked a value for this runner from
+        // the dropdown (vs. it still sitting at its untouched default). This
+        // is what lets a rateDiff change skip runners nobody has touched yet.
+        touched: touched === true,
     };
 
     // Persist to DB
@@ -33,6 +37,7 @@ const updateRunner = asyncHandler(async (req, res) => {
         lagai: saved.lagai,
         khai: saved.khai,
         status: saved.status,
+        touched: saved.touched,
         updatedAt: saved.updatedAt,
     });
 
@@ -46,6 +51,7 @@ const updateRunner = asyncHandler(async (req, res) => {
             lagai: saved.lagai,
             khai: saved.khai,
             status: saved.status,
+            touched: saved.touched,
         },
     };
     sse.broadcast(saved.matchId, event);
@@ -123,6 +129,8 @@ const updateSettings = asyncHandler(async (req, res) => {
     });
 
     // If rateDiff changed, sync engine cache + broadcast each affected runner
+    // (updatedRunners only contains runners that were actually touched -
+    // see manualService.recalculateRunnersForRateDiff)
     if (rateDiffChanged && updatedRunners.length > 0) {
         for (const runner of updatedRunners) {
             engine.updateRunnerInCache(matchId, {
@@ -131,6 +139,7 @@ const updateSettings = asyncHandler(async (req, res) => {
                 lagai: runner.lagai,
                 khai: runner.khai,
                 status: runner.status,
+                touched: runner.touched,
                 updatedAt: runner.updatedAt,
             });
 
@@ -143,6 +152,7 @@ const updateSettings = asyncHandler(async (req, res) => {
                     lagai: runner.lagai,
                     khai: runner.khai,
                     status: runner.status,
+                    touched: runner.touched,
                 },
             });
         }

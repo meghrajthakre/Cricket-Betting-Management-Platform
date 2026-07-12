@@ -15,15 +15,16 @@ function OddsBtn({ value, type, suspended, highlight }) {
     );
 }
 
-// KHAI is always derived from LAGAI + the live rateDiff (from settings).
-// If lagai is 0 (or the runner is suspended), khai stays 0 regardless of rateDiff.
-// Whatever `khai` value arrives in the runner payload/SSE event is ignored on
-// purpose - this guarantees the displayed diff always matches the *current*
-// rateDiff setting, even if a stale khai was pushed before rateDiff changed.
-function computeKhai(lagai, rateDiff) {
-    const diff = Number(rateDiff) || 0;
-    if (lagai === 0 || lagai === undefined || lagai === null) return 0;
-    return Number(lagai) + diff;
+// KHAI is computed and pushed by RunnerTable, which knows whether a runner's
+// lagai was explicitly selected from the dropdown or is still at its
+// untouched default. That's why we read the incoming `khai` value here
+// instead of recalculating lagai + rateDiff blind - a blind recalculation
+// can't tell "lagai is 0 because it's untouched" apart from "lagai is 0
+// because the user explicitly selected 0", and would show the wrong value
+// for the untouched case.
+function readKhai(runnerKhai) {
+    const num = Number(runnerKhai);
+    return Number.isFinite(num) ? num : 0;
 }
 
 // Dynamic rule: ANY runner whose lagai is exactly 97 (the suspend value)
@@ -41,8 +42,6 @@ export default function OddsMarket({
     settings,
     highlightedOdds,
 }) {
-    const rateDiff = settings?.rateDiff ?? 0;
-
     return (
         <div className="bg-white mt-2 rounded shadow-sm overflow-hidden">
             <div className="grid grid-cols-4 bg-[#1E3A5F] text-white text-xs font-bold font-rajdhani px-3 py-1.5 tracking-wider">
@@ -67,8 +66,9 @@ export default function OddsMarket({
                     // Check if the dynamic 97 -> khai 0 rule applies (any runner, any team)
                     const shouldShowZero = shouldShowZeroKhai(lagaiNum);
 
-                    // Compute khai value: 0 when lagai is 97, otherwise lagai + rateDiff
-                    const khaiValue = shouldShowZero ? 0 : computeKhai(lagaiNum, rateDiff);
+                    // Khai value: 0 when lagai is 97 (suspend), otherwise whatever
+                    // khai RunnerTable already computed and pushed for this runner.
+                    const khaiValue = shouldShowZero ? 0 : readKhai(r.khai);
 
                     return (
                         <div

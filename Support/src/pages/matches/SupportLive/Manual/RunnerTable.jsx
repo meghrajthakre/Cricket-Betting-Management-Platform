@@ -7,24 +7,38 @@ const ODDS_OPTIONS = Array.from({ length: 98 }, (_, i) => i); // 0 to 97
 const SUSPEND_VALUE = 97;
 
 const FALLBACK_RUNNERS = [
-  { id: "runner_1", name: "West Indies", odds: 0 },
-  { id: "runner_2", name: "Sri Lanka", odds: 0 },
+  { id: "runner_1", name: "West Indies", odds: 0, touched: false },
+  { id: "runner_2", name: "Sri Lanka", odds: 0, touched: false },
 ];
 
 // Build the two runners from the fetched match's home/away teams,
 // falling back to the static defaults if match data isn't available yet.
 function buildDefaultRunners(match) {
   return [
-    { id: "runner_1", name: match?.homeTeam || FALLBACK_RUNNERS[0].name, odds: 0 },
-    { id: "runner_2", name: match?.awayTeam || FALLBACK_RUNNERS[1].name, odds: 0 },
+    { id: "runner_1", name: match?.homeTeam || FALLBACK_RUNNERS[0].name, odds: 0, touched: false },
+    { id: "runner_2", name: match?.awayTeam || FALLBACK_RUNNERS[1].name, odds: 0, touched: false },
   ];
 }
 
+// Pure odds+rateDiff math. Suspend value (97) always collapses to 0.
+// NOTE: this no longer special-cases odds === 0 - once a runner is
+// "touched" (see getKhai below), 0 is a real dropdown selection and should
+// reflect rateDiff like any other value.
 function computeKhai(odds, rateDiff) {
-  return odds === 0 || odds === SUSPEND_VALUE ? 0 : odds + rateDiff;
+  return odds === SUSPEND_VALUE ? 0 : odds + rateDiff;
 }
 
-async function updateRunnerAPI(matchId, runnerId, runnerName, lagai, khai, status = "open") {
+// Default/untouched runners (nobody has picked a value from the dropdown
+// yet) always display khai as 0, even if rateDiff is non-zero - this keeps
+// the initial "0 0 0 0" screen. Once the user explicitly selects a value
+// for a runner (including selecting 0 itself), that runner's khai follows
+// computeKhai/rateDiff like normal.
+function getKhai(runner, rateDiff) {
+  if (!runner.touched) return 0;
+  return computeKhai(runner.odds, rateDiff);
+}
+
+async function updateRunnerAPI(matchId, runnerId, runnerName, lagai, khai, status = "open", touched = false) {
   try {
     const { data } = await apiClient.post("/manual/update", {
       matchId,
@@ -33,6 +47,7 @@ async function updateRunnerAPI(matchId, runnerId, runnerName, lagai, khai, statu
       lagai,
       khai,
       status,
+      touched,
     });
     return { ok: true, data };
   } catch (err) {
@@ -87,8 +102,8 @@ export default function RunnerTable({ rateDiff = 1, runners: runnersProp, onRunn
     const results = await Promise.all(
       updated.map((r) => {
         const lagai = r.odds;
-        const khai = computeKhai(r.odds, rateDiff);
-        return updateRunnerAPI(matchId, r.id, r.name, lagai, khai, status);
+        const khai = getKhai(r, rateDiff);
+        return updateRunnerAPI(matchId, r.id, r.name, lagai, khai, status, r.touched === true);
       })
     );
     const failed = results.filter((r) => !r.ok);
@@ -115,7 +130,9 @@ export default function RunnerTable({ rateDiff = 1, runners: runnersProp, onRunn
   };
 
   const suspendAllRates = () => {
-    const updated = runners.map((r) => ({ ...r, odds: 0 }));
+    // Suspend resets everything back to the untouched/default state, so
+    // both runners go back to showing 0 0 (not rateDiff-adjusted).
+    const updated = runners.map((r) => ({ ...r, odds: 0, touched: false }));
     applyRunners(updated);
     setActiveIndex(null);
     pushUpdates(updated, "suspend");
@@ -127,8 +144,12 @@ export default function RunnerTable({ rateDiff = 1, runners: runnersProp, onRunn
 
     const updated =
       num === SUSPEND_VALUE
-        ? runners.map((r) => ({ ...r, odds: SUSPEND_VALUE }))
-        : runners.map((r, i) => ({ ...r, odds: i === index ? num : 0 }));
+        ? runners.map((r) => ({ ...r, odds: SUSPEND_VALUE, touched: true }))
+        : runners.map((r, i) =>
+            i === index
+              ? { ...r, odds: num, touched: true }
+              : { ...r, odds: 0, touched: false }
+          );
 
     applyRunners(updated);
     pushUpdates(updated, "open");
@@ -175,7 +196,7 @@ export default function RunnerTable({ rateDiff = 1, runners: runnersProp, onRunn
 
           <tbody>
             {runners.map((runner, i) => {
-              const khai = computeKhai(runner.odds, rateDiff);
+              const khai = getKhai(runner, rateDiff);
               const isActive = activeIndex === i;
 
               return (

@@ -27,6 +27,7 @@ const manualRunnerSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    touched: { type: Boolean, default: false },
 
     status: {
       type: String,
