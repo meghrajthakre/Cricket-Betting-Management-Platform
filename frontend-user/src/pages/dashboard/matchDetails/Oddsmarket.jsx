@@ -26,14 +26,13 @@ function computeKhai(lagai, rateDiff) {
     return Number(lagai) + diff;
 }
 
-// Special rule: For England or India, when lagai is exactly 97, khai should be 0
-const SPECIAL_TEAMS = ["england", "india"];
-const SPECIAL_LAGAI_VALUE = 97;
+// Dynamic rule: ANY runner whose lagai is exactly 97 (the suspend value)
+// shows khai as 0. This is not tied to any specific team name - it applies
+// to whichever runner happens to have lagai === 97, for every match.
+const SUSPEND_LAGAI_VALUE = 97;
 
-function shouldShowZeroKhai(runnerName, lagai) {
-    const lagaiNum = Number(lagai);
-    const normalizedName = (runnerName || "").trim().toLowerCase();
-    return SPECIAL_TEAMS.includes(normalizedName) && lagaiNum === SPECIAL_LAGAI_VALUE;
+function shouldShowZeroKhai(lagai) {
+    return Number(lagai) === SUSPEND_LAGAI_VALUE;
 }
 
 export default function OddsMarket({
@@ -61,14 +60,14 @@ export default function OddsMarket({
                 runners.map((r, index) => {
                     const isSuspended = r.status === "suspend" || settings.betLock;
                     const highlight = highlightedOdds[r.runnerId] || {};
-                    
+
                     // Convert lagai to number
                     const lagaiNum = Number(r.lagai);
-                    
-                    // Check if special rule applies (England/India with lagai=97)
-                    const shouldShowZero = shouldShowZeroKhai(r.runnerName, lagaiNum);
-                    
-                    // Compute khai value: 0 for special case, otherwise lagai + rateDiff
+
+                    // Check if the dynamic 97 -> khai 0 rule applies (any runner, any team)
+                    const shouldShowZero = shouldShowZeroKhai(lagaiNum);
+
+                    // Compute khai value: 0 when lagai is 97, otherwise lagai + rateDiff
                     const khaiValue = shouldShowZero ? 0 : computeKhai(lagaiNum, rateDiff);
 
                     return (
