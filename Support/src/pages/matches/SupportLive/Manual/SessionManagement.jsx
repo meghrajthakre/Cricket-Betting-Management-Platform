@@ -1,29 +1,9 @@
-import { useState } from "react";
-import { C, MANAGEMENT_INIT } from "./constants";
+import { C } from "./constants";
 
-export default function SessionManagement() {
-    const [sessions, setSessions] = useState(MANAGEMENT_INIT);
-
-    const toggleVisible = (i) =>
-        setSessions((p) =>
-            p.map((s, idx) =>
-                idx === i
-                    ? { ...s, visible: !s.visible, status: !s.visible ? "Showing" : "Not" }
-                    : s
-            )
-        );
-
-    const updateDiff = (i, val) => {
-        if (val === "" || val === "-") {
-            setSessions((p) => p.map((s, idx) => (idx === i ? { ...s, diff: val } : s)));
-            return;
-        }
-        const num = Number(val);
-        if (isNaN(num)) return;
-        const clamped = Math.min(10, Math.max(0, num));
-        setSessions((p) => p.map((s, idx) => (idx === i ? { ...s, diff: String(clamped) } : s)));
-    };
-
+// Sessions, visibility, and diff now live in the parent (ManualPage) so this
+// component and SessionTable always agree on the same data - toggling
+// "Show" here is what makes a session actually appear in SessionTable.
+export default function SessionManagement({ sessions, onToggleVisible, onUpdateDiff }) {
     const selectCls =
         "border border-gray-300 rounded px-1.5 py-0.5 text-xs bg-white text-gray-700 focus:outline-none";
 
@@ -61,7 +41,7 @@ export default function SessionManagement() {
                         </tr>
                     </thead>
                     <tbody>
-                        {sessions.map((s, i) => (
+                        {sessions.map((s) => (
                             <tr key={s.name} className="border-b text-[15px] border-gray-100 bg-white hover:bg-gray-50">
                                 <td className="px-3 py-2 text-gray-800 whitespace-nowrap">{s.name}</td>
 
@@ -82,7 +62,7 @@ export default function SessionManagement() {
                                 <td className="px-3 py-2 text-center whitespace-nowrap font-medium text-gray-900">
                                     <select
                                         value={s.diff}
-                                        onChange={(e) => updateDiff(i, e.target.value)}
+                                        onChange={(e) => onUpdateDiff(s.name, e.target.value)}
                                         className="border border-gray-300 rounded px-1.5 py-0.5 text-xs bg-white focus:outline-none"
                                         style={{ width: "55px" }}
                                     >
@@ -118,7 +98,7 @@ export default function SessionManagement() {
 
                                 <td className="px-3 py-2">
                                     <button
-                                        onClick={() => toggleVisible(i)}
+                                        onClick={() => onToggleVisible(s.name)}
                                         className="text-xs font-medium underline whitespace-nowrap"
                                         style={{ color: s.visible ? C.notText : "#2563eb" }}
                                     >
