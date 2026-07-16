@@ -6,6 +6,77 @@ const manualService = require("../services/manualService");
 const engine = require("../ManualEngine/engine");
 const sse = require("../ManualEngine/sseServer");
 
+const SESSION_STATUSES = ["open", "suspend", "closed"];
+const LOCK_STATUSES = ["lock", "unlock"];
+const ODD_EVEN_VALUES = ["yes", "no"];
+const SESSION_UPDATE_FIELDS = [
+    "status",
+    "lockStatus",
+    "rateDiff",
+    "group",
+    "maxAmount",
+    "oddEven",
+    "isVisible",
+];
+
+function requireText(value, fieldName) {
+    if (typeof value !== "string" || !value.trim()) {
+        throw new AppError(`${fieldName} is required`, 400);
+    }
+    return value.trim();
+}
+
+function validateSessionUpdates(body, allowedFields = SESSION_UPDATE_FIELDS) {
+    const source = body || {};
+    const updates = {};
+
+    for (const field of allowedFields) {
+        if (source[field] !== undefined) updates[field] = source[field];
+    }
+
+    if (Object.keys(updates).length === 0) {
+        throw new AppError("At least one allowed field is required", 400);
+    }
+    if (updates.status !== undefined && !SESSION_STATUSES.includes(updates.status)) {
+        throw new AppError("status must be open, suspend or closed", 400);
+    }
+    if (updates.lockStatus !== undefined && !LOCK_STATUSES.includes(updates.lockStatus)) {
+        throw new AppError("lockStatus must be lock or unlock", 400);
+    }
+    if (updates.oddEven !== undefined && !ODD_EVEN_VALUES.includes(updates.oddEven)) {
+        throw new AppError("oddEven must be yes or no", 400);
+    }
+    if (updates.isVisible !== undefined && typeof updates.isVisible !== "boolean") {
+        throw new AppError("isVisible must be a boolean", 400);
+    }
+    if (updates.rateDiff !== undefined) {
+        if (typeof updates.rateDiff !== "number" || !Number.isFinite(updates.rateDiff)) {
+            throw new AppError("rateDiff must be a valid number", 400);
+        }
+    }
+    if (updates.maxAmount !== undefined) {
+        if (
+            typeof updates.maxAmount !== "number" ||
+            !Number.isFinite(updates.maxAmount) ||
+            updates.maxAmount < 0
+        ) {
+            throw new AppError("maxAmount must be a number greater than or equal to zero", 400);
+        }
+    }
+    if (updates.group !== undefined && typeof updates.group !== "string") {
+        throw new AppError("group must be a string", 400);
+    }
+
+    return updates;
+}
+
+function broadcastSession(matchId, session) {
+    sse.broadcast(matchId, {
+        type: "SESSION_UPDATED",
+        payload: { matchId, session },
+    });
+}
+
 // POST /api/manual/update
 const updateRunner = asyncHandler(async (req, res) => {
     const { matchId, runnerId, runnerName, lagai, khai, status, touched } = req.body || {};
@@ -244,4 +315,106 @@ const updateScore = asyncHandler(async (req, res) => {
     res.status(200).json({ success: true, data: saved });
 });
 
-module.exports = { updateRunner, events, state, getSettings, updateSettings, getScore, updateScore };
+const getSessions = asyncHandler(async (req, res) => {
+    const matchId = requireText(req.params.matchId, "matchId");
+    const { sessions, initialized } = await manualService.getSessions(matchId);
+
+    res.status(initialized ? 201 : 200).json({
+        success: true,
+        message: "Sessions fetched successfully",
+        data: { matchId, sessions },
+    });
+});
+
+const updateSession = asyncHandler(async (req, res) => {
+    const matchId = requireText(req.params.matchId, "matchId");
+    const sessionId = requireText(req.params.sessionId, "sessionId");
+    const updates = validateSessionUpdates(req.body);
+    const session = await manualService.updateSession(matchId, sessionId, updates);
+
+    if (!session) throw new AppError("Session not found", 404);
+    broadcastSession(matchId, session);
+    res.status(200).json({
+        success: true,
+        message: "Session updated successfully",
+        data: { matchId, session },
+    });
+});
+
+const updateSessionStatus = asyncHandler(async (req, res) => {
+    const matchId = requireText(req.params.matchId, "matchId");
+    const sessionId = requireText(req.params.sessionId, "sessionId");
+    const updates = validateSessionUpdates(req.body, ["status"]);
+    const session = await manualService.updateSession(matchId, sessionId, updates);
+
+    if (!session) throw new AppError("Session not found", 404);
+    broadcastSession(matchId, session);
+    res.status(200).json({
+        success: true,
+        message: "Session status updated successfully",
+        data: { matchId, session },
+    });
+});
+
+const updateSessionVisibility = asyncHandler(async (req, res) => {
+    const matchId = requireText(req.params.matchId, "matchId");
+    const sessionId = requireText(req.params.sessionId, "sessionId");
+    const updates = validateSessionUpdates(req.body, ["isVisible"]);
+    const session = await manualService.updateSession(matchId, sessionId, updates);
+
+    if (!session) throw new AppError("Session not found", 404);
+    broadcastSession(matchId, session);
+    res.status(200).json({
+        success: true,
+        message: "Session visibility updated successfully",
+        data: { matchId, session },
+    });
+});
+
+const updateAllSessionStatuses = asyncHandler(async (req, res) => {
+    const matchId = requireText(req.params.matchId, "matchId");
+    const { status } = validateSessionUpdates(req.body, ["status"]);
+    await manualService.getSessions(matchId);
+    const sessions = await manualService.updateAllSessionStatuses(matchId, status);
+
+    sse.broadcast(matchId, {
+        type: "SESSIONS_UPDATED",
+        payload: { matchId, sessions },
+    });
+    res.status(200).json({
+        success: true,
+        message: "Session statuses updated successfully",
+        data: { matchId, sessions },
+    });
+});
+
+const resetSessions = asyncHandler(async (req, res) => {
+    const matchId = requireText(req.params.matchId, "matchId");
+    const sessions = await manualService.resetSessions(matchId);
+
+    sse.broadcast(matchId, {
+        type: "SESSIONS_UPDATED",
+        payload: { matchId, sessions },
+    });
+    res.status(200).json({
+        success: true,
+        message: "Sessions reset successfully",
+        data: { matchId, sessions },
+    });
+});
+
+module.exports = {
+    updateRunner,
+    events,
+    state,
+    getSettings,
+    updateSettings,
+    getScore,
+    updateScore,
+    getSessions,
+    updateSession,
+    updateSessionStatus,
+    updateSessionVisibility,
+    updateAllSessionStatuses,
+    resetSessions,
+};

@@ -5,41 +5,20 @@ import RunnerTable from "./RunnerTable";
 import SessionTable from "./SessionTable";
 import Controls from "./Controls";
 import SessionManagement from "./SessionManagement";
-import { apiClient } from "../../../../services/api"; 
-import { C, MATCH, MANAGEMENT_INIT, SESSIONS_INIT } from "./constants";
+import { apiClient } from "../../../../services/api";
+import {
+    getManualSessions,
+    updateManualSession,
+    updateManualSessionStatus,
+    updateManualSessionVisibility,
+    updateAllManualSessionStatuses,
+} from "../../../../services/manualSessionService";
 
 // Base URL used for the raw EventSource connection
 const API_BASE = apiClient.defaults.baseURL;
 
 // Only the last N balls are kept in history / displayed.
 const MAX_BALLS = 10;
-
-// Sessions live in one shared array so SessionManagement (which controls
-// visible/diff/lock) and SessionTable (which displays + suspends/opens
-// whatever is currently visible) always agree on the same state. Sessions
-// ALWAYS start hidden here - visible is forced to false on load regardless
-// of whatever MANAGEMENT_INIT says, so no default/leftover session ever
-// shows up on the table until the user explicitly clicks "Show".
-function buildInitialSessions() {
-    return MANAGEMENT_INIT.map((m) => {
-        const extra = SESSIONS_INIT.find((s) => s.name === m.name) || {};
-        return {
-            name: m.name,
-            visible: false,
-            status: "Not",
-            diff: m.diff ?? "1",
-            lock: m.lock ?? "Unlock",
-            group: m.group,
-            maxAmt: m.maxAmt,
-            oddEven: m.oddEven,
-            noRun: extra.noRun ?? 0,
-            noRate: extra.noRate ?? 0,
-            yesRun: extra.yesRun ?? 0,
-            yesRate: extra.yesRate ?? 0,
-            suspended: extra.suspended ?? false,
-        };
-    });
-}
 
 export default function ManualPage() {
     const { matchId } = useParams();
@@ -60,13 +39,11 @@ export default function ManualPage() {
     const [selectedStatus, setSelectedStatus] = useState("");
     const [marketStatus, setMarketStatus] = useState("OPEN");
 
-    // Shared session state - see buildInitialSessions() above.
-    const [sessions, setSessions] = useState(buildInitialSessions);
-    // Bumped on every Show/Hide so SessionTable is given a new `key` below,
-    // forcing React to fully remount (refresh) the table instead of doing a
-    // partial re-render - this guarantees the table's display is clean and
-    // in sync every time a session is toggled.
-    const [sessionsRefreshKey, setSessionsRefreshKey] = useState(0);
+    const [sessions, setSessions] = useState([]);
+    const [sessionsLoading, setSessionsLoading] = useState(true);
+    const [sessionsError, setSessionsError] = useState("");
+    const [pendingFields, setPendingFields] = useState(new Set());
+    const [bulkSessionPending, setBulkSessionPending] = useState(false);
 
     const eventSourceRef = useRef(null);
 
@@ -119,11 +96,30 @@ export default function ManualPage() {
         }
     }, [matchId]);
 
+    const fetchSessions = useCallback(async () => {
+        if (!matchId) return;
+        setSessionsLoading(true);
+        setSessionsError("");
+        try {
+            const { data } = await getManualSessions(matchId);
+            setSessions(data?.data?.sessions || []);
+        } catch (err) {
+            setSessionsError(
+                err.response?.data?.message || err.message || "Failed to fetch sessions"
+            );
+        } finally {
+            setSessionsLoading(false);
+        }
+    }, [matchId]);
+
     useEffect(() => {
+        // These memoized functions perform the page's initial async data load.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchMatch();
         fetchScore();
         fetchSettings();
-    }, [fetchMatch, fetchScore, fetchSettings]);
+        fetchSessions();
+    }, [fetchMatch, fetchScore, fetchSettings, fetchSessions]);
 
     // Subscribe to SSE for live score/status/settings updates
     useEffect(() => {
@@ -155,6 +151,17 @@ export default function ManualPage() {
                     }
                 }
 
+                if (parsed.type === "SESSION_UPDATED" && parsed.payload?.matchId === matchId) {
+                    const updated = parsed.payload.session;
+                    setSessions((prev) =>
+                        prev.map((session) => session.id === updated.id ? updated : session)
+                    );
+                }
+
+                if (parsed.type === "SESSIONS_UPDATED" && parsed.payload?.matchId === matchId) {
+                    setSessions(parsed.payload.sessions || []);
+                }
+
                 // Also handle match updates if needed
                 if (parsed.type === "MATCH_UPDATED" && parsed.payload?.matchId === matchId) {
                     setMatch((prev) => ({ ...prev, ...parsed.payload }));
@@ -182,49 +189,95 @@ export default function ManualPage() {
         };
     }, [matchId]);
 
-    // --- Session handlers (shared between SessionManagement and SessionTable) ---
+    const updateSessionField = useCallback(async (sessionId, field, value, request) => {
+        const pendingKey = `${sessionId}:${field}`;
+        if (pendingFields.has(pendingKey)) return;
 
-    // Flip a single session's visibility - this is what "Show"/"Hide" in
-    // SessionManagement drives, and it's what SessionTable reads to decide
-    // what to render. Also bumps sessionsRefreshKey so SessionTable fully
-    // remounts/refreshes on every toggle.
-    const toggleSessionVisible = (name) => {
-        setSessions((prev) =>
-            prev.map((s) =>
-                s.name === name
-                    ? { ...s, visible: !s.visible, status: !s.visible ? "Showing" : "Not" }
-                    : s
+        const previous = sessions.find((session) => session.id === sessionId);
+        if (!previous || previous[field] === value) return;
+
+        setPendingFields((current) => new Set(current).add(pendingKey));
+        setSessions((current) =>
+            current.map((session) =>
+                session.id === sessionId ? { ...session, [field]: value } : session
             )
         );
-        setSessionsRefreshKey((k) => k + 1);
-    };
 
-    const updateSessionDiff = (name, val) => {
-        if (val === "" || val === "-") {
-            setSessions((prev) => prev.map((s) => (s.name === name ? { ...s, diff: val } : s)));
-            return;
+        try {
+            const { data } = await request();
+            const saved = data?.data?.session;
+            if (saved) {
+                setSessions((current) =>
+                    current.map((session) => session.id === sessionId ? saved : session)
+                );
+            }
+        } catch (err) {
+            setSessions((current) =>
+                current.map((session) => session.id === sessionId ? previous : session)
+            );
+            setSessionsError(
+                err.response?.data?.message || err.message || "Failed to update session"
+            );
+        } finally {
+            setPendingFields((current) => {
+                const next = new Set(current);
+                next.delete(pendingKey);
+                return next;
+            });
         }
-        const num = Number(val);
-        if (isNaN(num)) return;
-        const clamped = Math.min(10, Math.max(0, num));
-        setSessions((prev) =>
-            prev.map((s) => (s.name === name ? { ...s, diff: String(clamped) } : s))
+    }, [pendingFields, sessions]);
+
+    const handleSessionField = (sessionId, field, value) =>
+        updateSessionField(
+            sessionId,
+            field,
+            value,
+            () => updateManualSession(matchId, sessionId, { [field]: value })
         );
+
+    const handleSessionStatus = (sessionId, status) =>
+        updateSessionField(
+            sessionId,
+            "status",
+            status,
+            () => updateManualSessionStatus(matchId, sessionId, status)
+        );
+
+    const handleSessionVisibility = (sessionId, isVisible) =>
+        updateSessionField(
+            sessionId,
+            "isVisible",
+            isVisible,
+            async () => {
+                const response = await updateManualSessionVisibility(
+                    matchId,
+                    sessionId,
+                    isVisible
+                );
+
+                window.location.reload();
+
+                return response;
+            }
+        );
+
+    const updateAllStatuses = async (status) => {
+        if (bulkSessionPending) return;
+        const previous = sessions;
+        setBulkSessionPending(true);
+        setSessions((current) => current.map((session) => ({ ...session, status })));
+        try {
+            const { data } = await updateAllManualSessionStatuses(matchId, status);
+            setSessions(data?.data?.sessions || []);
+        } catch (err) {
+            setSessions(previous);
+            setSessionsError(
+                err.response?.data?.message || err.message || "Failed to update sessions"
+            );
+        } finally {
+            setBulkSessionPending(false);
+        }
     };
-
-    // Toggle suspended state for one visible session (row-level button).
-    const toggleSessionSuspended = (name) =>
-        setSessions((prev) =>
-            prev.map((s) => (s.name === name ? { ...s, suspended: !s.suspended } : s))
-        );
-
-    // Top "Suspend Rate" / "Open Rate" buttons in SessionTable act on every
-    // session currently visible on the table.
-    const suspendAllVisibleSessions = () =>
-        setSessions((prev) => prev.map((s) => (s.visible ? { ...s, suspended: true } : s)));
-
-    const openAllVisibleSessions = () =>
-        setSessions((prev) => prev.map((s) => (s.visible ? { ...s, suspended: false } : s)));
 
     const team1 = match?.homeTeam || "";
     const team2 = match?.awayTeam || "";
@@ -240,7 +293,7 @@ export default function ManualPage() {
         return match?.status || "";
     };
 
-    const visibleSessions = sessions.filter((s) => s.visible);
+    const visibleSessions = sessions.filter((s) => s.isVisible);
 
     return (
         <div className="min-h-screen bg-gray-100 font-sans text-sm">
@@ -271,17 +324,21 @@ export default function ManualPage() {
                             />
                             <RunnerTable rateDiff={rateDiff} match={match} />
                             <SessionTable
-                                key={sessionsRefreshKey}
                                 sessions={visibleSessions}
-                                onToggleSuspend={toggleSessionSuspended}
-                                onSuspendAll={suspendAllVisibleSessions}
-                                onOpenAll={openAllVisibleSessions}
+                                onUpdateStatus={handleSessionStatus}
+                                onSuspendAll={() => updateAllStatuses("suspend")}
+                                onOpenAll={() => updateAllStatuses("open")}
+                                pendingFields={pendingFields}
+                                bulkPending={bulkSessionPending}
                             />
                             <Controls rateDiff={rateDiff} setRateDiff={setRateDiff} />
                             <SessionManagement
                                 sessions={sessions}
-                                onToggleVisible={toggleSessionVisible}
-                                onUpdateDiff={updateSessionDiff}
+                                loading={sessionsLoading}
+                                error={sessionsError}
+                                pendingFields={pendingFields}
+                                onToggleVisible={handleSessionVisibility}
+                                onUpdateField={handleSessionField}
                             />
                         </>
                     )}

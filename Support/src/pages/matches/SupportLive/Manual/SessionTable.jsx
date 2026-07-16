@@ -9,7 +9,14 @@ const actionBtnCls =
 // (ManualPage) - this table no longer owns any session data itself, and no
 // longer renders a hardcoded list. Only sessions marked visible in
 // SessionManagement (via the "Show" button) ever show up here.
-export default function SessionTable({ sessions, onToggleSuspend, onSuspendAll, onOpenAll }) {
+export default function SessionTable({
+    sessions,
+    onUpdateStatus,
+    onSuspendAll,
+    onOpenAll,
+    pendingFields,
+    bulkPending,
+}) {
     const thBase =
         "py-2.5 px-3 text-center font-semibold text-xs uppercase tracking-wide";
 
@@ -43,7 +50,8 @@ export default function SessionTable({ sessions, onToggleSuspend, onSuspendAll, 
                         <td className="py-2 px-3 text-center">
                             <button
                                 onClick={onSuspendAll}
-                                className={actionBtnCls}
+                                disabled={bulkPending}
+                                className={`${actionBtnCls} disabled:opacity-50`}
                                 style={{ background: C.suspendBtn, cursor: "pointer" }}
                             >
                                 Suspend Rate
@@ -52,7 +60,8 @@ export default function SessionTable({ sessions, onToggleSuspend, onSuspendAll, 
                         <td className="py-2 px-3 text-center">
                             <button
                                 onClick={onOpenAll}
-                                className={actionBtnCls}
+                                disabled={bulkPending}
+                                className={`${actionBtnCls} disabled:opacity-50`}
                                 style={{ background: C.openBtn, cursor: "pointer" }}
                             >
                                 Open Rate
@@ -68,29 +77,29 @@ export default function SessionTable({ sessions, onToggleSuspend, onSuspendAll, 
                         </tr>
                     ) : (
                         sessions.map((s) => (
-                            <tr key={s.name} className="border-t border-gray-200 bg-white font-medium">
-                                <td className="py-2.5 px-4 text-gray-700 font-bold">{s.name}</td>
+                            <tr key={s.id} className="border-t border-gray-200 bg-white font-medium">
+                                <td className="py-2.5 px-4 text-gray-700 font-bold">{s.sessionName}</td>
                                 <td className="py-2 px-3 text-center" style={{ background: C.laGaiCell }}>
-                                    <div className="font-bold text-gray-900">{s.noRun}</div>
-                                    <div className="text-xs text-gray-500">{s.noRate}</div>
+                                    <div className="font-bold text-gray-900">-</div>
                                 </td>
                                 <td className="py-2 px-3 text-center font-bold" style={{ background: C.khaiCell }}>
-                                    <div className="font-bold text-gray-900">{s.yesRun}</div>
-                                    <div className="text-xs text-gray-500">{s.yesRate}</div>
+                                    <div className="font-bold text-gray-900">-</div>
                                 </td>
                                 <td className="py-2 px-3 text-center">
                                     <button
-                                        onClick={() => onToggleSuspend(s.name)}
-                                        className="text-white text-xs px-3 py-1 rounded font-medium"
+                                        disabled={pendingFields.has(`${s.id}:status`)}
+                                        onClick={() => onUpdateStatus(s.id, "suspend")}
+                                        className="text-white text-xs px-3 py-1 rounded font-medium disabled:opacity-50"
                                         style={{ background: C.suspendBtn }}
                                     >
-                                        {s.suspended ? "Suspended" : "Suspend"}
+                                        {s.status === "suspend" ? "Suspended" : "Suspend"}
                                     </button>
                                 </td>
                                 <td className="py-2 px-3 text-center">
                                     <button
-                                        onClick={() => onToggleSuspend(s.name)}
-                                        className="text-white text-xs px-3 py-1 rounded font-medium"
+                                        disabled={pendingFields.has(`${s.id}:status`)}
+                                        onClick={() => onUpdateStatus(s.id, "open")}
+                                        className="text-white text-xs px-3 py-1 rounded font-medium disabled:opacity-50"
                                         style={{ background: C.openBtn }}
                                     >
                                         Open

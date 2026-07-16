@@ -1,13 +1,24 @@
 import { C } from "./constants";
 
-// Sessions, visibility, and diff now live in the parent (ManualPage) so this
-// component and SessionTable always agree on the same data - toggling
-// "Show" here is what makes a session actually appear in SessionTable.
-export default function SessionManagement({ sessions, onToggleVisible, onUpdateDiff }) {
+const STATUS_LABELS = {
+    open: "Open",
+    suspend: "Suspend",
+    closed: "Closed",
+};
+
+export default function SessionManagement({
+    sessions,
+    loading,
+    error,
+    pendingFields,
+    onUpdateField,
+    onToggleVisible,
+}) {
     const selectCls =
         "border border-gray-300 rounded px-1.5 py-0.5 text-xs bg-white text-gray-700 focus:outline-none";
 
     const rateDiffValues = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    const isPending = (sessionId, field) => pendingFields.has(`${sessionId}:${field}`);
 
     return (
         <>
@@ -41,29 +52,63 @@ export default function SessionManagement({ sessions, onToggleVisible, onUpdateD
                         </tr>
                     </thead>
                     <tbody>
+                        {loading && (
+                            <tr>
+                                <td colSpan={8} className="px-3 py-5 text-center text-gray-500">
+                                    Loading sessions...
+                                </td>
+                            </tr>
+                        )}
+                        {!loading && error && (
+                            <tr>
+                                <td colSpan={8} className="px-3 py-5 text-center text-red-600">
+                                    {error}
+                                </td>
+                            </tr>
+                        )}
+                        {!loading && !error && sessions.length === 0 && (
+                            <tr>
+                                <td colSpan={8} className="px-3 py-5 text-center text-gray-500">
+                                    No sessions found.
+                                </td>
+                            </tr>
+                        )}
                         {sessions.map((s) => (
-                            <tr key={s.name} className="border-b text-[15px] border-gray-100 bg-white hover:bg-gray-50">
-                                <td className="px-3 py-2 text-gray-800 whitespace-nowrap">{s.name}</td>
+                            <tr key={s.id} className="border-b text-[15px] border-gray-100 bg-white hover:bg-gray-50">
+                                <td className="px-3 py-2 text-gray-800 whitespace-nowrap">{s.sessionName}</td>
 
-                                <td
-                                    className="px-3 py-2 font-medium whitespace-nowrap"
-                                    style={{ color: s.status === "Showing" ? C.showingText : C.notText }}
-                                >
-                                    {s.status}
+                                <td className="px-3 py-2">
+                                    <select
+                                        value={s.status}
+                                        disabled={isPending(s.id, "status")}
+                                        onChange={(e) => onUpdateField(s.id, "status", e.target.value)}
+                                        className={selectCls}
+                                        style={{ color: s.status === "open" ? C.showingText : C.notText }}
+                                    >
+                                        {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                                            <option key={value} value={value}>{label}</option>
+                                        ))}
+                                    </select>
                                 </td>
 
                                 <td className="px-3 py-2">
-                                    <select className={selectCls}>
-                                        <option>Unlock</option>
-                                        <option>Lock</option>
+                                    <select
+                                        value={s.lockStatus}
+                                        disabled={isPending(s.id, "lockStatus")}
+                                        onChange={(e) => onUpdateField(s.id, "lockStatus", e.target.value)}
+                                        className={selectCls}
+                                    >
+                                        <option value="unlock">Unlock</option>
+                                        <option value="lock">Lock</option>
                                     </select>
                                 </td>
 
                                 <td className="px-3 py-2 text-center whitespace-nowrap font-medium text-gray-900">
                                     <select
-                                        value={s.diff}
-                                        onChange={(e) => onUpdateDiff(s.name, e.target.value)}
-                                        className="border border-gray-300 rounded px-1.5 py-0.5 text-xs bg-white focus:outline-none"
+                                        value={s.rateDiff}
+                                        disabled={isPending(s.id, "rateDiff")}
+                                        onChange={(e) => onUpdateField(s.id, "rateDiff", Number(e.target.value))}
+                                        className={selectCls}
                                         style={{ width: "55px" }}
                                     >
                                         {rateDiffValues.map((val) => (
@@ -73,36 +118,51 @@ export default function SessionManagement({ sessions, onToggleVisible, onUpdateD
                                 </td>
 
                                 <td className="px-3 py-2">
-                                    <select className={selectCls}>
-                                        <option>Select</option>
-                                        <option>Group A</option>
-                                        <option>Group B</option>
+                                    <select
+                                        value={s.group}
+                                        disabled={isPending(s.id, "group")}
+                                        onChange={(e) => onUpdateField(s.id, "group", e.target.value)}
+                                        className={selectCls}
+                                    >
+                                        <option value="default">Default</option>
+                                        <option value="group-1">Group 1</option>
+                                        <option value="group-2">Group 2</option>
                                     </select>
                                 </td>
 
                                 <td className="px-3 py-2">
-                                    <select className={selectCls}>
-                                        <option>Select</option>
-                                        <option>1000</option>
-                                        <option>5000</option>
-                                        <option>10000</option>
+                                    <select
+                                        value={s.maxAmount}
+                                        disabled={isPending(s.id, "maxAmount")}
+                                        onChange={(e) => onUpdateField(s.id, "maxAmount", Number(e.target.value))}
+                                        className={selectCls}
+                                    >
+                                        {[0, 1000, 5000, 10000, 500000].map((amount) => (
+                                            <option key={amount} value={amount}>{amount}</option>
+                                        ))}
                                     </select>
                                 </td>
 
                                 <td className="px-3 py-2">
-                                    <select className={selectCls}>
-                                        <option>No</option>
-                                        <option>Yes</option>
+                                    <select
+                                        value={s.oddEven}
+                                        disabled={isPending(s.id, "oddEven")}
+                                        onChange={(e) => onUpdateField(s.id, "oddEven", e.target.value)}
+                                        className={selectCls}
+                                    >
+                                        <option value="no">No</option>
+                                        <option value="yes">Yes</option>
                                     </select>
                                 </td>
 
                                 <td className="px-3 py-2">
                                     <button
-                                        onClick={() => onToggleVisible(s.name)}
-                                        className="text-xs font-medium underline whitespace-nowrap"
-                                        style={{ color: s.visible ? C.notText : "#2563eb" }}
+                                        disabled={isPending(s.id, "isVisible")}
+                                        onClick={() => onToggleVisible(s.id, !s.isVisible)}
+                                        className="text-xs font-medium underline whitespace-nowrap disabled:opacity-50"
+                                        style={{ color: s.isVisible ? C.notText : "#2563eb" }}
                                     >
-                                        {s.visible ? "Hide" : "Show"}
+                                        {s.isVisible ? "Hide" : "Show"}
                                     </button>
                                 </td>
                             </tr>

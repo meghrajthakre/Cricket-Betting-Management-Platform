@@ -3,6 +3,24 @@
 const ManualRunner = require("../models/ManualModel/ManualRunner");
 const ManualSettings = require('../models/ManualModel/ManualSettings');
 const ManualScore = require('../models/ManualModel/ManualScore');
+const ManualSession = require("../models/ManualModel/ManualSession");
+const dummySessions = require("../data/dummySessions");
+
+let manualSessionIndexesReady;
+
+async function ensureManualSessionIndexes() {
+    if (!manualSessionIndexesReady) {
+        // Remove obsolete indexes from older ManualSession schemas (such as
+        // matchId + sessionId and matchId + name) and create the current ones.
+        // Those legacy unique indexes treat missing fields as null and allow
+        // only one new session document per match.
+        manualSessionIndexesReady = ManualSession.syncIndexes().catch((error) => {
+            manualSessionIndexesReady = null;
+            throw error;
+        });
+    }
+    return manualSessionIndexesReady;
+}
 
 async function saveRunner(matchId, runner) {
     // Upsert runner document by matchId + runnerId
@@ -149,6 +167,85 @@ async function updateScore(matchId, updates) {
     return doc;
 }
 
+function cloneSessionsForMatch(matchId) {
+    return dummySessions.map((session) => ({ ...session, matchId }));
+}
+
+async function getSessions(matchId) {
+    await ensureManualSessionIndexes();
+
+    const templates = cloneSessionsForMatch(matchId);
+    let initialized = false;
+
+    try {
+        const result = await ManualSession.bulkWrite(
+            templates.map((session) => ({
+                updateOne: {
+                    filter: { matchId, id: session.id },
+                    update: { $setOnInsert: session },
+                    upsert: true,
+                },
+            })),
+            { ordered: false }
+        );
+        initialized = (result.upsertedCount || 0) > 0;
+    } catch (error) {
+        // Two page requests can initialize the same match at the same time
+        // (for example, React StrictMode in development). In that case one
+        // request may insert a session just before the other request does.
+        // The unique indexes correctly reject the duplicate, but fetching the
+        // now-existing rows is still a successful initialization outcome.
+        const writeErrors = error?.writeErrors || error?.result?.result?.writeErrors || [];
+        const duplicateOnly =
+            error?.code === 11000 ||
+            (writeErrors.length > 0 &&
+                writeErrors.every((writeError) => writeError?.code === 11000));
+
+        if (!duplicateOnly) throw error;
+        initialized = true;
+    }
+
+    // One-time migration: seeded sessions start hidden in the main table.
+    // After version 2 is applied, later Show/Hide choices are never overwritten.
+    await ManualSession.updateMany(
+        {
+            matchId,
+            id: { $in: templates.map((session) => session.id) },
+            visibilityVersion: { $ne: 2 },
+        },
+        {
+            $set: {
+                isVisible: false,
+                visibilityVersion: 2,
+            },
+        }
+    );
+
+    const sessions = await ManualSession.find({ matchId })
+        .sort({ displayOrder: 1 })
+        .lean();
+    return { sessions, initialized };
+}
+
+async function updateSession(matchId, sessionId, updates) {
+    return ManualSession.findOneAndUpdate(
+        { matchId, id: sessionId },
+        { $set: updates },
+        { new: true, runValidators: true }
+    ).lean();
+}
+
+async function updateAllSessionStatuses(matchId, status) {
+    await ManualSession.updateMany({ matchId }, { $set: { status } });
+    return ManualSession.find({ matchId }).sort({ displayOrder: 1 }).lean();
+}
+
+async function resetSessions(matchId) {
+    await ManualSession.deleteMany({ matchId });
+    const sessions = await ManualSession.insertMany(cloneSessionsForMatch(matchId));
+    return sessions.map((session) => session.toObject());
+}
+
 module.exports = {
     saveRunner,
     getState,
@@ -158,4 +255,8 @@ module.exports = {
     recalculateRunnersForRateDiff,
     getScore,
     updateScore,
+    getSessions,
+    updateSession,
+    updateAllSessionStatuses,
+    resetSessions,
 };
