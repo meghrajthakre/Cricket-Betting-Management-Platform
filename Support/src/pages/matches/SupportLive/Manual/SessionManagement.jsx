@@ -1,11 +1,5 @@
 import { C } from "./constants";
 
-const STATUS_LABELS = {
-    open: "Open",
-    suspend: "Suspend",
-    closed: "Closed",
-};
-
 export default function SessionManagement({
     sessions,
     loading,
@@ -19,6 +13,9 @@ export default function SessionManagement({
 
     const rateDiffValues = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     const isPending = (sessionId, field) => pendingFields.has(`${sessionId}:${field}`);
+    const orderedSessions = [...sessions].sort(
+        (first, second) => Number(second.isVisible) - Number(first.isVisible)
+    );
 
     return (
         <>
@@ -73,22 +70,17 @@ export default function SessionManagement({
                                 </td>
                             </tr>
                         )}
-                        {sessions.map((s) => (
+                        {orderedSessions.map((s) => (
                             <tr key={s.id} className="border-b text-[15px] border-gray-100 bg-white hover:bg-gray-50">
                                 <td className="px-3 py-2 text-gray-800 whitespace-nowrap">{s.sessionName}</td>
 
                                 <td className="px-3 py-2">
-                                    <select
-                                        value={s.status}
-                                        disabled={isPending(s.id, "status")}
-                                        onChange={(e) => onUpdateField(s.id, "status", e.target.value)}
-                                        className={selectCls}
-                                        style={{ color: s.status === "open" ? C.showingText : C.notText }}
+                                    <span
+                                        className="font-semibold"
+                                        style={{ color: s.isVisible ? C.showingText : C.notText }}
                                     >
-                                        {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                                            <option key={value} value={value}>{label}</option>
-                                        ))}
-                                    </select>
+                                        {s.isVisible ? "Showing" : "Not"}
+                                    </span>
                                 </td>
 
                                 <td className="px-3 py-2">
