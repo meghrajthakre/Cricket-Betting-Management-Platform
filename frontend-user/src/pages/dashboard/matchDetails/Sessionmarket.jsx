@@ -1,43 +1,49 @@
 function SessionRow({ session, onBet, sessionLocked }) {
+    const sessionName = session.sessionName || session.name;
+    const noRate = session.no?.rate ?? "-";
+    const noSize = session.no?.size;
+    const yesRate = session.yes?.rate ?? "-";
+    const yesSize = session.yes?.size;
+
     const handleBet = (type, rate) => {
         if (sessionLocked) return;
         if (onBet) {
-            onBet(session.name, type, rate);
+            onBet(sessionName, type, rate);
         } else {
-            console.log(`Bet placed: ${session.name} - ${type} @ ${rate}`);
+            console.log(`Bet placed: ${sessionName} - ${type} @ ${rate}`);
         }
     };
 
     return (
         <tr className="border-b border-[#CDD9E5] last:border-0">
             <td className="py-2 px-3 text-sm font-semibold text-[#1A2B3C] font-nunito w-[45%]">
-                {session.name}
+                {sessionName}
             </td>
             <td className="py-2 px-1 w-[22%] relative">
                 <button
-                    onClick={() => handleBet("no", session.no.rate)}
+                    onClick={() => handleBet("no", noRate)}
                     disabled={sessionLocked}
                     className="w-full bg-[#a8cce8] hover:bg-[#7fb3d9] transition-colors rounded text-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     <div className="text-base font-bold text-[#1A2B3C] font-rajdhani leading-tight pt-1">
-                        {session.no.rate}
+                        {noRate}
                     </div>
                     <div className="text-xs text-[#2B4A7A] pb-1">
-                        {session.no.size.toFixed(2)}
+                        {typeof noSize === "number" ? noSize.toFixed(2) : ""}
                     </div>
                 </button>
             </td>
             <td className="py-2 px-1 w-[22%] relative">
                 <button
-                    onClick={() => handleBet("yes", session.yes.rate)}
+                    onClick={() => handleBet("yes", yesRate)}
                     disabled={sessionLocked}
                     className="w-full bg-[#f5c99a] hover:bg-[#f0b87a] transition-colors rounded text-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     <div className="text-base font-bold text-[#1A2B3C] font-rajdhani leading-tight pt-1">
-                        {session.yes.rate}
+                        {yesRate}
                     </div>
                     <div className="text-xs text-[#7A4A2B] pb-1">
-                        {session.yes.size.toFixed(2)}
+                        {typeof yesSize === "number" ? yesSize.toFixed(2) : ""}
                     </div>
                 </button>
             </td>
@@ -107,9 +113,9 @@ export default function SessionMarket({ sessions, settings, onPlaceBet }) {
 
             <table className="w-full">
                 <tbody>
-                    {sessions.map((s, i) => (
+                    {sessions.map((s) => (
                         <SessionRow
-                            key={i}
+                            key={s.id || s.name}
                             session={s}
                             onBet={onPlaceBet}
                             sessionLocked={settings.sessionLock}

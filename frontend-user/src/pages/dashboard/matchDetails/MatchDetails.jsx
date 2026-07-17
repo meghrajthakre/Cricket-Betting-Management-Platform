@@ -6,7 +6,6 @@ import OddsMarket from "./Oddsmarket.jsx";
 import SessionMarket from "./Sessionmarket.jsx";
 import LoadingState from "./LoadingState.jsx";
 import ErrorState from "./ErrorState.jsx";
-import SettingsDebug from "./SettingsDebug.jsx";
 import { MOCK_DATA } from "./mockData.js";
 
 export default function MatchDetails() {
@@ -15,6 +14,7 @@ export default function MatchDetails() {
     const savedMatch = useSavedMatch(matchId);
     const {
         runners,
+        sessions,
         settings,
         scoreStatus,
         scoreData,
@@ -51,7 +51,8 @@ export default function MatchDetails() {
         return <ErrorState error={error} onRetry={() => window.location.reload()} />;
     }
 
-    const { recentBalls, thisOver, bookmaker, sessions, evenOdd } = MOCK_DATA;
+    const { bookmaker } = MOCK_DATA;
+    const visibleSessions = sessions.filter((session) => session.isVisible);
 
     const match = {
         ...MOCK_DATA.match,
@@ -90,12 +91,11 @@ export default function MatchDetails() {
                 />
 
                 <SessionMarket
-                    sessions={sessions}
+                    sessions={visibleSessions}
                     settings={settings}
                     onPlaceBet={handlePlaceBet}
                 />
 
-                <SettingsDebug settings={settings} />
             </div>
         </div>
     );

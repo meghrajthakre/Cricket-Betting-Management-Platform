@@ -44,6 +44,9 @@ export const getManualState = (matchId) =>
 export const getManualSettings = (matchId) => 
   API.get(`/manual/settings/${matchId}`).then((r) => r.data);
 
+export const getManualSessions = (matchId) =>
+  API.get(`/manual/sessions/${matchId}`).then((r) => r.data);
+
 export const updateManualState = (matchId, data) => 
   API.put(`/manual/state/${matchId}`, data).then((r) => r.data);
 

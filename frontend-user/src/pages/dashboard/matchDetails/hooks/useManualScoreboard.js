@@ -1,5 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { getManualState, getManualSettings, getManualScore, getSSEUrl } from "../../../../api/userService";
+import {
+    getManualState,
+    getManualSettings,
+    getManualScore,
+    getManualSessions,
+    getSSEUrl,
+} from "../../../../api/userService";
 import useHighlightedOdds from "./useHighlightedOdds";
 import {
     nextScoreDataFromFetch,
@@ -40,6 +46,7 @@ export default function useManualScoreboard(matchId) {
     const [settings, setSettings] = useState(INITIAL_SETTINGS);
     const [scoreStatus, setScoreStatus] = useState("");
     const [scoreData, setScoreData] = useState(INITIAL_SCORE_DATA);
+    const [sessions, setSessions] = useState([]);
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -55,7 +62,7 @@ export default function useManualScoreboard(matchId) {
         if (!matchId) return;
 
         try {
-            const [stateRes, settingsRes, scoreRes] = await Promise.all([
+            const [stateRes, settingsRes, scoreRes, sessionsRes] = await Promise.all([
                 getManualState(matchId).catch((err) => {
                     console.error("Failed to load state:", err);
                     return null;
@@ -66,6 +73,10 @@ export default function useManualScoreboard(matchId) {
                 }),
                 getManualScore(matchId).catch((err) => {
                     console.error("Failed to load score:", err);
+                    return null;
+                }),
+                getManualSessions(matchId).catch((err) => {
+                    console.error("Failed to load sessions:", err);
                     return null;
                 }),
             ]);
@@ -83,6 +94,10 @@ export default function useManualScoreboard(matchId) {
                 if (scoreRes.data.status !== undefined) {
                     setScoreStatus(scoreRes.data.status);
                 }
+            }
+
+            if (sessionsRes?.data?.sessions) {
+                setSessions(sessionsRes.data.sessions);
             }
         } catch (e) {
             console.error("Failed to fetch latest data:", e);
@@ -140,6 +155,22 @@ export default function useManualScoreboard(matchId) {
                     if (parsed.payload.status !== undefined) {
                         setScoreStatus(parsed.payload.status);
                     }
+                }
+
+                if (parsed.type === "SESSION_UPDATED" && parsed.payload?.session) {
+                    const updatedSession = parsed.payload.session;
+                    setSessions((prev) => {
+                        const exists = prev.some((session) => session.id === updatedSession.id);
+                        return exists
+                            ? prev.map((session) =>
+                                session.id === updatedSession.id ? updatedSession : session
+                            )
+                            : [...prev, updatedSession];
+                    });
+                }
+
+                if (parsed.type === "SESSIONS_UPDATED" && parsed.payload?.sessions) {
+                    setSessions(parsed.payload.sessions);
                 }
 
                 if (parsed.type === "STATE_UPDATED" && parsed.payload) {
@@ -233,6 +264,7 @@ export default function useManualScoreboard(matchId) {
 
     return {
         runners,
+        sessions,
         settings,
         scoreStatus,
         scoreData,
