@@ -80,26 +80,26 @@ export default function SessionTable({
                             <tr key={s.id} className="border-t border-gray-200 bg-white font-medium">
                                 <td className="py-2.5 px-4 text-gray-700 font-bold">{s.sessionName}</td>
                                 <td className="py-2 px-3 text-center" style={{ background: C.laGaiCell }}>
-                                    {s.status === "open" && (
-                                        <>
-                                            <div className="font-bold text-gray-900">{s.noRun}</div>
-                                            <div className="text-sm text-gray-900">{Number(s.noRate).toFixed(1)}</div>
-                                        </>
-                                    )}
+                                    <div className="font-bold text-gray-900">
+                                        {s.status === "open" ? s.noRun : 0}
+                                    </div>
+                                    <div className="text-sm text-gray-900">
+                                        {s.status === "open" ? Number(s.noRate).toFixed(1) : "0.0"}
+                                    </div>
                                 </td>
                                 <td className="py-2 px-3 text-center font-bold" style={{ background: C.khaiCell }}>
-                                    {s.status === "open" && (
-                                        <>
-                                            <div className="font-bold text-gray-900">{s.yesRun}</div>
-                                            <div className="text-sm text-gray-900">{Number(s.yesRate).toFixed(1)}</div>
-                                        </>
-                                    )}
+                                    <div className="font-bold text-gray-900">
+                                        {s.status === "open" ? s.yesRun : 0}
+                                    </div>
+                                    <div className="text-sm text-gray-900">
+                                        {s.status === "open" ? Number(s.yesRate).toFixed(1) : "0.0"}
+                                    </div>
                                 </td>
                                 <td className="py-2 px-3 text-center">
                                     <button
                                         disabled={pendingFields.has(`${s.id}:status`)}
                                         onClick={() => onUpdateStatus(s.id, "suspend")}
-                                        className="text-white text-xs px-3 py-1 rounded font-medium disabled:opacity-50"
+                                        className="text-white text-xs px-3 py-1 rounded font-medium cursor-pointer transition-all duration-200 hover:brightness-110 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                                         style={{ background: C.suspendBtn }}
                                     >
                                         {s.status === "suspend" ? "Suspended" : "Suspend"}
@@ -109,7 +109,7 @@ export default function SessionTable({
                                     <button
                                         disabled={pendingFields.has(`${s.id}:status`)}
                                         onClick={() => onUpdateStatus(s.id, "open")}
-                                        className="text-white text-xs px-3 py-1 rounded font-medium disabled:opacity-50"
+                                        className="text-white text-xs px-3 py-1 rounded font-medium cursor-pointer transition-all duration-200 hover:brightness-110 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                                         style={{ background: C.openBtn }}
                                     >
                                         Open

@@ -25,41 +25,33 @@ function SessionRow({ session, onBet, sessionLocked }) {
                 <button
                     onClick={() => handleBet("no", noRun)}
                     disabled={bettingDisabled}
-                    className="w-full min-h-11 bg-[#a8cce8] hover:bg-[#7fb3d9] transition-colors rounded text-center disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full min-h-11 bg-[#a8cce8] hover:bg-[#7fb3d9] rounded text-center cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:brightness-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
-                    {!isSuspended && (
-                        <>
-                            <div className="text-base font-bold text-[#1A2B3C] font-rajdhani leading-tight pt-1">
-                                {noRun}
-                            </div>
-                            <div className="text-xs text-[#2B4A7A] pb-1">
-                                {typeof noRate === "number" ? noRate.toFixed(1) : ""}
-                            </div>
-                        </>
-                    )}
+                    <div className="text-base font-bold text-[#1A2B3C] font-rajdhani leading-tight pt-1">
+                        {isSuspended ? 0 : noRun}
+                    </div>
+                    <div className="text-xs text-[#2B4A7A] pb-1">
+                        {isSuspended ? "0.0" : (typeof noRate === "number" ? noRate.toFixed(1) : "")}
+                    </div>
                 </button>
             </td>
             <td className="py-2 px-1 w-[22%] relative">
                 <button
                     onClick={() => handleBet("yes", yesRun)}
                     disabled={bettingDisabled}
-                    className="w-full min-h-11 bg-[#f5c99a] hover:bg-[#f0b87a] transition-colors rounded text-center disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full min-h-11 bg-[#f5c99a] hover:bg-[#f0b87a] rounded text-center cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:brightness-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
-                    {!isSuspended && (
-                        <>
-                            <div className="text-base font-bold text-[#1A2B3C] font-rajdhani leading-tight pt-1">
-                                {yesRun}
-                            </div>
-                            <div className="text-xs text-[#7A4A2B] pb-1">
-                                {typeof yesRate === "number" ? yesRate.toFixed(1) : ""}
-                            </div>
-                        </>
-                    )}
+                    <div className="text-base font-bold text-[#1A2B3C] font-rajdhani leading-tight pt-1">
+                        {isSuspended ? 0 : yesRun}
+                    </div>
+                    <div className="text-xs text-[#7A4A2B] pb-1">
+                        {isSuspended ? "0.0" : (typeof yesRate === "number" ? yesRate.toFixed(1) : "")}
+                    </div>
                 </button>
             </td>
             <td className="py-2 px-2 w-[11%]">
                 <div className="flex gap-1 justify-center">
-                    <button className="text-[#4B75B8] hover:text-[#1E3A5F]">
+                    <button className="text-[#4B75B8] hover:text-[#1E3A5F] cursor-pointer transition-transform hover:scale-110 active:scale-95">
                         <svg
                             width="16"
                             height="16"
@@ -74,7 +66,7 @@ function SessionRow({ session, onBet, sessionLocked }) {
                             <rect x="3" y="14" width="7" height="7" />
                         </svg>
                     </button>
-                    <button className="text-[#4B75B8] hover:text-[#1E3A5F]">
+                    <button className="text-[#4B75B8] hover:text-[#1E3A5F] cursor-pointer transition-transform hover:scale-110 active:scale-95">
                         <svg
                             width="16"
                             height="16"
