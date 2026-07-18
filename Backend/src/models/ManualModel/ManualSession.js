@@ -23,6 +23,10 @@ const manualSessionSchema = new mongoose.Schema(
       enum: ["open", "suspend", "closed"],
       default: "suspend",
     },
+    manuallySuspended: {
+      type: Boolean,
+      default: false,
+    },
     lockStatus: {
       type: String,
       enum: ["lock", "unlock"],
@@ -32,6 +36,10 @@ const manualSessionSchema = new mongoose.Schema(
       type: Number,
       default: 1,
     },
+    noRun: { type: Number, default: 0 },
+    noRate: { type: Number, default: 1 },
+    yesRun: { type: Number, default: 0 },
+    yesRate: { type: Number, default: 1 },
     group: {
       type: String,
       default: "default",

@@ -1,12 +1,14 @@
 function SessionRow({ session, onBet, sessionLocked }) {
     const sessionName = session.sessionName || session.name;
-    const noRate = session.no?.rate ?? "-";
-    const noSize = session.no?.size;
-    const yesRate = session.yes?.rate ?? "-";
-    const yesSize = session.yes?.size;
+    const noRun = session.noRun ?? session.no?.rate ?? "-";
+    const noRate = session.noRate ?? session.no?.size;
+    const yesRun = session.yesRun ?? session.yes?.rate ?? "-";
+    const yesRate = session.yesRate ?? session.yes?.size;
+    const isSuspended = session.status !== "open" || session.lockStatus === "lock";
+    const bettingDisabled = sessionLocked || isSuspended;
 
     const handleBet = (type, rate) => {
-        if (sessionLocked) return;
+        if (bettingDisabled) return;
         if (onBet) {
             onBet(sessionName, type, rate);
         } else {
@@ -21,30 +23,38 @@ function SessionRow({ session, onBet, sessionLocked }) {
             </td>
             <td className="py-2 px-1 w-[22%] relative">
                 <button
-                    onClick={() => handleBet("no", noRate)}
-                    disabled={sessionLocked}
-                    className="w-full bg-[#a8cce8] hover:bg-[#7fb3d9] transition-colors rounded text-center disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => handleBet("no", noRun)}
+                    disabled={bettingDisabled}
+                    className="w-full min-h-11 bg-[#a8cce8] hover:bg-[#7fb3d9] transition-colors rounded text-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    <div className="text-base font-bold text-[#1A2B3C] font-rajdhani leading-tight pt-1">
-                        {noRate}
-                    </div>
-                    <div className="text-xs text-[#2B4A7A] pb-1">
-                        {typeof noSize === "number" ? noSize.toFixed(2) : ""}
-                    </div>
+                    {!isSuspended && (
+                        <>
+                            <div className="text-base font-bold text-[#1A2B3C] font-rajdhani leading-tight pt-1">
+                                {noRun}
+                            </div>
+                            <div className="text-xs text-[#2B4A7A] pb-1">
+                                {typeof noRate === "number" ? noRate.toFixed(1) : ""}
+                            </div>
+                        </>
+                    )}
                 </button>
             </td>
             <td className="py-2 px-1 w-[22%] relative">
                 <button
-                    onClick={() => handleBet("yes", yesRate)}
-                    disabled={sessionLocked}
-                    className="w-full bg-[#f5c99a] hover:bg-[#f0b87a] transition-colors rounded text-center disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => handleBet("yes", yesRun)}
+                    disabled={bettingDisabled}
+                    className="w-full min-h-11 bg-[#f5c99a] hover:bg-[#f0b87a] transition-colors rounded text-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    <div className="text-base font-bold text-[#1A2B3C] font-rajdhani leading-tight pt-1">
-                        {yesRate}
-                    </div>
-                    <div className="text-xs text-[#7A4A2B] pb-1">
-                        {typeof yesSize === "number" ? yesSize.toFixed(2) : ""}
-                    </div>
+                    {!isSuspended && (
+                        <>
+                            <div className="text-base font-bold text-[#1A2B3C] font-rajdhani leading-tight pt-1">
+                                {yesRun}
+                            </div>
+                            <div className="text-xs text-[#7A4A2B] pb-1">
+                                {typeof yesRate === "number" ? yesRate.toFixed(1) : ""}
+                            </div>
+                        </>
+                    )}
                 </button>
             </td>
             <td className="py-2 px-2 w-[11%]">

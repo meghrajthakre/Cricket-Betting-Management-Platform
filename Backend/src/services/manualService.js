@@ -221,6 +221,24 @@ async function getSessions(matchId) {
         }
     );
 
+    // Quotes are controlled by the backend dummy source and stay read-only in Support.
+    await ManualSession.bulkWrite(
+        templates.map((session) => ({
+            updateOne: {
+                filter: { matchId, id: session.id },
+                update: {
+                    $set: {
+                        noRun: session.noRun,
+                        noRate: session.noRate,
+                        yesRun: session.yesRun,
+                        yesRate: session.yesRate,
+                    },
+                },
+            },
+        })),
+        { ordered: false }
+    );
+
     const sessions = await ManualSession.find({ matchId })
         .sort({ displayOrder: 1 })
         .lean();
@@ -236,7 +254,16 @@ async function updateSession(matchId, sessionId, updates) {
 }
 
 async function updateAllSessionStatuses(matchId, status) {
-    await ManualSession.updateMany({ matchId }, { $set: { status } });
+    if (status === "open") {
+        // Bulk-open must not reopen a session explicitly suspended by Support.
+        await ManualSession.updateMany(
+            { matchId, manuallySuspended: { $ne: true } },
+            { $set: { status: "open" } }
+        );
+    } else {
+        // Bulk-suspend changes status only and preserves individual overrides.
+        await ManualSession.updateMany({ matchId }, { $set: { status } });
+    }
     return ManualSession.find({ matchId }).sort({ displayOrder: 1 }).lean();
 }
 

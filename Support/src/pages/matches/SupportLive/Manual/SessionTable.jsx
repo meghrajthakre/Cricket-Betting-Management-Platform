@@ -80,10 +80,20 @@ export default function SessionTable({
                             <tr key={s.id} className="border-t border-gray-200 bg-white font-medium">
                                 <td className="py-2.5 px-4 text-gray-700 font-bold">{s.sessionName}</td>
                                 <td className="py-2 px-3 text-center" style={{ background: C.laGaiCell }}>
-                                    <div className="font-bold text-gray-900">-</div>
+                                    {s.status === "open" && (
+                                        <>
+                                            <div className="font-bold text-gray-900">{s.noRun}</div>
+                                            <div className="text-sm text-gray-900">{Number(s.noRate).toFixed(1)}</div>
+                                        </>
+                                    )}
                                 </td>
                                 <td className="py-2 px-3 text-center font-bold" style={{ background: C.khaiCell }}>
-                                    <div className="font-bold text-gray-900">-</div>
+                                    {s.status === "open" && (
+                                        <>
+                                            <div className="font-bold text-gray-900">{s.yesRun}</div>
+                                            <div className="text-sm text-gray-900">{Number(s.yesRate).toFixed(1)}</div>
+                                        </>
+                                    )}
                                 </td>
                                 <td className="py-2 px-3 text-center">
                                     <button

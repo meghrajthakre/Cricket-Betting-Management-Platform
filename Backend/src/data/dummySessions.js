@@ -31,19 +31,29 @@ const dummySessions = [
   "Highest Individual Score Team 2",
   "Total Match Sixes",
   "Total Match Fours",
-].map((sessionName, index) => ({
-  id: `session_${String(index + 1).padStart(3, "0")}`,
-  sessionName,
-  status: "suspend",
-  lockStatus: "unlock",
-  rateDiff: 1,
-  group: "default",
-  maxAmount: 500000,
-  oddEven: "no",
-  isVisible: false,
-  visibilityVersion: 2,
-  displayOrder: index + 1,
-}));
+].map((sessionName, index) => {
+  const noRun = 25 + (index * 5);
+  const specialRate = index % 3 !== 0;
+
+  return {
+    id: `session_${String(index + 1).padStart(3, "0")}`,
+    sessionName,
+    status: "suspend",
+    manuallySuspended: false,
+    lockStatus: "unlock",
+    rateDiff: 1,
+    noRun,
+    noRate: specialRate ? 1.1 : 1,
+    yesRun: noRun + 1,
+    yesRate: specialRate ? 0.9 : 1,
+    group: "default",
+    maxAmount: 500000,
+    oddEven: "no",
+    isVisible: false,
+    visibilityVersion: 2,
+    displayOrder: index + 1,
+  };
+});
 
 module.exports = Object.freeze(
   dummySessions.map((session) => Object.freeze(session))

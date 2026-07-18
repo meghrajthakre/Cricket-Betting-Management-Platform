@@ -14,7 +14,7 @@ const ballSchema = new mongoose.Schema(
 
 const manualScoreSchema = new mongoose.Schema(
   {
-    matchId: { type: String, required: true, unique: true, index: true },
+    matchId: { type: String, required: true, unique: true },
     status: { type: String, default: "" },
     firstBattingTeam: { type: String, default: "" },
     secondBattingTeam: { type: String, default: "" },

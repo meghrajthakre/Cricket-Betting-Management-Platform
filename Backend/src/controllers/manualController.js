@@ -345,7 +345,10 @@ const updateSessionStatus = asyncHandler(async (req, res) => {
     const matchId = requireText(req.params.matchId, "matchId");
     const sessionId = requireText(req.params.sessionId, "sessionId");
     const updates = validateSessionUpdates(req.body, ["status"]);
-    const session = await manualService.updateSession(matchId, sessionId, updates);
+    const session = await manualService.updateSession(matchId, sessionId, {
+        ...updates,
+        manuallySuspended: updates.status === "suspend",
+    });
 
     if (!session) throw new AppError("Session not found", 404);
     broadcastSession(matchId, session);
