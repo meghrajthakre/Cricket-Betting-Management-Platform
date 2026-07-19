@@ -38,7 +38,7 @@ function shouldShowZeroKhai(lagai) {
 
 export default function OddsMarket({
     runners,
-    bookmaker,
+    teamNames = [],
     settings,
     highlightedOdds,
 }) {
@@ -52,9 +52,23 @@ export default function OddsMarket({
             </div>
 
             {runners.length === 0 ? (
-                <div className="px-3 py-3 text-sm text-gray-500 text-center">
-                    No odds published yet for this match.
-                </div>
+                teamNames.filter(Boolean).map((teamName) => (
+                    <div
+                        key={teamName}
+                        className="grid grid-cols-4 items-center px-3 py-2 border-b border-[#CDD9E5] last:border-0"
+                    >
+                        <div className="text-sm font-semibold text-[#1A2B3C]">
+                            {teamName}
+                        </div>
+                        <div className="px-1">
+                            <div className="h-9 w-full rounded bg-[#a8cce8]" />
+                        </div>
+                        <div className="px-1">
+                            <div className="h-9 w-full rounded bg-[#f5c99a]" />
+                        </div>
+                        <div className="h-9" />
+                    </div>
+                ))
             ) : (
                 runners.map((r, index) => {
                     const isSuspended = r.status === "suspend" || settings.betLock;

@@ -51,7 +51,6 @@ export default function MatchDetails() {
         return <ErrorState error={error} onRetry={() => window.location.reload()} />;
     }
 
-    const { bookmaker } = MOCK_DATA;
     const visibleSessions = sessions.filter((session) => session.isVisible);
 
     const match = {
@@ -85,7 +84,7 @@ export default function MatchDetails() {
 
                 <OddsMarket
                     runners={runners}
-                    bookmaker={bookmaker}
+                    teamNames={[match.team1, match.team2]}
                     settings={settings}
                     highlightedOdds={highlightedOdds}
                 />
