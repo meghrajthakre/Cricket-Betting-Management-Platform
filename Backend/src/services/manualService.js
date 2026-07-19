@@ -230,13 +230,27 @@ async function getSessions(matchId) {
                     $set: {
                         noRun: session.noRun,
                         noRate: session.noRate,
-                        yesRun: session.yesRun,
                         yesRate: session.yesRate,
                     },
                 },
             },
         })),
         { ordered: false }
+    );
+
+    // YES RUN always follows the selected per-session rate difference.
+    await ManualSession.updateMany(
+        { matchId },
+        [
+            {
+                $set: {
+                    yesRun: {
+                        $add: ["$noRun", { $ifNull: ["$rateDiff", 1] }],
+                    },
+                },
+            },
+        ],
+        { updatePipeline: true }
     );
 
     const sessions = await ManualSession.find({ matchId })
@@ -246,9 +260,19 @@ async function getSessions(matchId) {
 }
 
 async function updateSession(matchId, sessionId, updates) {
+    const nextUpdates = { ...updates };
+
+    if (updates.rateDiff !== undefined) {
+        const current = await ManualSession.findOne({ matchId, id: sessionId })
+            .select("noRun")
+            .lean();
+        if (!current) return null;
+        nextUpdates.yesRun = Number(current.noRun) + Number(updates.rateDiff);
+    }
+
     return ManualSession.findOneAndUpdate(
         { matchId, id: sessionId },
-        { $set: updates },
+        { $set: nextUpdates },
         { returnDocument: "after", runValidators: true }
     ).lean();
 }

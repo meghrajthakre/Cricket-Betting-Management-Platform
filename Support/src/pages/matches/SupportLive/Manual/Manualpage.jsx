@@ -262,6 +262,8 @@ export default function ManualPage() {
                     isVisible
                 );
 
+                window.location.reload();
+
                 return response;
             }
         );
