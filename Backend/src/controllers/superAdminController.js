@@ -179,7 +179,7 @@ const updateAdmin = asyncHandler(async (req, res) => {
   const admin = await User.findOneAndUpdate(
     { _id: req.params.id, role: ROLES.ADMIN, createdBy: req.user._id },
     updates,
-    { new: true, runValidators: true }
+    { returnDocument: "after", runValidators: true }
   ).select("-password");
 
   if (!admin) throw new AppError("Admin not found.", 404);

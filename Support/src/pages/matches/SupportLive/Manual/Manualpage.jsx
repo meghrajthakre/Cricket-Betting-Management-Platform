@@ -189,12 +189,18 @@ export default function ManualPage() {
         };
     }, [matchId]);
 
-    const updateSessionField = useCallback(async (sessionId, field, value, request) => {
+    const updateSessionField = useCallback(async (
+        sessionId,
+        field,
+        value,
+        request,
+        forceUpdate = false
+    ) => {
         const pendingKey = `${sessionId}:${field}`;
         if (pendingFields.has(pendingKey)) return;
 
         const previous = sessions.find((session) => session.id === sessionId);
-        if (!previous || previous[field] === value) return;
+        if (!previous || (!forceUpdate && previous[field] === value)) return;
 
         setPendingFields((current) => new Set(current).add(pendingKey));
         setSessions((current) =>
@@ -240,7 +246,8 @@ export default function ManualPage() {
             sessionId,
             "status",
             status,
-            () => updateManualSessionStatus(matchId, sessionId, status)
+            () => updateManualSessionStatus(matchId, sessionId, status),
+            true
         );
 
     const handleSessionVisibility = (sessionId, isVisible) =>

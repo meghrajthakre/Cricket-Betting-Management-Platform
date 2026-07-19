@@ -167,7 +167,7 @@ const updateUser = asyncHandler(async (req, res) => {
   const user = await User.findOneAndUpdate(
     { _id: req.params.id, role: ROLES.USER, createdBy: req.user._id },
     updates,
-    { new: true, runValidators: true }
+    { returnDocument: "after", runValidators: true }
   ).select("-password");
 
   if (!user) throw new AppError("User not found.", 404);

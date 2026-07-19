@@ -162,7 +162,7 @@ async function updateScore(matchId, updates) {
     const doc = await ManualScore.findOneAndUpdate(
         { matchId },
         { $set: setFields },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
+        { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     ).lean();
     return doc;
 }
@@ -249,7 +249,7 @@ async function updateSession(matchId, sessionId, updates) {
     return ManualSession.findOneAndUpdate(
         { matchId, id: sessionId },
         { $set: updates },
-        { new: true, runValidators: true }
+        { returnDocument: "after", runValidators: true }
     ).lean();
 }
 
