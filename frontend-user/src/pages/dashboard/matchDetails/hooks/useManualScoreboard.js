@@ -51,12 +51,12 @@ export default function useManualScoreboard(matchId) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [sseConnected, setSseConnected] = useState(false);
-    const [reconnectAttempts, setReconnectAttempts] = useState(0);
-
     const { highlightedOdds, triggerHighlight } = useHighlightedOdds(1500);
 
     const esRef = useRef(null);
     const reconnectTimeoutRef = useRef(null);
+    const reconnectAttemptsRef = useRef(0);
+    const sseConnectedRef = useRef(false);
 
     const fetchLatestData = useCallback(async () => {
         if (!matchId) return;
@@ -199,8 +199,9 @@ export default function useManualScoreboard(matchId) {
                 esRef.current = es;
 
                 es.onopen = () => {
+                    sseConnectedRef.current = true;
+                    reconnectAttemptsRef.current = 0;
                     setSseConnected(true);
-                    setReconnectAttempts(0);
                     setError(null);
                 };
 
@@ -208,15 +209,17 @@ export default function useManualScoreboard(matchId) {
 
                 es.onerror = (err) => {
                     console.error("SSE connection error:", err);
+                    sseConnectedRef.current = false;
                     setSseConnected(false);
 
                     if (esRef.current) {
                         esRef.current.close();
                     }
 
-                    const currentAttempt = reconnectAttempts + 1;
+                    const currentAttempt = reconnectAttemptsRef.current + 1;
 
                     if (currentAttempt <= MAX_RECONNECT_ATTEMPTS) {
+                        reconnectAttemptsRef.current = currentAttempt;
                         const delay = RECONNECT_BASE_DELAY * Math.pow(1.5, currentAttempt - 1);
                         console.log(`Reconnecting in ${delay}ms (attempt ${currentAttempt}/${MAX_RECONNECT_ATTEMPTS})`);
 
@@ -226,7 +229,6 @@ export default function useManualScoreboard(matchId) {
 
                         reconnectTimeoutRef.current = setTimeout(() => {
                             if (!cancelled) {
-                                setReconnectAttempts(currentAttempt);
                                 connectSSE();
                             }
                         }, delay);
@@ -243,7 +245,7 @@ export default function useManualScoreboard(matchId) {
         connectSSE();
 
         const pollInterval = setInterval(() => {
-            if (!sseConnected && !cancelled) {
+            if (!sseConnectedRef.current && !cancelled) {
                 console.log("Polling for updates...");
                 fetchLatestData();
             }
@@ -251,6 +253,7 @@ export default function useManualScoreboard(matchId) {
 
         return () => {
             cancelled = true;
+            sseConnectedRef.current = false;
             if (reconnectTimeoutRef.current) {
                 clearTimeout(reconnectTimeoutRef.current);
             }
@@ -259,8 +262,7 @@ export default function useManualScoreboard(matchId) {
             }
             clearInterval(pollInterval);
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [matchId, fetchLatestData, sseConnected, reconnectAttempts]);
+    }, [matchId, fetchLatestData, triggerHighlight]);
 
     return {
         runners,
