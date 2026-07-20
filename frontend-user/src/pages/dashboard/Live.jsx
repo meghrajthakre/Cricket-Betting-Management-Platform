@@ -4,68 +4,6 @@ import { MdAccessTime } from "react-icons/md";
 import { IoTrophyOutline } from "react-icons/io5";
 import { getSavedMatches } from "../../api/userService";
 
-// ─── IPL Team colors ───────────────────────────────────────────────────────
-const IPL_TEAMS = {
-  "Mumbai Indians": {
-    short: "MI",
-    primary: "#004BA0",
-    secondary: "#D1AB3E"
-  },
-  "Chennai Super Kings": {
-    short: "CSK",
-    primary: "#F9CD05",
-    secondary: "#1D1D1B"
-  },
-  "Royal Challengers Bengaluru": {
-    short: "RCB",
-    primary: "#D11D1B",
-    secondary: "#000000"
-  },
-  "Kolkata Knight Riders": {
-    short: "KKR",
-    primary: "#3A225D",
-    secondary: "#C4A962"
-  },
-  "Sunrisers Hyderabad": {
-    short: "SRH",
-    primary: "#F7A721",
-    secondary: "#000000"
-  },
-  "Delhi Capitals": {
-    short: "DC",
-    primary: "#0078BC",
-    secondary: "#EF1B23"
-  },
-  "Punjab Kings": {
-    short: "PBKS",
-    primary: "#ED1F27",
-    secondary: "#A7A9AC"
-  },
-  "Rajasthan Royals": {
-    short: "RR",
-    primary: "#EA1A85",
-    secondary: "#254AA5"
-  },
-  "Gujarat Titans": {
-    short: "GT",
-    primary: "#1C1C1C",
-    secondary: "#C5A253"
-  },
-  "Lucknow Super Giants": {
-    short: "LSG",
-    primary: "#00AEEF",
-    secondary: "#F7A721"
-  }
-};
-
-function getTeamMeta(name) {
-  return IPL_TEAMS[name] || { 
-    short: name?.slice(0, 3).toUpperCase() || "—", 
-    primary: "#0d9488", 
-    secondary: "#ffffff" 
-  };
-}
-
 // ─── Helper: Check if date is today ───────────────────────────────────────
 // ─── Helper: Parse date/time ──────────────────────────────────────────────
 function parseDateTime(dateStr) {
@@ -128,27 +66,16 @@ function normalizeSavedMatch(m) {
 
 // ─── TeamBadge ─────────────────────────────────────────────────────────────
 const TeamBadge = ({ name }) => {
-  const { short } = getTeamMeta(name);
   return (
     <div style={{
-      display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", flex: 1,
+      display: "flex", alignItems: "center", justifyContent: "center", flex: 1,
     }}>
-      <div style={{
-        width: "44px", height: "44px", borderRadius: "50%",
-        backgroundColor: "var(--color-bg-main)",
-        border: "2px solid var(--color-border)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontFamily: "var(--font-rajdhani)", fontWeight: "700",
-        fontSize: "11px", color: "var(--color-primary)", letterSpacing: "0.5px",
-      }}>
-        {short}
-      </div>
       <span style={{
-        fontSize: "11px", fontWeight: "600", color: "var(--color-text-dark)",
+        fontSize: "12px", fontWeight: "700", color: "var(--color-text-dark)",
         fontFamily: "var(--font-nunito)", textAlign: "center",
-        maxWidth: "80px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        maxWidth: "120px",
       }}>
-        {name}
+        {name || "TBA"}
       </span>
     </div>
   );
