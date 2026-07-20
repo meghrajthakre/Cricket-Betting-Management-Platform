@@ -130,12 +130,13 @@ const Navbar = () => {
     };
 
     fetchBalance();
-  }, [user?._id]);
+  }, [setCoins, user?._id]);
 
   const getActiveKey = () => {
     const path = location.pathname;
     if (path === "/dashboard") return "dashboard";
     if (path === "/dashboard/live") return "live";
+    if (path.startsWith("/match/")) return "live";
     return "dashboard";
   };
 
@@ -159,22 +160,22 @@ const Navbar = () => {
   };
 
   return (
-    <div className="flex flex-col">
+    <header className="flex flex-col">
       <div
         className="
-        h-16
+        h-14 sm:h-16 w-full
         bg-(--color-primary)
         shadow-[0_2px_12px_rgba(0,0,0,0.28)]
         flex items-center justify-between
-        px-2 sm:px-5 border-b border-[rgba(214,228,245,0.15)]
+        gap-1.5 px-2 sm:px-4 lg:px-6 border-b border-[rgba(214,228,245,0.15)]
       "
       >
         {/* ── User info ── */}
-        <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
           {/* Avatar circle */}
           <div
             className="
-            w-8 h-8 rounded-full flex-shrink-0
+            w-8 h-8 rounded-full flex-shrink-0 max-[350px]:hidden
             bg-[rgba(255,255,255,0.12)]
             border border-[rgba(214,228,245,0.3)]
             flex items-center justify-center
@@ -183,19 +184,19 @@ const Navbar = () => {
             uppercase
           "
           >
-            {firstName.charAt(0)}
+            {(firstName || username).charAt(0)}
           </div>
 
           {/* Text block */}
           <div className="leading-tight min-w-0 font-nunito">
             {/* Username + firstname row */}
-            <div className="flex items-center gap-1.5 min-w-0">
+            <div className="flex min-w-0 items-center gap-1 sm:gap-1.5">
               <span
                 className="
-                    text-[14px] sm:text-semibold
+                    hidden min-[390px]:block text-xs sm:text-sm font-semibold
                     text-(--color-text-muted)
-                 max-w-[80px] sm:max-w-[130px]
-                 tracking-wide
+                    max-w-[62px] sm:max-w-[110px] lg:max-w-[150px]
+                    truncate tracking-wide
               "
               >
                 {username}
@@ -203,15 +204,15 @@ const Navbar = () => {
 
               {firstName && (
                 <>
-                  <span className="text-[rgba(214,228,245,0.3)] text-xs">
+                  <span className="hidden min-[390px]:inline text-[rgba(214,228,245,0.3)] text-xs">
                     |
                   </span>
                   <span
                     className="
-                     text-[17px] font-bold 
-                text-(--color-text-muted)
-                 max-w-[80px] sm:max-w-[130px]
-                 tracking-wide
+                    block min-w-0 truncate text-sm sm:text-base font-bold
+                    text-(--color-text-muted)
+                    max-w-[76px] sm:max-w-[120px] lg:max-w-[160px]
+                    tracking-wide
                   "
                   >
                     {firstName}
@@ -221,14 +222,14 @@ const Navbar = () => {
             </div>
 
             {/* Coins row */}
-            <div className="flex items-center gap-1 mt-0.5">
+            <div className="flex min-w-0 items-center gap-1 mt-0.5">
               <CoinIcon />
               <span
                 className="
                 text-[11px] sm:text-xs
                 font-semibold
                 text-[#F5C518]
-                tracking-wide
+                max-w-[90px] truncate tracking-wide
               "
               >
                 {Number(coins).toLocaleString()}
@@ -238,24 +239,28 @@ const Navbar = () => {
         </div>
 
         {/* ── Navigation ── */}
-        <nav className="flex items-center gap-0.5 sm:gap-2">
+        <nav className="flex shrink-0 items-center gap-0.5 sm:gap-1 lg:gap-2" aria-label="Primary navigation">
           {NAV_ITEMS.map(({ key, label, icon, path }) => {
             const isActive = activeKey === key && key !== "logout";
             return (
               <button
                 key={key}
+                type="button"
                 onClick={() => handleNavClick(key, path)}
+                aria-label={label}
+                aria-current={isActive ? "page" : undefined}
+                title={label}
                 className={`
                   relative flex items-center justify-center
-                  gap-1 sm:gap-2
-                  px-2 sm:px-4
-                  py-2 sm:py-1.5
+                  gap-1.5 lg:gap-2
+                  w-10 h-10 lg:w-auto lg:h-auto
+                  lg:px-4 lg:py-2
                   rounded-lg
-                  font-rajdhani text-xs sm:text-sm font-semibold tracking-wide
+                  font-rajdhani text-xs lg:text-sm font-semibold tracking-wide
                   text-(--color-text-muted)
                   transition-all duration-150
                   cursor-pointer
-                  min-w-[40px] sm:min-w-0
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent)
                   ${
                     isActive
                       ? "border border-[rgba(214,228,245,0.65)] bg-[rgba(255,255,255,0.12)] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:w-1/2 after:h-0.5 after:bg-(--color-accent) after:rounded-full"
@@ -263,14 +268,14 @@ const Navbar = () => {
                   }
                 `}
               >
-                <i className={`${icon} text-base sm:text-lg`} />
-                <span className="hidden sm:inline">{label}</span>
+                <i className={`${icon} text-lg`} aria-hidden="true" />
+                <span className="hidden lg:inline whitespace-nowrap">{label}</span>
               </button>
             );
           })}
         </nav>
       </div>
-    </div>
+    </header>
   );
 };
 
