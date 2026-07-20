@@ -68,8 +68,45 @@ export default function RunnerTable({ rateDiff = 1, runners: runnersProp, onRunn
   const [localRunners, setLocalRunners] = useState(runnersProp ?? buildDefaultRunners(match));
   const [activeIndex, setActiveIndex] = useState(null);
   const [pushError, setPushError] = useState(null);
+  const [restoreError, setRestoreError] = useState(null);
 
   const runners = runnersProp ?? localRunners;
+
+  // Restore the last persisted odds after a page refresh. Previously this
+  // component always restarted from buildDefaultRunners(), so the support UI
+  // showed 0/0 even though MongoDB still contained the opened rates.
+  useEffect(() => {
+    if (!matchId || runnersProp) return;
+    let cancelled = false;
+
+    const restoreRunners = async () => {
+      setRestoreError(null);
+      try {
+        const { data } = await apiClient.get(`/manual/state/${matchId}`);
+        const savedRunners = Array.isArray(data?.data) ? data.data : [];
+        if (cancelled || savedRunners.length === 0) return;
+
+        setLocalRunners(
+          savedRunners.map((runner, index) => ({
+            id: runner.runnerId || `runner_${index + 1}`,
+            name: runner.runnerName || (index === 0 ? match?.homeTeam : match?.awayTeam) || `Runner ${index + 1}`,
+            odds: Number(runner.lagai) || 0,
+            touched: runner.touched === true,
+          }))
+        );
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to restore runner rates:", error);
+          setRestoreError("Saved runner rates could not be restored. Please retry the page.");
+        }
+      }
+    };
+
+    restoreRunners();
+    return () => {
+      cancelled = true;
+    };
+  }, [match, matchId, runnersProp]);
 
   // If `match` arrives after the initial render (e.g. it's still loading
   // when this component mounts), update just the runner names once it's
@@ -78,6 +115,7 @@ export default function RunnerTable({ rateDiff = 1, runners: runnersProp, onRunn
     if (runnersProp) return; // parent owns the runners, don't touch them here
     if (!match) return;
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLocalRunners((prev) =>
       prev.map((r, i) => {
         const newName = i === 0 ? match.homeTeam : i === 1 ? match.awayTeam : r.name;
@@ -112,7 +150,6 @@ export default function RunnerTable({ rateDiff = 1, runners: runnersProp, onRunn
         `Failed to push ${failed.length} of ${updated.length} rate update(s). Odds shown may be out of sync with the server.`
       );
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchId, rateDiff]);
 
   if (!matchId) {
@@ -160,6 +197,12 @@ export default function RunnerTable({ rateDiff = 1, runners: runnersProp, onRunn
       {pushError && (
         <div className="mb-2 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
           {pushError}
+        </div>
+      )}
+
+      {restoreError && (
+        <div className="mb-2 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+          {restoreError}
         </div>
       )}
 
