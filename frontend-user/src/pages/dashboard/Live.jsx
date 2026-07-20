@@ -67,17 +67,6 @@ function getTeamMeta(name) {
 }
 
 // ─── Helper: Check if date is today ───────────────────────────────────────
-function isToday(dateStr) {
-  if (!dateStr) return false;
-  const d = new Date(dateStr);
-  const today = new Date();
-  return (
-    d.getFullYear() === today.getFullYear() &&
-    d.getMonth() === today.getMonth() &&
-    d.getDate() === today.getDate()
-  );
-}
-
 // ─── Helper: Parse date/time ──────────────────────────────────────────────
 function parseDateTime(dateStr) {
   const d = new Date(dateStr);
@@ -139,18 +128,18 @@ function normalizeSavedMatch(m) {
 
 // ─── TeamBadge ─────────────────────────────────────────────────────────────
 const TeamBadge = ({ name }) => {
-  const { short, primary, secondary } = getTeamMeta(name);
+  const { short } = getTeamMeta(name);
   return (
     <div style={{
       display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", flex: 1,
     }}>
       <div style={{
         width: "44px", height: "44px", borderRadius: "50%",
-        backgroundColor: primary + "18",
-        border: `2px solid ${primary}60`,
+        backgroundColor: "var(--color-bg-main)",
+        border: "2px solid var(--color-border)",
         display: "flex", alignItems: "center", justifyContent: "center",
         fontFamily: "var(--font-rajdhani)", fontWeight: "700",
-        fontSize: "11px", color: primary, letterSpacing: "0.5px",
+        fontSize: "11px", color: "var(--color-primary)", letterSpacing: "0.5px",
       }}>
         {short}
       </div>
@@ -364,8 +353,9 @@ const Live = () => {
         throw new Error("Unexpected response format.");
       }
 
-      const todayMatches = savedMatches.filter(match => isToday(match.commenceTime));
-      const normalizedMatches = todayMatches.map(normalizeSavedMatch);
+      // This endpoint already returns only matches selected by the superadmin.
+      // Do not hide a selected match just because it is scheduled after today.
+      const normalizedMatches = savedMatches.map(normalizeSavedMatch);
       normalizedMatches.sort((a, b) => 
         new Date(a.raw.commenceTime) - new Date(b.raw.commenceTime)
       );
@@ -397,12 +387,6 @@ const Live = () => {
   };
 
   const grouped = groupByDate(matches);
-  const todayLabel = new Date().toLocaleDateString("en-IN", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-
   return (
     <div style={{ 
       minHeight: "100vh", 
@@ -494,7 +478,7 @@ const Live = () => {
               color: "var(--color-text-dark)", 
               opacity: 0.4 
             }}>
-              No matches for today
+              No matches available
             </p>
             <p style={{ 
               margin: 0, 
@@ -502,7 +486,7 @@ const Live = () => {
               color: "var(--color-text-dark)", 
               opacity: 0.3 
             }}>
-              {todayLabel}
+              Matches added by the superadmin will appear here.
             </p>
           </div>
         )}
