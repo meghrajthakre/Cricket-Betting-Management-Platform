@@ -38,6 +38,8 @@ export default function ManualPage() {
     });
     const [selectedStatus, setSelectedStatus] = useState("");
     const [marketStatus, setMarketStatus] = useState("OPEN");
+    const [manualSettings, setManualSettings] = useState(null);
+    const [settingsLoaded, setSettingsLoaded] = useState(false);
 
     const [sessions, setSessions] = useState([]);
     const [sessionsLoading, setSessionsLoading] = useState(true);
@@ -88,11 +90,14 @@ export default function ManualPage() {
         if (!matchId) return;
         try {
             const { data } = await apiClient.get(`/manual/settings/${matchId}`);
+            setManualSettings(data?.data || null);
             if (data?.data?.marketStatus) {
                 setMarketStatus(data.data.marketStatus);
             }
         } catch (err) {
             console.error("Failed to fetch settings:", err);
+        } finally {
+            setSettingsLoaded(true);
         }
     }, [matchId]);
 
@@ -146,6 +151,7 @@ export default function ManualPage() {
                 }
 
                 if (parsed.type === "SETTINGS_UPDATED" && parsed.payload?.matchId === matchId) {
+                    setManualSettings(parsed.payload);
                     if (parsed.payload.marketStatus) {
                         setMarketStatus(parsed.payload.marketStatus);
                     }
@@ -173,12 +179,8 @@ export default function ManualPage() {
 
         es.onerror = (err) => {
             console.error("SSE connection error:", err);
-            // Optionally attempt to reconnect after a delay
-            setTimeout(() => {
-                if (eventSourceRef.current?.readyState === EventSource.CLOSED) {
-                    eventSourceRef.current = new EventSource(`${API_BASE}/manual/events?matchId=${matchId}`);
-                }
-            }, 3000);
+            // EventSource reconnects automatically. Creating another instance
+            // here can leave multiple live connections for the same match.
         };
 
         return () => {
@@ -262,8 +264,6 @@ export default function ManualPage() {
                     isVisible
                 );
 
-                window.location.reload();
-
                 return response;
             }
         );
@@ -338,7 +338,11 @@ export default function ManualPage() {
                                 pendingFields={pendingFields}
                                 bulkPending={bulkSessionPending}
                             />
-                            <Controls rateDiff={rateDiff} setRateDiff={setRateDiff} />
+                            <Controls
+                                setRateDiff={setRateDiff}
+                                initialSettings={manualSettings}
+                                settingsLoaded={settingsLoaded}
+                            />
                             <SessionManagement
                                 sessions={sessions}
                                 loading={sessionsLoading}

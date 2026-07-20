@@ -1,9 +1,57 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { C } from "./constants";
 import { apiClient } from "../../../../services/api"; 
 
-export default function Controls({ rateDiff, setRateDiff }) {
+const buttonStyles = {
+    background: C.submitBtn || "#4B75B8",
+    transition: "all 0.3s ease",
+    transform: "scale(1)",
+    opacity: 1,
+    cursor: "pointer",
+};
+
+const buttonHoverStyles = {
+    transform: "scale(1.05)",
+    opacity: 0.9,
+    boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+};
+
+const buttonDisabledStyles = {
+    opacity: 0.6,
+    cursor: "not-allowed",
+    transform: "scale(0.98)",
+};
+
+const SubmitButton = ({ onClick, isSubmitting, isLoading, children }) => (
+    <button
+        onClick={onClick}
+        disabled={isSubmitting || isLoading}
+        className="text-white text-sm font-semibold px-6 py-1.5 rounded relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        style={{
+            ...buttonStyles,
+            ...(isSubmitting || isLoading ? buttonDisabledStyles : {}),
+        }}
+        onMouseEnter={(event) => {
+            if (!isSubmitting && !isLoading) {
+                Object.assign(event.currentTarget.style, buttonHoverStyles);
+            }
+        }}
+        onMouseLeave={(event) => {
+            if (!isSubmitting && !isLoading) {
+                Object.assign(event.currentTarget.style, {
+                    transform: "scale(1)",
+                    opacity: 1,
+                    boxShadow: "none",
+                });
+            }
+        }}
+    >
+        {isSubmitting ? "Submitting..." : children}
+    </button>
+);
+
+export default function Controls({ setRateDiff, initialSettings, settingsLoaded }) {
     // Get matchId from URL params
     const { matchId } = useParams();
     
@@ -11,7 +59,6 @@ export default function Controls({ rateDiff, setRateDiff }) {
     const [mode, setMode] = useState("Lagai");
     const [sessionLock, setSessionLock] = useState("Unlock");
     const [localRateDiff, setLocalRateDiff] = useState("1");
-    const [settings, setSettings] = useState(null);
     
     // Individual loading states for each button
     const [isBetLockSubmitting, setIsBetLockSubmitting] = useState(false);
@@ -20,15 +67,33 @@ export default function Controls({ rateDiff, setRateDiff }) {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // Fetch current settings on mount
+    const applySettings = useCallback((settingsData) => {
+        if (!settingsData) return;
+
+        setBetLock(settingsData.betLock ? "Lock" : "Unlock");
+        setMode(settingsData.mode || "Lagai");
+        setSessionLock(settingsData.sessionLock ? "Lock" : "Unlock");
+        setLocalRateDiff(String(settingsData.rateDiff || 1));
+        setRateDiff?.(settingsData.rateDiff || 1);
+    }, [setRateDiff]);
+
+    // ManualPage owns the initial settings request. Reuse that response here
+    // instead of issuing the same GET request from both components.
     useEffect(() => {
-        if (matchId) {
-            fetchSettings();
-        } else {
+        if (!matchId) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setIsLoading(false);
             setError("No match ID provided in URL");
+            return;
         }
-    }, [matchId]);
+
+        if (!settingsLoaded) return;
+
+        // Synchronize the controls with the single settings response owned by
+        // ManualPage (and with later SSE updates).
+        if (initialSettings) applySettings(initialSettings);
+        setIsLoading(false);
+    }, [applySettings, initialSettings, matchId, settingsLoaded]);
 
     const fetchSettings = async () => {
         try {
@@ -39,15 +104,7 @@ export default function Controls({ rateDiff, setRateDiff }) {
             console.log("Fetch settings response:", response.data);
             
             if (response.data?.success && response.data?.data) {
-                const settingsData = response.data.data;
-                setSettings(settingsData);
-                setBetLock(settingsData.betLock ? "Lock" : "Unlock");
-                setMode(settingsData.mode || "Lagai");
-                setSessionLock(settingsData.sessionLock ? "Lock" : "Unlock");
-                setLocalRateDiff(String(settingsData.rateDiff || 1));
-                if (setRateDiff) {
-                    setRateDiff(settingsData.rateDiff || 1);
-                }
+                applySettings(response.data.data);
             } else {
                 console.log("No settings found, using defaults");
                 // Use default values
@@ -100,7 +157,7 @@ export default function Controls({ rateDiff, setRateDiff }) {
             if (response.data?.success) {
                 setRateDiff(Number(localRateDiff));
                 console.log("Rate difference updated successfully");
-                await fetchSettings();
+                applySettings(response.data.data);
             } else {
                 throw new Error(response.data?.message || "Update failed");
             }
@@ -137,7 +194,7 @@ export default function Controls({ rateDiff, setRateDiff }) {
             
             if (response.data?.success) {
                 console.log("Bet lock and mode updated successfully");
-                await fetchSettings();
+                applySettings(response.data.data);
             } else {
                 throw new Error(response.data?.message || "Update failed");
             }
@@ -173,7 +230,7 @@ export default function Controls({ rateDiff, setRateDiff }) {
             
             if (response.data?.success) {
                 console.log("Session lock updated successfully");
-                await fetchSettings();
+                applySettings(response.data.data);
             } else {
                 throw new Error(response.data?.message || "Update failed");
             }
@@ -192,67 +249,6 @@ export default function Controls({ rateDiff, setRateDiff }) {
 
     const thCls = "text-left px-4 py-2 text-gray-600 font-medium text-sm border-b border-gray-200 bg-white";
     const tdCls = "px-4 py-3 bg-white";
-
-    // Button styles with hover effects
-    const buttonStyles = {
-        background: C.submitBtn || "#4B75B8",
-        transition: 'all 0.3s ease',
-        transform: 'scale(1)',
-        opacity: 1,
-        cursor: 'pointer'
-    };
-
-    const buttonHoverStyles = {
-        transform: 'scale(1.05)',
-        opacity: 0.9,
-        boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
-    };
-
-    const buttonDisabledStyles = {
-        opacity: 0.6,
-        cursor: 'not-allowed',
-        transform: 'scale(0.98)'
-    };
-
-    // Reusable button component
-    const SubmitButton = ({ onClick, isSubmitting, children }) => (
-        <button
-            onClick={onClick}
-            disabled={isSubmitting || isLoading}
-            className="text-white text-sm font-semibold px-6 py-1.5 rounded relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            style={{
-                ...buttonStyles,
-                ...(isSubmitting || isLoading ? buttonDisabledStyles : {}),
-                background: C.submitBtn || "#4B75B8"
-            }}
-            onMouseEnter={(e) => {
-                if (!isSubmitting && !isLoading) {
-                    Object.assign(e.currentTarget.style, buttonHoverStyles);
-                }
-            }}
-            onMouseLeave={(e) => {
-                if (!isSubmitting && !isLoading) {
-                    Object.assign(e.currentTarget.style, {
-                        transform: 'scale(1)',
-                        opacity: 1,
-                        boxShadow: 'none'
-                    });
-                }
-            }}
-        >
-            {isSubmitting ? (
-                <span className="flex items-center gap-2">
-                    <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Submitting...
-                </span>
-            ) : (
-                children
-            )}
-        </button>
-    );
 
     // Error display
     if (error && !isLoading) {
@@ -329,6 +325,7 @@ export default function Controls({ rateDiff, setRateDiff }) {
                             <SubmitButton 
                                 onClick={handleBetLockSubmit} 
                                 isSubmitting={isBetLockSubmitting}
+                                isLoading={isLoading}
                             >
                                 Submit
                             </SubmitButton>
@@ -362,6 +359,7 @@ export default function Controls({ rateDiff, setRateDiff }) {
                             <SubmitButton 
                                 onClick={handleSessionLockSubmit} 
                                 isSubmitting={isSessionLockSubmitting}
+                                isLoading={isLoading}
                             >
                                 Submit
                             </SubmitButton>
@@ -398,6 +396,7 @@ export default function Controls({ rateDiff, setRateDiff }) {
                             <SubmitButton 
                                 onClick={handleRateDiffSubmit} 
                                 isSubmitting={isRateDiffSubmitting}
+                                isLoading={isLoading}
                             >
                                 Submit
                             </SubmitButton>
