@@ -2,10 +2,12 @@ import { Toaster } from 'react-hot-toast';
 
 import { AuthProvider } from './context/AuthContext';
 import AppRoutes from './routes';
+import ScrollToTop from './components/common/ScrollToTop';
 
 const App = () => {
     return (
         <AuthProvider>
+            <ScrollToTop />
             <AppRoutes />
             <Toaster
                 position="top-right"
