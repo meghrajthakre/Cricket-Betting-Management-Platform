@@ -1,23 +1,13 @@
 import React from 'react'
 import { Outlet } from 'react-router-dom'
 
-import Navbar from '../components/Navbar'
-import MarqueeBanner from '../components/MarqueeBanner'
-
 const DashboardLayout = () => {
 
     return (
 
-        <div>
-
-           
-
-            <div className="pt-[100px] min-h-[100dvh]">
+        <div className="min-h-[calc(100dvh-6rem)]">
 
                 <Outlet />
-
-            </div>
-
 
         </div>
 

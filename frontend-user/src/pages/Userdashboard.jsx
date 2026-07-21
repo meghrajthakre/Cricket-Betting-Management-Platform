@@ -1,7 +1,5 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import Navbar from '../components/Navbar';
-import MarqueeBanner from '../components/MarqueeBanner';
 
 const MENU_ITEMS = [
   { label: 'LIVE MATCH', icon: 'ri-broadcast-line', key: 'live' },
@@ -31,7 +29,7 @@ const UserDashboard = () => {
 
 
 
-      <main className="pt-[120px] pb-16 px-3 sm:px-5 flex justify-center">
+      <main className="py-8 sm:py-10 px-3 sm:px-5 flex justify-center">
 
         <div className="max-w-[740px] mx-auto">
 
