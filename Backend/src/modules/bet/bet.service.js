@@ -1,5 +1,6 @@
 "use strict";
 
+const mongoose = require("mongoose");
 const { Bet, BET_STATUS, BET_TYPE } = require("./bet.model");
 const { updateUserCoins } = require("../ledger/ledger.service");
 const { getUserBalance } = require("../wallet/wallet.service");
@@ -8,6 +9,8 @@ const ManualSettings = require("../../models/ManualModel/ManualSettings");
 const ManualRunner = require("../../models/ManualModel/ManualRunner");
 const ManualSession = require("../../models/ManualModel/ManualSession");
 const { DEFAULT_OPTIONS } = require("../../services/manualOptionsService");
+const { User } = require("../../models/User");
+const { Ledger } = require("../ledger/ledger.model");
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -127,41 +130,108 @@ const placeBet = async (userId, matchId, amount, rate, type, marketType = "match
     // --- Calculate financials --------------------------------------------------
     const { profit, liability } = calculateBetFinancials(type, amount, rate);
 
-    // --- Check user has enough coins to cover the liability -------------------
-    const balance = await getUserBalance(userId);
-    if (balance < liability) {
-        throw new Error(
-            `Insufficient balance. Required: ${liability}, Available: ${balance}`
+    // Sessions currently keep independent liability accounting.
+    if (marketType === "session") {
+        const balance = await getUserBalance(userId);
+        if (balance < liability) {
+            throw new Error(`Insufficient balance. Required: ${liability}, Available: ${balance}`);
+        }
+
+        await updateUserCoins(
+            userId,
+            liability,
+            "debit",
+            `${type.toUpperCase()} session bet placed on match ${matchId} (liability)`,
+            userId
         );
+
+        return Bet.create({
+            userId, matchId, marketType, marketId, amount, rate, type, profit,
+            loss: liability,
+            walletAdjustment: liability,
+            status: BET_STATUS.PENDING,
+        });
     }
 
-    console.log(
-        `[placeBet] User=${userId} | Match=${matchId} | Type=${type.toUpperCase()} | ` +
-        `Amount=${amount} | Rate=${rate}% | Profit=${profit} | Liability=${liability} | Balance=${balance}`
-    );
+    if (!marketId) throw new Error("marketId is required for match bets");
 
-    // --- Debit only the liability from the user's wallet ----------------------
-    await updateUserCoins(
-        userId,
-        liability,
-        "debit",
-        `${type.toUpperCase()} bet placed on match ${matchId} (liability)`,
-        userId
-    );
+    // Reserve only the worst-case NET loss across all runners. This transaction
+    // also credits collateral back when a new bet reduces that exposure.
+    const dbSession = await mongoose.startSession();
+    let bet;
 
-    // --- Persist the bet -------------------------------------------------------
-    const bet = await Bet.create({
-        userId,
-        matchId,
-        marketType,
-        marketId,
-        amount,
-        rate,
-        type,
-        profit,
-        loss: liability,   // `loss` stores the liability that was debited
-        status: BET_STATUS.PENDING,
-    });
+    try {
+        await dbSession.withTransaction(async () => {
+            const [runnerDocs, pendingBets, user] = await Promise.all([
+                ManualRunner.find({ matchId }).select("runnerId").session(dbSession).lean(),
+                Bet.find({ userId, matchId, marketType: "match", status: BET_STATUS.PENDING })
+                    .session(dbSession)
+                    .lean(),
+                User.findById(userId).session(dbSession),
+            ]);
+
+            if (!user) throw new Error("User not found");
+
+            const runnerIds = runnerDocs.map((item) => item.runnerId);
+            if (runnerIds.length < 2 || !runnerIds.includes(marketId)) {
+                throw new Error("Match runners are not available for exposure calculation");
+            }
+
+            const positions = Object.fromEntries(runnerIds.map((runnerId) => [runnerId, 0]));
+            pendingBets.forEach((pendingBet) => addBetToPositions(positions, runnerIds, pendingBet));
+
+            // Legacy bets have no adjustment field and had their whole loss debited.
+            const currentlyReserved = Number(pendingBets.reduce((total, pendingBet) => {
+                const movement = pendingBet.walletAdjustment == null
+                    ? Number(pendingBet.loss)
+                    : Number(pendingBet.walletAdjustment);
+                return total + movement;
+            }, 0).toFixed(2));
+
+            addBetToPositions(positions, runnerIds, { marketId, type, profit, loss: liability });
+            const exposureAfter = requiredExposure(positions);
+            const walletAdjustment = Number((exposureAfter - currentlyReserved).toFixed(2));
+            const balanceBefore = Number(user.coins);
+            const balanceAfter = Number((balanceBefore - walletAdjustment).toFixed(2));
+
+            if (balanceAfter < 0) {
+                throw new Error(
+                    `Insufficient balance. Additional required: ${walletAdjustment}, Available: ${balanceBefore}`
+                );
+            }
+
+            if (walletAdjustment !== 0) {
+                await Ledger.create([{
+                    userId,
+                    amount: Math.abs(walletAdjustment),
+                    type: walletAdjustment > 0 ? "debit" : "credit",
+                    reason: walletAdjustment > 0
+                        ? `Match ${matchId} net exposure increased`
+                        : `Match ${matchId} hedge exposure released`,
+                    createdBy: userId,
+                    balanceBefore,
+                    balanceAfter,
+                }], { session: dbSession });
+
+                user.coins = balanceAfter;
+                await user.save({ session: dbSession });
+            }
+
+            [bet] = await Bet.create([{
+                userId, matchId, marketType, marketId, amount, rate, type, profit,
+                loss: liability,
+                walletAdjustment,
+                status: BET_STATUS.PENDING,
+            }], { session: dbSession });
+
+            console.log(
+                `[placeBet] Match=${matchId} | Exposure=${exposureAfter} | ` +
+                `WalletAdjustment=${walletAdjustment} | Balance=${balanceBefore}->${balanceAfter}`
+            );
+        });
+    } finally {
+        await dbSession.endSession();
+    }
 
     console.log(`[placeBet] Bet created: betId=${bet._id}`);
     return bet;
@@ -225,6 +295,24 @@ const settleBet = async (betId, won, settledBy) => {
 
     return bet;
 };
+
+const addBetToPositions = (positions, runnerIds, bet) => {
+    const profit = Number(bet.profit) || 0;
+    const liability = Number(bet.loss) || 0;
+
+    for (const runnerId of runnerIds) {
+        if (bet.type === BET_TYPE.YES) {
+            positions[runnerId] += runnerId === bet.marketId ? profit : -liability;
+        } else {
+            positions[runnerId] += runnerId === bet.marketId ? -liability : profit;
+        }
+        positions[runnerId] = Number(positions[runnerId].toFixed(2));
+    }
+};
+
+const requiredExposure = (positions) => Number(
+    Math.max(0, ...Object.values(positions).map((value) => -Number(value))).toFixed(2)
+);
 
 /** Returns the authenticated user's bets for one match, newest first. */
 const getUserMatchBets = async (userId, matchId) => {

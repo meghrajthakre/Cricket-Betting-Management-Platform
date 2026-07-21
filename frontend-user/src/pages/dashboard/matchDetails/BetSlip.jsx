@@ -6,7 +6,7 @@ const money = (value) =>
         maximumFractionDigits: 2,
     });
 
-export default function BetSlip({ selection, maxBet, onClose, onSubmit, submitting }) {
+export default function BetSlip({ selection, maxBet, positions = {}, onClose, onSubmit, submitting }) {
     const [amount, setAmount] = useState("");
     const [error, setError] = useState("");
 
@@ -21,6 +21,32 @@ export default function BetSlip({ selection, maxBet, onClose, onSubmit, submitti
             ? { profit: (rate * stake) / 100, liability: stake }
             : { profit: stake, liability: (rate * stake) / 100 };
     }, [amount, selection]);
+
+    const walletAdjustment = useMemo(() => {
+        if (selection?.marketType !== "match" || Object.keys(positions).length < 2) {
+            return financials.liability;
+        }
+
+        const current = Object.fromEntries(
+            Object.entries(positions).map(([runnerId, value]) => [runnerId, Number(value) || 0])
+        );
+        const currentExposure = Math.max(0, ...Object.values(current).map((value) => -value));
+
+        for (const runnerId of Object.keys(current)) {
+            if (selection.type === "yes") {
+                current[runnerId] += runnerId === selection.marketId
+                    ? financials.profit
+                    : -financials.liability;
+            } else {
+                current[runnerId] += runnerId === selection.marketId
+                    ? -financials.liability
+                    : financials.profit;
+            }
+        }
+
+        const nextExposure = Math.max(0, ...Object.values(current).map((value) => -value));
+        return Number((nextExposure - currentExposure).toFixed(2));
+    }, [financials, positions, selection]);
 
     if (!selection) return null;
 
@@ -101,8 +127,12 @@ export default function BetSlip({ selection, maxBet, onClose, onSubmit, submitti
                         <p className="font-bold text-green-700">+{money(financials.profit)}</p>
                     </div>
                     <div className="rounded bg-white/80 p-2">
-                        <span className="text-[#60758A]">Liability / katega</span>
-                        <p className="font-bold text-red-700">-{money(financials.liability)}</p>
+                        <span className="text-[#60758A]">
+                            {walletAdjustment < 0 ? "Hedge refund" : "Wallet se katega"}
+                        </span>
+                        <p className={`font-bold ${walletAdjustment < 0 ? "text-green-700" : "text-red-700"}`}>
+                            {walletAdjustment < 0 ? "+" : "-"}{money(Math.abs(walletAdjustment))}
+                        </p>
                     </div>
                 </div>
 

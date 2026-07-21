@@ -84,6 +84,12 @@ const betSchema = new mongoose.Schema(
             required: true,
             min: [0, "Loss cannot be negative"],
         },
+        // Positive means coins debited; negative means hedge collateral refunded.
+        // Missing on legacy bets, where the full `loss` was debited.
+        walletAdjustment: {
+            type: Number,
+            default: undefined,
+        },
         status: {
             type: String,
             enum: Object.values(BET_STATUS),

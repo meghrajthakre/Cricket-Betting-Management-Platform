@@ -182,6 +182,7 @@ export default function MatchDetails() {
                 <BetSlip
                     key={`${selectedBet?.marketType || "none"}-${selectedBet?.marketId || "none"}-${selectedBet?.type || "none"}`}
                     selection={selectedBet}
+                    positions={selectedBet?.marketType === "match" ? runnerPositions : {}}
                     maxBet={selectedBet?.marketType === "session" ? options.sessionMaxBet : options.matchMaxBet}
                     onClose={() => setSelectedBet(null)}
                     onSubmit={handlePlaceBet}
