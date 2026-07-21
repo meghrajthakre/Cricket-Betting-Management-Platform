@@ -6,6 +6,7 @@ import SupportMatches from "../pages/matches/SupportMatches";
 import SupportLive from "../pages/matches/SupportLive/supportLive";
 import ManualPage from "../pages/matches/SupportLive/Manual/Manualpage";
 import ScorePage from "../pages/matches/SupportLive/ScorePage/ScorePage";
+import Options from "../pages/matches/SupportLive/Manual/Options";
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -34,6 +35,7 @@ export default function AppRoutes() {
         <Route path="/support/matches" element={<SupportMatches />} />
         <Route path="/support/matches/:matchId/play" element={<SupportLive />} />
         <Route path="/support/matches/:matchId/manual" element={<ManualPage />} />
+        <Route path="/support/matches/:matchId/manual/options" element={<Options />} />
         <Route path="/support/matches/:matchId/score" element={<ScorePage />} />
       </Route>
 

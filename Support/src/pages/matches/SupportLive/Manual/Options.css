@@ -1,0 +1,76 @@
+@media (max-width: 640px) {
+  .options-data-table {
+    display: block;
+    min-width: 0 !important;
+  }
+
+  .options-data-table thead {
+    display: none;
+  }
+
+  .options-data-table tbody,
+  .options-data-table tr {
+    display: block;
+  }
+
+  .options-data-table tr {
+    overflow: hidden;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.5rem;
+    background: #fff;
+  }
+
+  .options-data-table td {
+    display: grid;
+    grid-template-columns: minmax(7rem, 38%) minmax(0, 1fr);
+    align-items: center;
+    gap: 0.75rem;
+    border-width: 0 0 1px;
+    padding: 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  .options-data-table td:last-child {
+    border-bottom: 0;
+  }
+
+  .options-data-table td::before {
+    content: attr(data-label);
+    color: #334155;
+    font-weight: 700;
+  }
+
+  .options-data-table input,
+  .options-data-table select,
+  .options-data-table button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .options-data-table input {
+    height: 2.75rem;
+    padding-inline: 0.75rem;
+    font-size: 1rem;
+  }
+
+  .options-data-table button {
+    min-height: 2.75rem;
+  }
+
+  .options-summary-table {
+    min-width: 0 !important;
+    table-layout: fixed;
+  }
+
+  .options-summary-table th {
+    padding: 0.75rem 0.5rem;
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .options-data-table td {
+    grid-template-columns: 1fr;
+    gap: 0.4rem;
+  }
+}

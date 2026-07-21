@@ -1,4 +1,5 @@
 import { C } from "./constants";
+import { useNavigate, useParams } from "react-router-dom";
 
 export default function SessionManagement({
     sessions,
@@ -8,6 +9,8 @@ export default function SessionManagement({
     onUpdateField,
     onToggleVisible,
 }) {
+    const navigate = useNavigate();
+    const { matchId } = useParams();
     const selectCls =
         "border border-gray-300 rounded px-1.5 py-0.5 text-xs bg-white text-gray-700 focus:outline-none";
 
@@ -21,13 +24,15 @@ export default function SessionManagement({
         <>
             <div className="flex justify-center gap-4 mb-4">
                 <button
-                    className="text-white text-sm font-semibold px-8 py-2 rounded"
+                    type="button"
+                    onClick={() => navigate(`/support/matches/${matchId}/manual/options`)}
+                    className="text-white text-sm font-semibold px-8 py-2 rounded cursor-pointer active:scale-95"
                     style={{ background: C.optionsBtn }}
                 >
                     Options
                 </button>
                 <button
-                    className="text-white text-sm font-semibold px-8 py-2 rounded"
+                    className="text-white text-sm font-semibold px-8 py-2 rounded cursor-pointer"
                     style={{ background: C.deleteBtn }}
                 >
                     Delete Session
