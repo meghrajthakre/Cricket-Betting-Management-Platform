@@ -10,7 +10,14 @@ function SessionRow({ session, onBet, sessionLocked }) {
     const handleBet = (type, rate) => {
         if (bettingDisabled) return;
         if (onBet) {
-            onBet(sessionName, type, rate);
+            onBet({
+                name: sessionName,
+                type,
+                rate: Number(rate),
+                marketType: "session",
+                marketId: String(session.id || sessionName),
+                marketLabel: "Session",
+            });
         } else {
             console.log(`Bet placed: ${sessionName} - ${type} @ ${rate}`);
         }

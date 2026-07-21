@@ -226,4 +226,13 @@ const settleBet = async (betId, won, settledBy) => {
     return bet;
 };
 
-module.exports = { placeBet, settleBet };
+/** Returns the authenticated user's bets for one match, newest first. */
+const getUserMatchBets = async (userId, matchId) => {
+    if (!matchId) throw new Error("matchId is required");
+
+    return Bet.find({ userId, matchId })
+        .sort({ createdAt: -1 })
+        .lean();
+};
+
+module.exports = { placeBet, settleBet, getUserMatchBets };

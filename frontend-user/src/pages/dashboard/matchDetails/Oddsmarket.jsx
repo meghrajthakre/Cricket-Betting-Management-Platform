@@ -1,4 +1,4 @@
-function OddsBtn({ value, type, suspended, highlight }) {
+function OddsBtn({ value, type, suspended, highlight, onClick }) {
     const isLagai = type === "lagai";
     const bg = isLagai ? "bg-[#a8cce8]" : "bg-[#f5c99a]";
 
@@ -7,11 +7,14 @@ function OddsBtn({ value, type, suspended, highlight }) {
         : "";
 
     return (
-        <div
-            className={`relative ${bg} ${highlightClass} rounded h-9 w-full flex items-center justify-center text-sm font-semibold text-[#1A2B3C] transition-all duration-300`}
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={suspended}
+            className={`relative ${bg} ${highlightClass} rounded h-9 w-full flex items-center justify-center text-sm font-semibold text-[#1A2B3C] transition-all duration-300 hover:brightness-95 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60`}
         >
             {suspended ? 0 : value ?? "-"}
-        </div>
+        </button>
     );
 }
 
@@ -32,6 +35,14 @@ function readKhai(runnerKhai) {
 // to whichever runner happens to have lagai === 97, for every match.
 const SUSPEND_LAGAI_VALUE = 97;
 
+const formatPosition = (value) => {
+    const number = Number(value) || 0;
+    return number.toLocaleString("en-US", {
+        useGrouping: false,
+        maximumFractionDigits: 2,
+    });
+};
+
 function shouldShowZeroKhai(lagai) {
     return Number(lagai) === SUSPEND_LAGAI_VALUE;
 }
@@ -42,6 +53,8 @@ export default function OddsMarket({
     settings,
     highlightedOdds,
     maxBet,
+    onSelectBet,
+    positions = {},
 }) {
     return (
         <div className="bg-white mt-2 rounded shadow-sm overflow-hidden">
@@ -105,6 +118,14 @@ export default function OddsMarket({
                                     type="lagai"
                                     suspended={isSuspended}
                                     highlight={highlight.lagai}
+                                    onClick={() => onSelectBet?.({
+                                        name: r.runnerName,
+                                        type: "yes",
+                                        rate: lagaiNum,
+                                        marketType: "match",
+                                        marketId: r.runnerId,
+                                        marketLabel: "Match Odds",
+                                    })}
                                 />
                             </div>
                             <div className="px-1">
@@ -113,10 +134,25 @@ export default function OddsMarket({
                                     type="khai"
                                     suspended={isSuspended}
                                     highlight={highlight.khai}
+                                    onClick={() => onSelectBet?.({
+                                        name: r.runnerName,
+                                        type: "no",
+                                        rate: khaiValue,
+                                        marketType: "match",
+                                        marketId: r.runnerId,
+                                        marketLabel: "Match Odds",
+                                    })}
                                 />
                             </div>
-                            <div className="text-right text-sm font-semibold text-[#1A2B3C]">
-                                0.00
+                            <div className={`text-right text-sm font-bold ${
+                                Number(positions[r.runnerId]) > 0
+                                    ? "text-green-700"
+                                    : Number(positions[r.runnerId]) < 0
+                                        ? "text-red-700"
+                                        : "text-[#1A2B3C]"
+                            }`}>
+                                {Number(positions[r.runnerId] || 0) > 0 ? "+" : ""}
+                                {formatPosition(positions[r.runnerId])}
                             </div>
                         </div>
                     );

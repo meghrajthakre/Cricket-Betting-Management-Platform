@@ -24,8 +24,8 @@ export const getWalletHistory = (userId, limit = 10, skip = 0) =>
 export const placeBet = (userId, matchId, stake, rate, extra = {}) =>
   API.post("/bet/place", { userId, matchId, amount: stake, rate, ...extra }).then((r) => r.data);
 
-export const getMyBets = (userId, matchId) =>
-  API.get("/bets", { params: { userId, matchId } }).then((r) => r.data);
+export const getMyBets = (matchId) =>
+  API.get("/bet/mine", { params: { matchId } }).then((r) => r.data);
 
 // ========== Live Cricket (cricketController) ==========
 export const getLiveMatches = () => API.get("/cricket/live").then((r) => r.data);

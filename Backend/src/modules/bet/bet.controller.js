@@ -1,6 +1,6 @@
 "use strict";
 
-const { placeBet, settleBet } = require("./bet.service");
+const { placeBet, settleBet, getUserMatchBets } = require("./bet.service");
 const { z } = require("zod");
 const mongoose = require("mongoose");
 
@@ -126,4 +126,16 @@ const settleBetController = async (req, res) => {
     }
 };
 
-module.exports = { placeBetController, settleBetController };
+/** GET /bet/mine?matchId=... */
+const getMyBetsController = async (req, res) => {
+    try {
+        const matchId = z.string().min(1, "matchId is required").parse(req.query.matchId);
+        const bets = await getUserMatchBets(req.user._id, matchId);
+
+        return res.status(200).json({ success: true, data: bets });
+    } catch (error) {
+        return res.status(400).json({ success: false, error: error.message });
+    }
+};
+
+module.exports = { placeBetController, settleBetController, getMyBetsController };
