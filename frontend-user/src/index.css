@@ -79,3 +79,18 @@
   from { transform: translateX(0%); }
   to   { transform: translateX(-50%); }
 }
+@keyframes betSlipUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes betBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

@@ -10,9 +10,25 @@ import ErrorState from "./ErrorState.jsx";
 import { MOCK_DATA } from "./mockData.js";
 import MatchMessages from "./MatchMessages.jsx";
 import BetSlip from "./BetSlip.jsx";
+import BetResultModal from "./BetResultModal.jsx";
 import { getMyBets, getWalletBalance, placeBet } from "../../../api/userService.js";
 import { useAuthStore } from "../../../store/authStore.js";
 import { useCoinStore } from "../../../store/coinStore.js";
+
+function FullScreenBetLoader() {
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#07182a]/80 px-5 backdrop-blur-sm">
+            <div className="flex w-full max-w-xs flex-col items-center rounded-2xl border border-white/15 bg-[#102943] px-6 py-8 text-center text-white shadow-2xl">
+                <div className="relative h-16 w-16">
+                    <div className="absolute inset-0 animate-ping rounded-full bg-[#4e9bd1]/25" />
+                    <div className="absolute inset-1 animate-spin rounded-full border-4 border-white/20 border-t-[#62b5ed]" />
+                </div>
+                <p className="mt-5 text-base font-extrabold tracking-wide">BET PLACE HO RAHI HAI</p>
+                <p className="mt-2 text-xs leading-5 text-white/65">Rate aur wallet verify ho rahe hain.<br />Please wait...</p>
+            </div>
+        </div>
+    );
+}
 
 export default function MatchDetails() {
     const { matchId } = useParams();
@@ -20,7 +36,7 @@ export default function MatchDetails() {
     const setCoins = useCoinStore((state) => state.setCoins);
     const [selectedBet, setSelectedBet] = useState(null);
     const [placingBet, setPlacingBet] = useState(false);
-    const [betSuccess, setBetSuccess] = useState("");
+    const [betResult, setBetResult] = useState(null);
     const [myBets, setMyBets] = useState([]);
 
     const savedMatch = useSavedMatch(matchId);
@@ -78,12 +94,13 @@ export default function MatchDetails() {
 
     const openBetSlip = (selection) => {
         if (!Number.isFinite(Number(selection.rate)) || Number(selection.rate) < 1) return;
-        setBetSuccess("");
+        setBetResult(null);
         setSelectedBet(selection);
     };
 
     const handlePlaceBet = async ({ amount }) => {
         if (!selectedBet) return;
+        const submittedBet = selectedBet;
         setPlacingBet(true);
 
         try {
@@ -107,9 +124,21 @@ export default function MatchDetails() {
                 }
             }
 
-            setBetSuccess(`Bet placed: ${selectedBet.name} · ${selectedBet.type.toUpperCase()} @ ${selectedBet.rate} · ${amount}`);
             setSelectedBet(null);
+            setBetResult({
+                type: "success",
+                message: "Aapki bet successfully accept ho gayi hai.",
+                details: `${submittedBet.name} · ${submittedBet.type === "yes" ? "LAGAI" : "KHAI"} · Rate ${submittedBet.rate} · Coins ${amount}`,
+            });
             return result;
+        } catch (error) {
+            const message = error?.response?.data?.error || error?.message || "Current rate par bet accept nahi hui.";
+            setBetResult({
+                type: "error",
+                message: "Market ka bhav change ho gaya ya bet accept nahi hui. Latest rate check karke dobara try karein.",
+                details: message,
+            });
+            throw error;
         } finally {
             setPlacingBet(false);
         }
@@ -145,6 +174,8 @@ export default function MatchDetails() {
 
     return (
         <div className="bg-[#E8EDF3] min-h-screen">
+            {placingBet && <FullScreenBetLoader />}
+            <BetResultModal result={betResult} onClose={() => setBetResult(null)} />
             <div className="max-w-4xl mx-auto px-2 py-2 ">
                 <ScoreHeader
                     sseConnected={sseConnected}
@@ -183,17 +214,12 @@ export default function MatchDetails() {
                     key={`${selectedBet?.marketType || "none"}-${selectedBet?.marketId || "none"}-${selectedBet?.type || "none"}`}
                     selection={selectedBet}
                     positions={selectedBet?.marketType === "match" ? runnerPositions : {}}
+                    runners={runners}
                     maxBet={selectedBet?.marketType === "session" ? options.sessionMaxBet : options.matchMaxBet}
                     onClose={() => setSelectedBet(null)}
                     onSubmit={handlePlaceBet}
                     submitting={placingBet}
                 />
-
-                {betSuccess && (
-                    <div className="mt-2 rounded bg-green-100 px-3 py-2 text-sm font-semibold text-green-800">
-                        {betSuccess}
-                    </div>
-                )}
 
                 <SessionMarket
                     sessions={visibleSessions}
