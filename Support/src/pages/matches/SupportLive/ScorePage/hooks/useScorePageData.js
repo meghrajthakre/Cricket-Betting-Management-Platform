@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiClient } from "../../../../../services/api";
 import { MAX_BALLS } from "../utils/scoreCalculations";
+import { getManualOptions } from "../../../../../services/manualOptionsService";
 
 const API_BASE = apiClient.defaults.baseURL;
 
@@ -32,6 +33,7 @@ export function useScorePageData(matchId) {
     const [selectedStatus, setSelectedStatus] = useState("");
     const [scoreData, setScoreData] = useState(initialScore);
     const [marketStatus, setMarketStatus] = useState("OPEN");
+    const [options, setOptions] = useState({ tossWinMessage: "", tossVisibility: "remove" });
 
     const fetchMatch = useCallback(async () => {
         if (!matchId) return;
@@ -70,12 +72,23 @@ export function useScorePageData(matchId) {
         }
     }, [matchId]);
 
+    const fetchOptions = useCallback(async () => {
+        if (!matchId) return;
+        try {
+            const { data } = await getManualOptions(matchId);
+            if (data?.data) setOptions(data.data);
+        } catch (requestError) {
+            console.error("Failed to fetch manual options:", requestError);
+        }
+    }, [matchId]);
+
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchMatch();
         fetchScore();
         fetchSettings();
-    }, [fetchMatch, fetchScore, fetchSettings]);
+        fetchOptions();
+    }, [fetchMatch, fetchScore, fetchSettings, fetchOptions]);
 
     useEffect(() => {
         if (!matchId) return undefined;
@@ -91,6 +104,9 @@ export function useScorePageData(matchId) {
                 }
                 if (parsed.type === "SETTINGS_UPDATED" && parsed.payload.marketStatus) {
                     setMarketStatus(parsed.payload.marketStatus);
+                }
+                if (parsed.type === "OPTIONS_UPDATED") {
+                    setOptions(parsed.payload);
                 }
             } catch (parseError) {
                 console.error("Failed to parse SSE message:", parseError);
@@ -110,6 +126,6 @@ export function useScorePageData(matchId) {
         setScoreData,
         marketStatus,
         setMarketStatus,
+        options,
     };
 }
-

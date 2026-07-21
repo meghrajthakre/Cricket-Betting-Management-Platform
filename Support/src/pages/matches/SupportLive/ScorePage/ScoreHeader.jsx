@@ -29,6 +29,7 @@ export default function ScoreHeader({
   overs = 0,
   marketStatus = "OPEN",
   scoreText = "",
+  tossMessage = "",
 }) {
   const isFirstBatter = (team) =>
     !!firstBattingTeam && !!team && normalize(firstBattingTeam) === normalize(team);
@@ -91,6 +92,9 @@ export default function ScoreHeader({
 
   return (
     <div className="w-full">
+      <div className="pb-1 text-center text-sm text-gray-500">
+        {tossMessage || "Toss pending"}
+      </div>
       {/* Match title pill */}
       <div className="flex justify-center py-3">
         <div className="bg-[#4a80a0] text-white font-bold text-sm sm:text-base px-6 py-2 rounded-full shadow-sm">

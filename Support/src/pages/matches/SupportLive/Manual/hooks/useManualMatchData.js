@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiClient } from "../../../../../services/api";
+import { getManualOptions } from "../../../../../services/manualOptionsService";
 
 const MAX_BALLS = 10;
 
@@ -18,6 +19,7 @@ export function useManualMatchData(matchId) {
     const [marketStatus, setMarketStatus] = useState("OPEN");
     const [manualSettings, setManualSettings] = useState(null);
     const [settingsLoaded, setSettingsLoaded] = useState(false);
+    const [options, setOptions] = useState({ tossWinMessage: "", tossVisibility: "remove" });
 
     const fetchMatch = useCallback(async () => {
         if (!matchId) return;
@@ -65,13 +67,24 @@ export function useManualMatchData(matchId) {
         }
     }, [matchId]);
 
+    const fetchOptions = useCallback(async () => {
+        if (!matchId) return;
+        try {
+            const { data } = await getManualOptions(matchId);
+            if (data?.data) setOptions(data.data);
+        } catch (requestError) {
+            console.error("Failed to fetch manual options:", requestError);
+        }
+    }, [matchId]);
+
     useEffect(() => {
         // These memoized functions start the page's initial async data load.
         // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchMatch();
         fetchScore();
         fetchSettings();
-    }, [fetchMatch, fetchScore, fetchSettings]);
+        fetchOptions();
+    }, [fetchMatch, fetchScore, fetchSettings, fetchOptions]);
 
     return {
         match,
@@ -87,5 +100,7 @@ export function useManualMatchData(matchId) {
         manualSettings,
         setManualSettings,
         settingsLoaded,
+        options,
+        setOptions,
     };
 }

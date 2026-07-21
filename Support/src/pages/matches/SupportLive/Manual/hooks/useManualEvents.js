@@ -56,6 +56,10 @@ export function useManualEvents(matchId, handlers) {
                 if (parsed.type === "MATCH_UPDATED") {
                     current.setMatch((previous) => ({ ...previous, ...parsed.payload }));
                 }
+
+                if (parsed.type === "OPTIONS_UPDATED") {
+                    current.setOptions(parsed.payload);
+                }
             } catch (parseError) {
                 console.error("Failed to parse SSE message:", parseError);
             }

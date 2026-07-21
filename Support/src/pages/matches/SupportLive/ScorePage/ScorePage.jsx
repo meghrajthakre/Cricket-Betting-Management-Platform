@@ -50,6 +50,7 @@ export default function ScorePage() {
                             overs={pageData.scoreData.overs}
                             marketStatus={pageData.marketStatus}
                             scoreText={scoreText}
+                            tossMessage={pageData.options.tossVisibility !== "remove" ? pageData.options.tossWinMessage : ""}
                         />
                         <ScoreButtons selected={pageData.selectedStatus} onSelect={actions.handleStatusSelect} />
                         <Controls teams={[team1, team2]} onAction={actions.handleAction} />

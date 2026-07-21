@@ -22,6 +22,7 @@ export default function ManualPage() {
         setSelectedStatus: matchData.setSelectedStatus,
         setManualSettings: matchData.setManualSettings,
         setMarketStatus: matchData.setMarketStatus,
+        setOptions: matchData.setOptions,
         setSessions: sessionData.setSessions,
     });
 
@@ -62,6 +63,7 @@ export default function ManualPage() {
                                 marketStatus={matchData.marketStatus}
                                 scoreText={getScoreText()}
                                 balls={matchData.scoreData.balls || []}
+                                tossMessage={matchData.options.tossVisibility !== "remove" ? matchData.options.tossWinMessage : ""}
                             />
                             <RunnerTable rateDiff={rateDiff} match={matchData.match} />
                             <SessionTable

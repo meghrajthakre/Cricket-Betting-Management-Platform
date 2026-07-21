@@ -21,6 +21,7 @@ export default function MatchHeader({
     marketStatus = "OPEN",
     scoreText = "",
     balls = [],
+    tossMessage = "",
 }) {
     const navigate = useNavigate();
     const { matchId } = useParams();
@@ -90,7 +91,7 @@ export default function MatchHeader({
                 </button>
             </div>
 
-            <div className="text-center text-gray-500 text-sm mb-2">{MATCH.Toss}</div>
+            <div className="text-center text-gray-500 text-sm mb-2">{tossMessage || "Toss pending"}</div>
 
             {/* Real ball-by-ball history, replaces the old static MATCH.balls row */}
             <SlidingBalls balls={balls} />
