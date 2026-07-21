@@ -7,6 +7,7 @@ import SessionMarket from "./Sessionmarket.jsx";
 import LoadingState from "./LoadingState.jsx";
 import ErrorState from "./ErrorState.jsx";
 import { MOCK_DATA } from "./mockData.js";
+import MatchMessages from "./MatchMessages.jsx";
 
 export default function MatchDetails() {
     const { matchId } = useParams();
@@ -15,6 +16,7 @@ export default function MatchDetails() {
     const {
         runners,
         sessions,
+        options,
         settings,
         scoreStatus,
         scoreData,
@@ -82,17 +84,21 @@ export default function MatchDetails() {
                     overs={scoreData.overs}
                 />
 
+                <MatchMessages options={options} />
+
                 <OddsMarket
                     runners={runners}
                     teamNames={[match.team1, match.team2]}
                     settings={settings}
                     highlightedOdds={highlightedOdds}
+                    maxBet={options.matchMaxBet}
                 />
 
                 <SessionMarket
                     sessions={visibleSessions}
                     settings={settings}
                     onPlaceBet={handlePlaceBet}
+                    maxBet={options.sessionMaxBet}
                 />
 
             </div>

@@ -4,6 +4,7 @@ import {
     getManualSettings,
     getManualScore,
     getManualSessions,
+    getManualOptions,
     getSSEUrl,
 } from "../../../../api/userService";
 import useHighlightedOdds from "./useHighlightedOdds";
@@ -34,6 +35,17 @@ const INITIAL_SETTINGS = {
     marketStatus: "OPEN",
 };
 
+const INITIAL_OPTIONS = {
+    tossWinMessage: "",
+    errorMessage: "",
+    tossVisibility: "remove",
+    tossResult: "",
+    tossTeam: "",
+    tieResult: "",
+    matchMaxBet: 100000,
+    sessionMaxBet: 100000,
+};
+
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_BASE_DELAY = 2000;
 const POLL_INTERVAL = 5000;
@@ -47,6 +59,7 @@ export default function useManualScoreboard(matchId) {
     const [scoreStatus, setScoreStatus] = useState("");
     const [scoreData, setScoreData] = useState(INITIAL_SCORE_DATA);
     const [sessions, setSessions] = useState([]);
+    const [options, setOptions] = useState(INITIAL_OPTIONS);
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -62,7 +75,7 @@ export default function useManualScoreboard(matchId) {
         if (!matchId) return;
 
         try {
-            const [stateRes, settingsRes, scoreRes, sessionsRes] = await Promise.all([
+            const [stateRes, settingsRes, scoreRes, sessionsRes, optionsRes] = await Promise.all([
                 getManualState(matchId).catch((err) => {
                     console.error("Failed to load state:", err);
                     return null;
@@ -77,6 +90,10 @@ export default function useManualScoreboard(matchId) {
                 }),
                 getManualSessions(matchId).catch((err) => {
                     console.error("Failed to load sessions:", err);
+                    return null;
+                }),
+                getManualOptions(matchId).catch((err) => {
+                    console.error("Failed to load match options:", err);
                     return null;
                 }),
             ]);
@@ -98,6 +115,10 @@ export default function useManualScoreboard(matchId) {
 
             if (sessionsRes?.data?.sessions) {
                 setSessions(sessionsRes.data.sessions);
+            }
+
+            if (optionsRes?.data) {
+                setOptions((prev) => ({ ...prev, ...optionsRes.data }));
             }
         } catch (e) {
             console.error("Failed to fetch latest data:", e);
@@ -171,6 +192,10 @@ export default function useManualScoreboard(matchId) {
 
                 if (parsed.type === "SESSIONS_UPDATED" && parsed.payload?.sessions) {
                     setSessions(parsed.payload.sessions);
+                }
+
+                if (parsed.type === "OPTIONS_UPDATED" && parsed.payload) {
+                    setOptions((prev) => ({ ...prev, ...parsed.payload }));
                 }
 
                 if (parsed.type === "STATE_UPDATED" && parsed.payload) {
@@ -267,6 +292,7 @@ export default function useManualScoreboard(matchId) {
     return {
         runners,
         sessions,
+        options,
         settings,
         scoreStatus,
         scoreData,

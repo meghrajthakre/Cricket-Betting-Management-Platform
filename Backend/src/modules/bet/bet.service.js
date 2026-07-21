@@ -3,6 +3,11 @@
 const { Bet, BET_STATUS, BET_TYPE } = require("./bet.model");
 const { updateUserCoins } = require("../ledger/ledger.service");
 const { getUserBalance } = require("../wallet/wallet.service");
+const ManualOptions = require("../../models/ManualModel/ManualOptions");
+const ManualSettings = require("../../models/ManualModel/ManualSettings");
+const ManualRunner = require("../../models/ManualModel/ManualRunner");
+const ManualSession = require("../../models/ManualModel/ManualSession");
+const { DEFAULT_OPTIONS } = require("../../services/manualOptionsService");
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -53,7 +58,7 @@ const calculateBetFinancials = (type, amount, rate) => {
  * @param {"yes"|"no"}  type    - Lagai (yes) or Khai (no)
  * @returns {Promise<import("./bet.model").Bet>}
  */
-const placeBet = async (userId, matchId, amount, rate, type) => {
+const placeBet = async (userId, matchId, amount, rate, type, marketType = "match", marketId = "") => {
     // --- Validate inputs -------------------------------------------------------
     if (!amount || amount <= 0) {
         throw new Error("Bet amount must be greater than 0");
@@ -63,6 +68,60 @@ const placeBet = async (userId, matchId, amount, rate, type) => {
     }
     if (!Object.values(BET_TYPE).includes(type)) {
         throw new Error(`Bet type must be one of: ${Object.values(BET_TYPE).join(", ")}`);
+    }
+
+    if (!["match", "session"].includes(marketType)) {
+        throw new Error("marketType must be match or session");
+    }
+
+    const [storedOptions, settings] = await Promise.all([
+        ManualOptions.findOne({ matchId }).lean(),
+        ManualSettings.findOne({ matchId }).lean(),
+    ]);
+    const options = { ...DEFAULT_OPTIONS, ...(storedOptions || {}) };
+
+    if (settings && (settings.betLock || settings.marketStatus !== "OPEN")) {
+        throw new Error("Match betting is currently closed");
+    }
+
+    let maxBet = Number(options.matchMaxBet);
+    let delaySeconds = Number(options.matchDelay) || 0;
+    let marketUpdatedAt = null;
+
+    if (marketType === "session") {
+        if (settings?.sessionLock) throw new Error("Session betting is currently locked");
+        if (!marketId) throw new Error("marketId is required for session bets");
+
+        const session = await ManualSession.findOne({ matchId, id: marketId }).lean();
+        if (!session) throw new Error("Session market not found");
+        if (!session.isVisible || session.status !== "open" || session.lockStatus === "lock") {
+            throw new Error("Session market is not open");
+        }
+
+        const globalLimit = Number(options.sessionMaxBet);
+        const sessionLimit = Number(session.maxAmount);
+        maxBet = Math.min(globalLimit, sessionLimit);
+        delaySeconds = Number(options.sessionDelay) || 0;
+        marketUpdatedAt = session.updatedAt;
+    } else if (marketId) {
+        const runner = await ManualRunner.findOne({ matchId, runnerId: marketId }).lean();
+        if (!runner) throw new Error("Match runner not found");
+        if (runner.status !== "open") throw new Error("Match runner is suspended");
+        marketUpdatedAt = runner.updatedAt;
+    }
+
+    if (!Number.isFinite(maxBet) || maxBet <= 0) {
+        throw new Error(`${marketType === "session" ? "Session" : "Match"} betting is disabled`);
+    }
+    if (amount > maxBet) {
+        throw new Error(`Maximum ${marketType} bet allowed is ${maxBet}`);
+    }
+
+    if (marketUpdatedAt && delaySeconds > 0) {
+        const allowedAt = new Date(marketUpdatedAt).getTime() + delaySeconds * 1000;
+        if (Date.now() < allowedAt) {
+            throw new Error(`Please wait ${Math.ceil((allowedAt - Date.now()) / 1000)} second(s) before betting`);
+        }
     }
 
     // --- Calculate financials --------------------------------------------------
@@ -94,6 +153,8 @@ const placeBet = async (userId, matchId, amount, rate, type) => {
     const bet = await Bet.create({
         userId,
         matchId,
+        marketType,
+        marketId,
         amount,
         rate,
         type,

@@ -21,8 +21,8 @@ export const getWalletHistory = (userId, limit = 10, skip = 0) =>
   API.get(`/wallet/${userId}/history`, { params: { limit, skip } });
 
 // ========== Betting ==========
-export const placeBet = (userId, matchId, stake, odds, extra = {}) =>
-  API.post("/bet/place", { userId, matchId, amount: stake, odds, ...extra }).then((r) => r.data);
+export const placeBet = (userId, matchId, stake, rate, extra = {}) =>
+  API.post("/bet/place", { userId, matchId, amount: stake, rate, ...extra }).then((r) => r.data);
 
 export const getMyBets = (userId, matchId) =>
   API.get("/bets", { params: { userId, matchId } }).then((r) => r.data);
@@ -46,6 +46,9 @@ export const getManualSettings = (matchId) =>
 
 export const getManualSessions = (matchId) =>
   API.get(`/manual/sessions/${matchId}`).then((r) => r.data);
+
+export const getManualOptions = (matchId) =>
+  API.get(`/manual/options/${matchId}`).then((r) => r.data);
 
 export const updateManualState = (matchId, data) => 
   API.put(`/manual/state/${matchId}`, data).then((r) => r.data);

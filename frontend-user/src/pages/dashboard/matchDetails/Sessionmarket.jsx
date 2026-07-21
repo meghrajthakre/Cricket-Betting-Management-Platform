@@ -84,7 +84,7 @@ function SessionRow({ session, onBet, sessionLocked }) {
     );
 }
 
-export default function SessionMarket({ sessions, settings, onPlaceBet }) {
+export default function SessionMarket({ sessions, settings, onPlaceBet, maxBet }) {
     return (
         <div className="bg-white mt-2 rounded shadow-sm overflow-hidden">
             <div className="grid grid-cols-[1fr_auto] bg-[#4B75B8] px-3 py-2">
@@ -93,6 +93,12 @@ export default function SessionMarket({ sessions, settings, onPlaceBet }) {
                 </span>
                 <span className="text-white text-sm font-bold font-rajdhani">0</span>
             </div>
+
+            {Number(maxBet) > 0 && (
+                <div className="border-b border-[#CDD9E5] bg-white px-3 py-1 text-right text-[11px] font-semibold text-[#60758A]">
+                    Max session bet: {Number(maxBet).toLocaleString("en-IN")}
+                </div>
+            )}
 
             <div className="grid grid-cols-[45%_22%_22%_11%] bg-[#1E3A5F] text-white text-xs font-bold font-rajdhani px-3 py-1 tracking-wider">
                 <div>SESSION</div>

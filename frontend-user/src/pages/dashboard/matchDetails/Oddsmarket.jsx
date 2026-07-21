@@ -41,6 +41,7 @@ export default function OddsMarket({
     teamNames = [],
     settings,
     highlightedOdds,
+    maxBet,
 }) {
     return (
         <div className="bg-white mt-2 rounded shadow-sm overflow-hidden">
@@ -50,6 +51,12 @@ export default function OddsMarket({
                 <div className="text-center">KHAI</div>
                 <div className="text-right">POSITION</div>
             </div>
+
+            {Number(maxBet) > 0 && (
+                <div className="border-b border-[#CDD9E5] bg-white px-3 py-1 text-right text-[11px] font-semibold text-[#60758A]">
+                    Max match bet: {Number(maxBet).toLocaleString("en-IN")}
+                </div>
+            )}
 
             {runners.length === 0 ? (
                 teamNames.filter(Boolean).map((teamName) => (

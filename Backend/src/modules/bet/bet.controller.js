@@ -13,7 +13,8 @@ const placeBetSchema = z.object({
         .string({ required_error: "userId is required" })
         .refine((val) => mongoose.Types.ObjectId.isValid(val), {
             message: "Invalid userId format",
-        }),
+        })
+        .optional(),
     matchId: z.string({ required_error: "matchId is required" }).min(1, "matchId cannot be empty"),
     amount: z
         .number({
@@ -43,6 +44,8 @@ const placeBetSchema = z.object({
         required_error: "type is required",
         invalid_type_error: 'type must be either "yes" or "no"',
     }),
+    marketType: z.enum(["match", "session"]).default("match"),
+    marketId: z.string().trim().optional().default(""),
 });
 
 const settleBetSchema = z.object({
@@ -69,9 +72,19 @@ const settleBetSchema = z.object({
  */
 const placeBetController = async (req, res) => {
     try {
-        const { userId, matchId, amount, rate, type } = placeBetSchema.parse(req.body);
+        const parsed = placeBetSchema.parse(req.body);
+        const userId = req.user?._id?.toString() || parsed.userId;
+        if (!userId) throw new Error("Authenticated user is required");
 
-        const bet = await placeBet(userId, matchId, amount, rate, type);
+        const bet = await placeBet(
+            userId,
+            parsed.matchId,
+            parsed.amount,
+            parsed.rate,
+            parsed.type,
+            parsed.marketType,
+            parsed.marketId
+        );
 
         return res.status(201).json({
             success: true,
@@ -93,9 +106,11 @@ const placeBetController = async (req, res) => {
  */
 const settleBetController = async (req, res) => {
     try {
-        const { betId, won, settledBy } = settleBetSchema.parse(req.body);
+        const parsed = settleBetSchema.partial({ settledBy: true }).parse(req.body);
+        const settledBy = req.user?._id?.toString() || parsed.settledBy;
+        if (!settledBy) throw new Error("Authenticated settler is required");
 
-        const bet = await settleBet(betId, won, settledBy);
+        const bet = await settleBet(parsed.betId, parsed.won, settledBy);
 
         return res.status(200).json({
             success: true,

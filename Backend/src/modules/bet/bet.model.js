@@ -26,6 +26,17 @@ const betSchema = new mongoose.Schema(
             type: String,
             required: [true, "matchId is required"],
         },
+        marketType: {
+            type: String,
+            enum: ["match", "session"],
+            default: "match",
+            index: true,
+        },
+        marketId: {
+            type: String,
+            trim: true,
+            default: "",
+        },
         /**
          * The face-value stake entered by the user.
          * Only the `liability` portion is actually debited at placement time.
@@ -94,6 +105,7 @@ const betSchema = new mongoose.Schema(
 // Indexes
 betSchema.index({ userId: 1, createdAt: -1 });
 betSchema.index({ matchId: 1, status: 1 });
+betSchema.index({ userId: 1, matchId: 1, marketType: 1, marketId: 1, status: 1 });
 
 const Bet = mongoose.model("Bet", betSchema);
 
