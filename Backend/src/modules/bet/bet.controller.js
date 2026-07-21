@@ -76,7 +76,7 @@ const placeBetController = async (req, res) => {
         const userId = req.user?._id?.toString() || parsed.userId;
         if (!userId) throw new Error("Authenticated user is required");
 
-        const bet = await placeBet(
+        const { bet, balance } = await placeBet(
             userId,
             parsed.matchId,
             parsed.amount,
@@ -90,6 +90,7 @@ const placeBetController = async (req, res) => {
             success: true,
             message: "Bet placed successfully",
             data: bet,
+            balance,
         });
     } catch (error) {
         console.error("[placeBetController] Error:", error.message);

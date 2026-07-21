@@ -137,7 +137,7 @@ const placeBet = async (userId, matchId, amount, rate, type, marketType = "match
             throw new Error(`Insufficient balance. Required: ${liability}, Available: ${balance}`);
         }
 
-        await updateUserCoins(
+        const walletResult = await updateUserCoins(
             userId,
             liability,
             "debit",
@@ -145,12 +145,13 @@ const placeBet = async (userId, matchId, amount, rate, type, marketType = "match
             userId
         );
 
-        return Bet.create({
+        const sessionBet = await Bet.create({
             userId, matchId, marketType, marketId, amount, rate, type, profit,
             loss: liability,
             walletAdjustment: liability,
             status: BET_STATUS.PENDING,
         });
+        return { bet: sessionBet, balance: walletResult.balanceAfter };
     }
 
     if (!marketId) throw new Error("marketId is required for match bets");
@@ -159,6 +160,7 @@ const placeBet = async (userId, matchId, amount, rate, type, marketType = "match
     // also credits collateral back when a new bet reduces that exposure.
     const dbSession = await mongoose.startSession();
     let bet;
+    let updatedBalance;
 
     try {
         await dbSession.withTransaction(async () => {
@@ -193,6 +195,7 @@ const placeBet = async (userId, matchId, amount, rate, type, marketType = "match
             const walletAdjustment = Number((exposureAfter - currentlyReserved).toFixed(2));
             const balanceBefore = Number(user.coins);
             const balanceAfter = Number((balanceBefore - walletAdjustment).toFixed(2));
+            updatedBalance = balanceAfter;
 
             if (balanceAfter < 0) {
                 throw new Error(
@@ -234,7 +237,7 @@ const placeBet = async (userId, matchId, amount, rate, type, marketType = "match
     }
 
     console.log(`[placeBet] Bet created: betId=${bet._id}`);
-    return bet;
+    return { bet, balance: updatedBalance };
 };
 
 /**

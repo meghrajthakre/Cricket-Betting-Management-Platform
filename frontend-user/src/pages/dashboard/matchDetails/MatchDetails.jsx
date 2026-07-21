@@ -11,7 +11,7 @@ import { MOCK_DATA } from "./mockData.js";
 import MatchMessages from "./MatchMessages.jsx";
 import BetSlip from "./BetSlip.jsx";
 import BetResultModal from "./BetResultModal.jsx";
-import { getMyBets, getWalletBalance, placeBet } from "../../../api/userService.js";
+import { getMyBets, placeBet } from "../../../api/userService.js";
 import { useAuthStore } from "../../../store/authStore.js";
 import { useCoinStore } from "../../../store/coinStore.js";
 
@@ -114,14 +114,8 @@ export default function MatchDetails() {
                 setMyBets((current) => [result.data, ...current]);
             }
 
-            if (user?._id) {
-                try {
-                    const wallet = await getWalletBalance(user._id);
-                    setCoins(wallet.data.data.balance);
-                } catch {
-                    // Bet is already placed; a balance refresh failure must not
-                    // report the placement as failed and invite a duplicate bet.
-                }
+            if (Number.isFinite(Number(result.balance))) {
+                setCoins(Number(result.balance));
             }
 
             setSelectedBet(null);
