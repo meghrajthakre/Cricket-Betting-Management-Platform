@@ -15,6 +15,9 @@ export default function MatchHeader({
     team1 = "",
     team2 = "",
     firstBattingTeam = "",
+    secondBattingTeam = "",
+    currentInnings = 1,
+    firstInningsScore = null,
     runs = 0,
     wickets = 0,
     overs = 0,
@@ -22,6 +25,8 @@ export default function MatchHeader({
     scoreText = "",
     balls = [],
     tossMessage = "",
+    chaseBalls = 120,
+    revisedTarget = null,
 }) {
     const navigate = useNavigate();
     const { matchId } = useParams();
@@ -70,6 +75,23 @@ export default function MatchHeader({
 
     const middleText = getMiddleText();
 
+    const getStatusMessage = () => {
+        if (currentInnings !== 2 || !secondBattingTeam || !firstInningsScore) {
+            return tossMessage || "Toss pending";
+        }
+
+        const target = Number(revisedTarget) > 0 ? Number(revisedTarget) : Number(firstInningsScore.runs || 0) + 1;
+        const completedOvers = Math.floor(Number(overs) || 0);
+        const ballsInCurrentOver = Math.round(((Number(overs) || 0) - completedOvers) * 10);
+        const ballsRemaining = Math.max(Number(chaseBalls || 120) - ((completedOvers * 6) + ballsInCurrentOver), 0);
+        const runsNeeded = Math.max(target - Number(runs || 0), 0);
+
+        const chaseFinished = runsNeeded === 0 || Number(wickets || 0) >= 10 || ballsRemaining === 0;
+        if (chaseFinished && tossMessage) return tossMessage;
+
+        return `${secondBattingTeam} needs ${runsNeeded} runs in ${ballsRemaining} balls`;
+    };
+
     return (
         <>
             <div className="flex justify-end mb-3">
@@ -91,7 +113,7 @@ export default function MatchHeader({
                 </button>
             </div>
 
-            <div className="text-center text-gray-500 text-sm mb-2">{tossMessage || "Toss pending"}</div>
+            <div className="text-center text-gray-500 text-sm mb-2">{getStatusMessage()}</div>
 
             {/* Real ball-by-ball history, replaces the old static MATCH.balls row */}
             <SlidingBalls balls={balls} />

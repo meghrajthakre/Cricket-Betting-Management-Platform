@@ -30,6 +30,8 @@ export default function ScoreHeader({
   marketStatus = "OPEN",
   scoreText = "",
   tossMessage = "",
+  chaseBalls = 120,
+  revisedTarget = null,
 }) {
   const isFirstBatter = (team) =>
     !!firstBattingTeam && !!team && normalize(firstBattingTeam) === normalize(team);
@@ -90,10 +92,27 @@ export default function ScoreHeader({
   const badgeColor = MARKET_COLORS[marketStatus] || MARKET_COLORS.OPEN;
   const middleText = getMiddleBadgeText();
 
+  const getStatusMessage = () => {
+    if (currentInnings !== 2 || !secondBattingTeam || !firstInningsScore) {
+      return tossMessage || "Toss pending";
+    }
+
+    const target = Number(revisedTarget) > 0 ? Number(revisedTarget) : Number(firstInningsScore.runs || 0) + 1;
+    const completedOvers = Math.floor(Number(overs) || 0);
+    const ballsInCurrentOver = Math.round(((Number(overs) || 0) - completedOvers) * 10);
+    const ballsRemaining = Math.max(Number(chaseBalls || 120) - ((completedOvers * 6) + ballsInCurrentOver), 0);
+    const runsNeeded = Math.max(target - Number(runs || 0), 0);
+
+    const chaseFinished = runsNeeded === 0 || Number(wickets || 0) >= 10 || ballsRemaining === 0;
+    if (chaseFinished && tossMessage) return tossMessage;
+
+    return `${secondBattingTeam} needs ${runsNeeded} runs in ${ballsRemaining} balls`;
+  };
+
   return (
     <div className="w-full">
       <div className="pb-1 text-center text-sm text-gray-500">
-        {tossMessage || "Toss pending"}
+        {getStatusMessage()}
       </div>
       {/* Match title pill */}
       <div className="flex justify-center py-3">

@@ -57,6 +57,9 @@ export default function ManualPage() {
                                 team1={team1}
                                 team2={team2}
                                 firstBattingTeam={matchData.scoreData.firstBattingTeam}
+                                secondBattingTeam={matchData.scoreData.secondBattingTeam}
+                                currentInnings={matchData.scoreData.currentInnings}
+                                firstInningsScore={matchData.scoreData.firstInningsScore}
                                 runs={matchData.scoreData.runs}
                                 wickets={matchData.scoreData.wickets}
                                 overs={matchData.scoreData.overs}
@@ -64,6 +67,8 @@ export default function ManualPage() {
                                 scoreText={getScoreText()}
                                 balls={matchData.scoreData.balls || []}
                                 tossMessage={matchData.options.tossVisibility !== "remove" ? matchData.options.tossWinMessage : ""}
+                                chaseBalls={matchData.options.balls}
+                                revisedTarget={matchData.options.newTarget}
                             />
                             <RunnerTable rateDiff={rateDiff} match={matchData.match} />
                             <SessionTable

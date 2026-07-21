@@ -82,6 +82,8 @@ export default function ScoreHeader({
     onRefresh,
     match,
     tossMessage = "",
+    chaseBalls = 120,
+    revisedTarget = null,
     settings,
     scoreStatus,
     // Real ball-by-ball history — replaces the old recentBalls/thisOver mock shape
@@ -188,6 +190,26 @@ export default function ScoreHeader({
 
     const middleText = getMiddleBadgeText();
 
+    const getStatusMessage = () => {
+        if (currentInnings !== 2 || !secondBattingTeam || !firstInningsScore) {
+            return tossMessage || "Toss pending";
+        }
+
+        const target = Number(revisedTarget) > 0
+            ? Number(revisedTarget)
+            : Number(firstInningsScore.runs || 0) + 1;
+        const completedOvers = Math.floor(Number(overs) || 0);
+        const ballsInCurrentOver = Math.round(((Number(overs) || 0) - completedOvers) * 10);
+        const ballsUsed = (completedOvers * 6) + ballsInCurrentOver;
+        const ballsRemaining = Math.max(Number(chaseBalls || 120) - ballsUsed, 0);
+        const runsNeeded = Math.max(target - Number(runs || 0), 0);
+
+        const chaseFinished = runsNeeded === 0 || Number(wickets || 0) >= 10 || ballsRemaining === 0;
+        if (chaseFinished && tossMessage) return tossMessage;
+
+        return `${secondBattingTeam} needs ${runsNeeded} runs in ${ballsRemaining} balls`;
+    };
+
     return (
         <div className="w-full max-w-full overflow-hidden">
             {/* Top Section - Score and Bet Status */}
@@ -230,7 +252,7 @@ export default function ScoreHeader({
                             {getTeamDisplay(match?.team2)}
                         </p>
                         <p className="text-[#90B4D4] text-[10px] sm:text-xs md:text-sm lg:text-base font-semibold font-serif leading-tight py-1 sm:py-1.5 lg:py-2 truncate">
-                            {tossMessage || "Toss pending"}
+                            {getStatusMessage()}
                         </p>
                     </div>
                 </div>
