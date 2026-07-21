@@ -81,6 +81,7 @@ export default function ScoreHeader({
     matchId,
     onRefresh,
     match,
+    tossMessage = "",
     settings,
     scoreStatus,
     // Real ball-by-ball history — replaces the old recentBalls/thisOver mock shape
@@ -229,7 +230,7 @@ export default function ScoreHeader({
                             {getTeamDisplay(match?.team2)}
                         </p>
                         <p className="text-[#90B4D4] text-[10px] sm:text-xs md:text-sm lg:text-base font-semibold font-serif leading-tight py-1 sm:py-1.5 lg:py-2 truncate">
-                            {match?.toss || "Toss pending"}
+                            {tossMessage || "Toss pending"}
                         </p>
                     </div>
                 </div>

@@ -71,6 +71,7 @@ export default function MatchDetails() {
                     matchId={matchId}
                     onRefresh={fetchLatestData}
                     match={match}
+                    tossMessage={options.tossVisibility !== "remove" ? options.tossWinMessage : ""}
                     settings={settings}
                     scoreStatus={scoreStatus}
                     balls={scoreData.balls}
