@@ -102,7 +102,7 @@ const credit = async (req, res) => {
     try {
         const { userId, amount } = walletTransactionSchema.parse(req.body);
 
-        const result = await creditWallet(userId, amount);
+        const result = await creditWallet(userId, amount, req.user._id);
 
         res.status(200).json({
             success: true,
@@ -128,7 +128,7 @@ const debit = async (req, res) => {
     try {
         const { userId, amount } = walletTransactionSchema.parse(req.body);
 
-        const result = await debitWallet(userId, amount);
+        const result = await debitWallet(userId, amount, req.user._id);
 
         res.status(200).json({
             success: true,

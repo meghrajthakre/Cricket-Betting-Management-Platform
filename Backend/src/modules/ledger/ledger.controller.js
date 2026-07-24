@@ -21,11 +21,6 @@ const walletTransactionSchema = z.object({
         .trim()
         .min(3, "reason must be at least 3 characters")
         .max(200, "reason cannot exceed 200 characters"),
-    createdBy: z
-        .string({ required_error: "createdBy is required" })
-        .refine((val) => mongoose.Types.ObjectId.isValid(val), {
-            message: "Invalid createdBy format",
-        }),
 });
 
 /**
@@ -34,9 +29,9 @@ const walletTransactionSchema = z.object({
 const creditCoins = async (req, res) => {
     try {
         const validatedData = walletTransactionSchema.parse(req.body);
-        const { userId, amount, reason, createdBy } = validatedData;
+        const { userId, amount, reason } = validatedData;
 
-        const result = await updateUserCoins(userId, amount, "credit", reason, createdBy);
+        const result = await updateUserCoins(userId, amount, "credit", reason, req.user._id);
 
         res.status(200).json({
             success: true,
@@ -61,9 +56,9 @@ const creditCoins = async (req, res) => {
 const debitCoins = async (req, res) => {
     try {
         const validatedData = walletTransactionSchema.parse(req.body);
-        const { userId, amount, reason, createdBy } = validatedData;
+        const { userId, amount, reason } = validatedData;
 
-        const result = await updateUserCoins(userId, amount, "debit", reason, createdBy);
+        const result = await updateUserCoins(userId, amount, "debit", reason, req.user._id);
 
         res.status(200).json({
             success: true,

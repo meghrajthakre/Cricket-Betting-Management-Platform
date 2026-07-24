@@ -50,4 +50,18 @@ const allowRoles = (...roles) => (req, res, next) => {
   next();
 };
 
-module.exports = { protect , allowRoles };
+const allowSelfOrRoles = (paramName, ...roles) => (req, _res, next) => {
+  const requestedUserId = req.params?.[paramName];
+  const authenticatedUserId = req.user?._id?.toString();
+
+  if (
+    requestedUserId === authenticatedUserId ||
+    roles.includes(req.user?.role)
+  ) {
+    return next();
+  }
+
+  throw new AppError("Access denied: you can only access your own account", 403);
+};
+
+module.exports = { protect, allowRoles, allowSelfOrRoles };

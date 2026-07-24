@@ -40,8 +40,8 @@ const getTransactionHistory = async (userId, limit = 10, skip = 0) => {
  * @param {number} amount - Amount to credit
  * @returns {Promise<{balanceBefore: number, balanceAfter: number}>}
  */
-const creditWallet = async (userId, amount) => {
-    return await updateUserCoins(userId, amount, "credit", "Manual adjustment", userId);
+const creditWallet = async (userId, amount, createdBy) => {
+    return await updateUserCoins(userId, amount, "credit", "Manual adjustment", createdBy);
 };
 
 /**
@@ -50,8 +50,8 @@ const creditWallet = async (userId, amount) => {
  * @param {number} amount - Amount to debit
  * @returns {Promise<{balanceBefore: number, balanceAfter: number}>}
  */
-const debitWallet = async (userId, amount) => {
-    return await updateUserCoins(userId, amount, "debit", "Manual adjustment", userId);
+const debitWallet = async (userId, amount, createdBy) => {
+    return await updateUserCoins(userId, amount, "debit", "Manual adjustment", createdBy);
 };
 
 module.exports = {
