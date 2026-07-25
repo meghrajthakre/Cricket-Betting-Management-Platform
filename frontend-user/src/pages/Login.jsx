@@ -163,7 +163,7 @@ const handleLogin = async () => {
             border-2 border-(--color-border)
             rounded-md px-8 py-2
             select-none font-mono font-bold tracking-[6px]
-          ">
+          " data-testid="captcha-code">
             {captcha.split('').map((char, i) => (
               <span
                 key={i}

@@ -41,7 +41,7 @@ function broadcast(matchId, eventObj) {
 }
 
 // heartbeat: send comment line every 25s to keep proxies alive
-setInterval(() => {
+const heartbeatTimer = setInterval(() => {
     for (const [, set] of clients) {
         for (const res of set) {
             try {
@@ -52,5 +52,6 @@ setInterval(() => {
         }
     }
 }, 25000);
+heartbeatTimer.unref();
 
 module.exports = { addClient, removeClient, broadcast };

@@ -4,6 +4,7 @@ const { Router } = require("express");
 const { login, logout, getMe } = require("../controllers/authController");
 const { protect } = require("../middleware/authMiddleware");
 const { validateBody, loginSchema } = require("../utils/validators");
+const { loginLimiter } = require("../middleware/rateLimiters");
 
 const router = Router();
 
@@ -12,7 +13,7 @@ const router = Router();
  * Body: { username, password }
  * Returns: httpOnly access + refresh token cookies
  */
-router.post("/login", validateBody(loginSchema), login);
+router.post("/login", loginLimiter, validateBody(loginSchema), login);
 
 /**
  * POST /auth/logout

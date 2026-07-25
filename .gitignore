@@ -1,2 +1,4 @@
 .agents/runlogs/
 .runlogs/
+frontend-user/playwright-report/
+frontend-user/test-results/
