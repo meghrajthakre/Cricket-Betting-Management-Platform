@@ -5,19 +5,30 @@ const { User } = require("../models/User");
 const asyncHandler = require("../utils/asyncHandler");
 const AppError = require("../utils/AppError");
 
+const getAccessTokenFromRequest = (req) => {
+  const authHeader = req.headers?.authorization;
+  if (authHeader !== undefined) {
+    const match = /^Bearer\s+(\S+)$/i.exec(String(authHeader).trim());
+    if (!match) throw new AppError("Invalid Authorization header.", 401);
+    return match[1];
+  }
+
+  const superadminToken = req.cookies?.sa_accessToken;
+  const userToken = req.cookies?.accessToken;
+  if (superadminToken && userToken) {
+    throw new AppError(
+      "Multiple login sessions detected. Please use the correct panel or log in again.",
+      401
+    );
+  }
+
+  return superadminToken || userToken || null;
+};
+
 const protect = asyncHandler(async (req, _res, next) => {
-  let token = null;
-
-  // ── 1. Authorization header (mobile-safe, always preferred) ──────────────
-  const authHeader = req.headers["authorization"];
-  if (authHeader?.startsWith("Bearer ")) {
-    token = authHeader.split(" ")[1];
-  }
-
-  // ── 2. Cookie fallback (desktop / same-site browsers) ────────────────────
-  if (!token) {
-    token = req.cookies?.sa_accessToken || req.cookies?.accessToken;
-  }
+  // Explicit Bearer auth is deterministic. Cookie fallback is accepted only
+  // when exactly one panel session is present.
+  const token = getAccessTokenFromRequest(req);
 
   if (!token) {
     throw new AppError("Access denied. Please log in.", 401);
@@ -64,4 +75,9 @@ const allowSelfOrRoles = (paramName, ...roles) => (req, _res, next) => {
   throw new AppError("Access denied: you can only access your own account", 403);
 };
 
-module.exports = { protect, allowRoles, allowSelfOrRoles };
+module.exports = {
+  protect,
+  allowRoles,
+  allowSelfOrRoles,
+  getAccessTokenFromRequest,
+};

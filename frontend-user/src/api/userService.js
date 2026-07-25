@@ -1,8 +1,21 @@
-import API from "./axios";
+import API, { USER_ACCESS_TOKEN_KEY } from "./axios";
 
 // ========== Auth ==========
-export const loginUser = (data) => API.post("/auth/login", data).then((r) => r.data);
-export const logoutUser = () => API.post("/auth/logout").then((r) => r.data);
+export const loginUser = async (data) => {
+  const response = await API.post("/auth/login", data);
+  const token = response.data?.data?.accessToken;
+  if (token) localStorage.setItem(USER_ACCESS_TOKEN_KEY, token);
+  return response.data;
+};
+
+export const logoutUser = async () => {
+  try {
+    const response = await API.post("/auth/logout");
+    return response.data;
+  } finally {
+    localStorage.removeItem(USER_ACCESS_TOKEN_KEY);
+  }
+};
 export const getMe = () => API.get("/auth/me").then((r) => r.data);
 
 // ========== Banner ==========

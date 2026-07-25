@@ -152,6 +152,7 @@ const Navbar = () => {
         logout();
         setCoins(0);
         localStorage.removeItem("token");
+        localStorage.removeItem("userAccessToken");
         navigate("/");
       }
     } else if (path) {
