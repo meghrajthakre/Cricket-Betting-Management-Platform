@@ -3,7 +3,6 @@
 const mongoose = require("mongoose");
 const { Bet, BET_STATUS, BET_TYPE } = require("./bet.model");
 const { updateUserCoins } = require("../ledger/ledger.service");
-const { getUserBalance } = require("../wallet/wallet.service");
 const ManualOptions = require("../../models/ManualModel/ManualOptions");
 const ManualSettings = require("../../models/ManualModel/ManualSettings");
 const ManualRunner = require("../../models/ManualModel/ManualRunner");
@@ -41,6 +40,73 @@ const acceptCurrentMarketRate = (requestedRate, currentRate) => {
     }
 
     return current;
+};
+
+const waitForBetDelay = async (delaySeconds) => {
+    const seconds = Number(delaySeconds);
+    if (!Number.isFinite(seconds) || seconds <= 0) return;
+    await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+};
+
+const loadBetMarketState = async ({
+    matchId,
+    marketId,
+    marketType,
+    type,
+    requestedRate,
+    amount,
+}) => {
+    const [storedOptions, settings] = await Promise.all([
+        ManualOptions.findOne({ matchId }).lean(),
+        ManualSettings.findOne({ matchId }).lean(),
+    ]);
+    const options = { ...DEFAULT_OPTIONS, ...(storedOptions || {}) };
+
+    if (settings && (settings.betLock || settings.marketStatus !== "OPEN")) {
+        throw new Error("Match betting is currently closed");
+    }
+
+    let maxBet;
+    let delaySeconds;
+    let currentRate;
+
+    if (marketType === "session") {
+        if (settings?.sessionLock) throw new Error("Session betting is currently locked");
+
+        const session = await ManualSession.findOne({ matchId, id: marketId }).lean();
+        if (!session) throw new Error("Session market not found");
+        if (!session.isVisible || session.status !== "open" || session.lockStatus === "lock") {
+            throw new Error("Session market is not open");
+        }
+
+        maxBet = Math.min(
+            Number(options.sessionMaxBet),
+            Number(session.maxAmount)
+        );
+        delaySeconds = Number(options.sessionDelay) || 0;
+        currentRate = type === BET_TYPE.YES ? session.yesRun : session.noRun;
+    } else {
+        const runner = await ManualRunner.findOne({ matchId, runnerId: marketId }).lean();
+        if (!runner) throw new Error("Match runner not found");
+        if (runner.status !== "open") throw new Error("Match runner is suspended");
+
+        maxBet = Number(options.matchMaxBet);
+        delaySeconds = Number(options.matchDelay) || 0;
+        currentRate = type === BET_TYPE.YES ? runner.lagai : runner.khai;
+    }
+
+    if (!Number.isFinite(maxBet) || maxBet <= 0) {
+        throw new Error(`${marketType === "session" ? "Session" : "Match"} betting is disabled`);
+    }
+    if (amount > maxBet) {
+        throw new Error(`Maximum ${marketType} bet allowed is ${maxBet}`);
+    }
+
+    return {
+        acceptedRate: acceptCurrentMarketRate(requestedRate, currentRate),
+        delaySeconds,
+        maxBet,
+    };
 };
 
 /**
@@ -104,94 +170,91 @@ const placeBet = async (userId, matchId, amount, rate, type, marketType = "match
         throw new Error("marketType must be match or session");
     }
 
-    const [storedOptions, settings] = await Promise.all([
-        ManualOptions.findOne({ matchId }).lean(),
-        ManualSettings.findOne({ matchId }).lean(),
-    ]);
-    const options = { ...DEFAULT_OPTIONS, ...(storedOptions || {}) };
-
-    if (settings && (settings.betLock || settings.marketStatus !== "OPEN")) {
-        throw new Error("Match betting is currently closed");
-    }
-
-    let maxBet = Number(options.matchMaxBet);
-    let delaySeconds = Number(options.matchDelay) || 0;
-    let marketUpdatedAt = null;
-    let acceptedRate;
-
     if (marketType === "match" && !marketId) {
         throw new Error("marketId is required for match bets");
     }
-
-    if (marketType === "session") {
-        if (settings?.sessionLock) throw new Error("Session betting is currently locked");
-        if (!marketId) throw new Error("marketId is required for session bets");
-
-        const session = await ManualSession.findOne({ matchId, id: marketId }).lean();
-        if (!session) throw new Error("Session market not found");
-        if (!session.isVisible || session.status !== "open" || session.lockStatus === "lock") {
-            throw new Error("Session market is not open");
-        }
-
-        const globalLimit = Number(options.sessionMaxBet);
-        const sessionLimit = Number(session.maxAmount);
-        maxBet = Math.min(globalLimit, sessionLimit);
-        delaySeconds = Number(options.sessionDelay) || 0;
-        marketUpdatedAt = session.updatedAt;
-        acceptedRate = acceptCurrentMarketRate(
-            rate,
-            type === BET_TYPE.YES ? session.yesRun : session.noRun
-        );
-    } else {
-        const runner = await ManualRunner.findOne({ matchId, runnerId: marketId }).lean();
-        if (!runner) throw new Error("Match runner not found");
-        if (runner.status !== "open") throw new Error("Match runner is suspended");
-        marketUpdatedAt = runner.updatedAt;
-        acceptedRate = acceptCurrentMarketRate(
-            rate,
-            type === BET_TYPE.YES ? runner.lagai : runner.khai
-        );
+    if (marketType === "session" && !marketId) {
+        throw new Error("marketId is required for session bets");
     }
 
-    if (!Number.isFinite(maxBet) || maxBet <= 0) {
-        throw new Error(`${marketType === "session" ? "Session" : "Match"} betting is disabled`);
-    }
-    if (amount > maxBet) {
-        throw new Error(`Maximum ${marketType} bet allowed is ${maxBet}`);
-    }
-
-    if (marketUpdatedAt && delaySeconds > 0) {
-        const allowedAt = new Date(marketUpdatedAt).getTime() + delaySeconds * 1000;
-        if (Date.now() < allowedAt) {
-            throw new Error(`Please wait ${Math.ceil((allowedAt - Date.now()) / 1000)} second(s) before betting`);
-        }
-    }
+    // Validate the user's displayed price immediately, wait for the configured
+    // in-play delay, then load everything again. The second read is authoritative:
+    // a changed price, suspended market, lock, or reduced limit rejects the bet.
+    const initialMarket = await loadBetMarketState({
+        matchId,
+        marketId,
+        marketType,
+        type,
+        requestedRate: rate,
+        amount,
+    });
+    await waitForBetDelay(initialMarket.delaySeconds);
+    const finalMarket = await loadBetMarketState({
+        matchId,
+        marketId,
+        marketType,
+        type,
+        requestedRate: initialMarket.acceptedRate,
+        amount,
+    });
+    const acceptedRate = finalMarket.acceptedRate;
 
     // --- Calculate financials --------------------------------------------------
     const { profit, liability } = calculateBetFinancials(type, amount, acceptedRate);
 
     // Sessions currently keep independent liability accounting.
     if (marketType === "session") {
-        const balance = await getUserBalance(userId);
-        if (balance < liability) {
-            throw new Error(`Insufficient balance. Required: ${liability}, Available: ${balance}`);
+        const dbSession = await mongoose.startSession();
+        let sessionBet;
+        let updatedBalance;
+
+        try {
+            await dbSession.withTransaction(async () => {
+                const user = await User.findById(userId).session(dbSession);
+                if (!user) throw new Error("User not found");
+
+                const balanceBefore = Number(user.coins);
+                const balanceAfter = Number((balanceBefore - liability).toFixed(2));
+                if (balanceAfter < 0) {
+                    throw new Error(
+                        `Insufficient balance. Required: ${liability}, Available: ${balanceBefore}`
+                    );
+                }
+
+                await Ledger.create([{
+                    userId,
+                    amount: liability,
+                    type: "debit",
+                    reason: `${type.toUpperCase()} session bet placed on match ${matchId} (liability)`,
+                    createdBy: userId,
+                    balanceBefore,
+                    balanceAfter,
+                }], { session: dbSession });
+
+                user.coins = balanceAfter;
+                await user.save({ session: dbSession });
+
+                [sessionBet] = await Bet.create([{
+                    userId,
+                    matchId,
+                    marketType,
+                    marketId,
+                    amount,
+                    rate: acceptedRate,
+                    type,
+                    profit,
+                    loss: liability,
+                    walletAdjustment: liability,
+                    status: BET_STATUS.PENDING,
+                }], { session: dbSession });
+
+                updatedBalance = balanceAfter;
+            });
+        } finally {
+            await dbSession.endSession();
         }
 
-        const walletResult = await updateUserCoins(
-            userId,
-            liability,
-            "debit",
-            `${type.toUpperCase()} session bet placed on match ${matchId} (liability)`,
-            userId
-        );
-
-        const sessionBet = await Bet.create({
-            userId, matchId, marketType, marketId, amount, rate: acceptedRate, type, profit,
-            loss: liability,
-            walletAdjustment: liability,
-            status: BET_STATUS.PENDING,
-        });
-        return { bet: sessionBet, balance: walletResult.balanceAfter };
+        return { bet: sessionBet, balance: updatedBalance };
     }
 
     // Reserve only the worst-case NET loss across all runners. This transaction
@@ -369,4 +432,5 @@ module.exports = {
     settleBet,
     getUserMatchBets,
     acceptCurrentMarketRate,
+    waitForBetDelay,
 };
