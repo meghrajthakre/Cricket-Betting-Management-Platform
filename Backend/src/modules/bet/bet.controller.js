@@ -94,9 +94,11 @@ const placeBetController = async (req, res) => {
         });
     } catch (error) {
         console.error("[placeBetController] Error:", error.message);
-        return res.status(400).json({
+        return res.status(error.statusCode || 400).json({
             success: false,
             error: error.message,
+            ...(error.code ? { code: error.code } : {}),
+            ...(error.currentRate !== undefined ? { currentRate: error.currentRate } : {}),
         });
     }
 };

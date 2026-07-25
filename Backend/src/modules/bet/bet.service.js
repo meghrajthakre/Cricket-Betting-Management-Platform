@@ -16,6 +16,33 @@ const { Ledger } = require("../ledger/ledger.model");
 // Helpers
 // ---------------------------------------------------------------------------
 
+const normalizeRate = (value) => {
+    const rate = Number(value);
+    return Number.isFinite(rate) ? Number(rate.toFixed(2)) : NaN;
+};
+
+const acceptCurrentMarketRate = (requestedRate, currentRate) => {
+    const requested = normalizeRate(requestedRate);
+    const current = normalizeRate(currentRate);
+
+    if (!Number.isFinite(current) || current < 1) {
+        const error = new Error("Current market rate is unavailable");
+        error.statusCode = 409;
+        error.code = "MARKET_RATE_UNAVAILABLE";
+        throw error;
+    }
+
+    if (requested !== current) {
+        const error = new Error(`Rate changed from ${requested} to ${current}. Please review and try again.`);
+        error.statusCode = 409;
+        error.code = "PRICE_CHANGED";
+        error.currentRate = current;
+        throw error;
+    }
+
+    return current;
+};
+
 /**
  * Calculates profit and liability for a rate-based Indian bet.
  *
@@ -90,6 +117,11 @@ const placeBet = async (userId, matchId, amount, rate, type, marketType = "match
     let maxBet = Number(options.matchMaxBet);
     let delaySeconds = Number(options.matchDelay) || 0;
     let marketUpdatedAt = null;
+    let acceptedRate;
+
+    if (marketType === "match" && !marketId) {
+        throw new Error("marketId is required for match bets");
+    }
 
     if (marketType === "session") {
         if (settings?.sessionLock) throw new Error("Session betting is currently locked");
@@ -106,11 +138,19 @@ const placeBet = async (userId, matchId, amount, rate, type, marketType = "match
         maxBet = Math.min(globalLimit, sessionLimit);
         delaySeconds = Number(options.sessionDelay) || 0;
         marketUpdatedAt = session.updatedAt;
-    } else if (marketId) {
+        acceptedRate = acceptCurrentMarketRate(
+            rate,
+            type === BET_TYPE.YES ? session.yesRun : session.noRun
+        );
+    } else {
         const runner = await ManualRunner.findOne({ matchId, runnerId: marketId }).lean();
         if (!runner) throw new Error("Match runner not found");
         if (runner.status !== "open") throw new Error("Match runner is suspended");
         marketUpdatedAt = runner.updatedAt;
+        acceptedRate = acceptCurrentMarketRate(
+            rate,
+            type === BET_TYPE.YES ? runner.lagai : runner.khai
+        );
     }
 
     if (!Number.isFinite(maxBet) || maxBet <= 0) {
@@ -128,7 +168,7 @@ const placeBet = async (userId, matchId, amount, rate, type, marketType = "match
     }
 
     // --- Calculate financials --------------------------------------------------
-    const { profit, liability } = calculateBetFinancials(type, amount, rate);
+    const { profit, liability } = calculateBetFinancials(type, amount, acceptedRate);
 
     // Sessions currently keep independent liability accounting.
     if (marketType === "session") {
@@ -146,15 +186,13 @@ const placeBet = async (userId, matchId, amount, rate, type, marketType = "match
         );
 
         const sessionBet = await Bet.create({
-            userId, matchId, marketType, marketId, amount, rate, type, profit,
+            userId, matchId, marketType, marketId, amount, rate: acceptedRate, type, profit,
             loss: liability,
             walletAdjustment: liability,
             status: BET_STATUS.PENDING,
         });
         return { bet: sessionBet, balance: walletResult.balanceAfter };
     }
-
-    if (!marketId) throw new Error("marketId is required for match bets");
 
     // Reserve only the worst-case NET loss across all runners. This transaction
     // also credits collateral back when a new bet reduces that exposure.
@@ -221,7 +259,7 @@ const placeBet = async (userId, matchId, amount, rate, type, marketType = "match
             }
 
             [bet] = await Bet.create([{
-                userId, matchId, marketType, marketId, amount, rate, type, profit,
+                userId, matchId, marketType, marketId, amount, rate: acceptedRate, type, profit,
                 loss: liability,
                 walletAdjustment,
                 status: BET_STATUS.PENDING,
@@ -326,4 +364,9 @@ const getUserMatchBets = async (userId, matchId) => {
         .lean();
 };
 
-module.exports = { placeBet, settleBet, getUserMatchBets };
+module.exports = {
+    placeBet,
+    settleBet,
+    getUserMatchBets,
+    acceptCurrentMarketRate,
+};
