@@ -7,7 +7,8 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "seed": "node src/utils/seed.js",
-    "test": "node --test tests/unit/authMiddleware.test.js tests/unit/betSecurity.test.js tests/load/http-load.test.js",
+    "test": "node --test tests/unit/authMiddleware.test.js tests/unit/betSecurity.test.js tests/load/http-load.test.js tests/integration/sessionBet.transaction.test.js",
+    "test:integration": "node --test tests/integration/sessionBet.transaction.test.js",
     "test:load": "node tests/load/http-load.js"
   },
   "keywords": [

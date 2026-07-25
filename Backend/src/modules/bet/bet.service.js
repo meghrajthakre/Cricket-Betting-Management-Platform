@@ -433,4 +433,7 @@ module.exports = {
     getUserMatchBets,
     acceptCurrentMarketRate,
     waitForBetDelay,
+    calculateBetFinancials,
+    addBetToPositions,
+    requiredExposure,
 };
