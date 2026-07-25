@@ -13,10 +13,11 @@ const {
   deleteUser,
 } = require("../controllers/superadminUserController");
 
-// const { protect, restrictTo } = require("../middlewares/authMiddleware");
+const { protect } = require("../middleware/authMiddleware");
+const { superAdminOnly } = require("../middleware/roleMiddleware");
 
 // All routes require auth + superadmin role
-// router.use(protect, restrictTo("SUPERADMIN"));
+router.use(protect, superAdminOnly);
 
 /* ── Collection ─────────────────────────────────────────────── */
 router

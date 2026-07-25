@@ -3,7 +3,10 @@
 const { User, ROLES } = require("../models/User");
 const asyncHandler = require("../utils/asyncHandler");
 const AppError = require("../utils/AppError");
-const { updateUserCoins } = require("../modules/ledger/ledger.service");
+const {
+  updateUserCoins,
+  setUserCoins,
+} = require("../modules/ledger/ledger.service");
 
 /* ─────────────────────────────────────────────────────────────
    CREATE USER   POST /superadmin/users
@@ -146,41 +149,33 @@ const updateUser = asyncHandler(async (req, res) => {
     updates.coins = c;
   }
 
-  // Handle coins update via ledger
-  let coinsUpdate = null;
-  if (updates.coins !== undefined) {
-    const currentUser = await User.findById(req.params.id);
-    if (!currentUser) throw new AppError("User not found.", 404);
+  const requestedCoins = updates.coins;
+  delete updates.coins;
 
-    const currentCoins = currentUser.coins;
-    const newCoins = updates.coins;
-    const difference = newCoins - currentCoins;
+  const ownershipFilter = {
+    _id: req.params.id,
+    role: ROLES.USER,
+    createdBy: req.user._id,
+  };
 
-    if (difference > 0) {
-      coinsUpdate = { type: "credit", amount: difference };
-    } else if (difference < 0) {
-      coinsUpdate = { type: "debit", amount: Math.abs(difference) };
-    }
-    // If difference === 0, no ledger update needed
-  }
-
-  const user = await User.findOneAndUpdate(
-    { _id: req.params.id, role: ROLES.USER, createdBy: req.user._id },
-    updates,
-    { returnDocument: "after", runValidators: true }
-  ).select("-password");
+  const user = Object.keys(updates).length > 0
+    ? await User.findOneAndUpdate(
+      ownershipFilter,
+      updates,
+      { returnDocument: "after", runValidators: true }
+    ).select("-password")
+    : await User.findOne(ownershipFilter).select("-password");
 
   if (!user) throw new AppError("User not found.", 404);
 
-  // Apply ledger transaction if coins changed
-  if (coinsUpdate) {
-    await updateUserCoins(
+  if (requestedCoins !== undefined) {
+    const { balanceAfter } = await setUserCoins(
       user._id,
-      coinsUpdate.amount,
-      coinsUpdate.type,
-      `Admin updated balance`,
+      requestedCoins,
+      "Admin updated balance",
       req.user._id
     );
+    user.coins = balanceAfter;
   }
 
   res.status(200).json({ success: true, message: "User updated.", data: user });

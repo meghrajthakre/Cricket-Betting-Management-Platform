@@ -76,4 +76,53 @@ const updateUserCoins = async (userId, amount, type, reason, createdBy) => {
     }
 };
 
-module.exports = { updateUserCoins };
+/**
+ * Sets a user's balance to an exact value and records only the real difference.
+ * The wallet update and ledger entry commit or roll back together.
+ */
+const setUserCoins = async (userId, targetBalance, reason, createdBy) => {
+    const session = await mongoose.startSession();
+
+    try {
+        let result;
+
+        await session.withTransaction(async () => {
+            const user = await User.findById(userId).session(session);
+            if (!user) {
+                throw new Error("User not found");
+            }
+
+            const balanceBefore = Number(user.coins);
+            const balanceAfter = Number(targetBalance);
+            const difference = Number((balanceAfter - balanceBefore).toFixed(2));
+
+            if (difference !== 0) {
+                await Ledger.create(
+                    [
+                        {
+                            userId,
+                            amount: Math.abs(difference),
+                            type: difference > 0 ? "credit" : "debit",
+                            reason,
+                            createdBy,
+                            balanceBefore,
+                            balanceAfter,
+                        },
+                    ],
+                    { session }
+                );
+
+                user.coins = balanceAfter;
+                await user.save({ session });
+            }
+
+            result = { balanceBefore, balanceAfter };
+        });
+
+        return result;
+    } finally {
+        await session.endSession();
+    }
+};
+
+module.exports = { updateUserCoins, setUserCoins };
