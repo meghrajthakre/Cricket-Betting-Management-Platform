@@ -15,6 +15,8 @@ import { getMyBets, placeBet } from "../../../api/userService.js";
 import { useAuthStore } from "../../../store/authStore.js";
 import { useCoinStore } from "../../../store/coinStore.js";
 
+const MIN_BET_LOADER_MS = 500;
+
 function FullScreenBetLoader() {
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#07182a]/80 px-5 backdrop-blur-sm">
@@ -101,6 +103,7 @@ export default function MatchDetails() {
     const handlePlaceBet = async ({ amount }) => {
         if (!selectedBet) return;
         const submittedBet = selectedBet;
+        const loaderStartedAt = Date.now();
         setPlacingBet(true);
 
         try {
@@ -134,6 +137,10 @@ export default function MatchDetails() {
             });
             throw error;
         } finally {
+            const remainingLoaderTime = MIN_BET_LOADER_MS - (Date.now() - loaderStartedAt);
+            if (remainingLoaderTime > 0) {
+                await new Promise((resolve) => window.setTimeout(resolve, remainingLoaderTime));
+            }
             setPlacingBet(false);
         }
     };

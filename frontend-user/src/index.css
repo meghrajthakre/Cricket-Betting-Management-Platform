@@ -1,5 +1,5 @@
-  @import "tailwindcss";
   @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Nunito:wght@400;600;700&display=swap');
+  @import "tailwindcss";
 
   /* ─────────────────────────────────────────────────────────────────────────────
     @theme — registers CSS variables as Tailwind design tokens.
