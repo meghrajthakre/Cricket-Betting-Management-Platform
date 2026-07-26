@@ -3,7 +3,7 @@
 const { placeBet, settleBet, getUserMatchBets } = require("./bet.service");
 const { z } = require("zod");
 const mongoose = require("mongoose");
-const sse = require("../../ManualEngine/sseServer");
+const sse = require("../manual/manual.events");
 
 // ---------------------------------------------------------------------------
 // Validation schemas

@@ -3,11 +3,11 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const mongoose = require("mongoose");
-const { User } = require("../../src/models/User");
-const ManualOptions = require("../../src/models/ManualModel/ManualOptions");
-const ManualSettings = require("../../src/models/ManualModel/ManualSettings");
-const ManualRunner = require("../../src/models/ManualModel/ManualRunner");
-const Session = require("../../src/models/Session");
+const { User } = require("../../src/modules/user/user.model");
+const ManualOptions = require("../../src/modules/manual/manual-options.model");
+const ManualSettings = require("../../src/modules/manual/manual-settings.model");
+const ManualRunner = require("../../src/modules/manual/manual-runner.model");
+const Session = require("../../src/modules/session/session.model");
 const { Bet } = require("../../src/modules/bet/bet.model");
 const { Ledger } = require("../../src/modules/ledger/ledger.model");
 const { placeBet } = require("../../src/modules/bet/bet.service");

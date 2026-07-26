@@ -4,7 +4,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const mongoose = require("mongoose");
 const app = require("../../server");
-const { User } = require("../../src/models/User");
+const { User } = require("../../src/modules/user/user.model");
 const { Ledger } = require("../../src/modules/ledger/ledger.model");
 const { generateAccessToken } = require("../../src/utils/generateToken");
 

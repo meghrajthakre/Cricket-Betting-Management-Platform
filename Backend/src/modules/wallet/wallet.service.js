@@ -1,6 +1,6 @@
 "use strict";
 
-const {User} = require("../../models/User");
+const { User } = require("../user/user.model");
 const { Ledger } = require("../ledger/ledger.model");
 const { updateUserCoins } = require("../ledger/ledger.service");
 

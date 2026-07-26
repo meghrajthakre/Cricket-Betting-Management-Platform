@@ -2,7 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { sessionBetWon } = require("../../src/services/sessionService");
+const { sessionBetWon } = require("../../src/modules/session/session.service");
 
 const yesBet = { type: "yes", sessionRun: 120 };
 const noBet = { type: "no", sessionRun: 120 };

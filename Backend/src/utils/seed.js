@@ -1,6 +1,6 @@
 require("dotenv").config();
 const connectDB = require("../config/db");
-const { User, ROLES } = require("../models/User");
+const { User, ROLES } = require("../modules/user/user.model");
 
 const DEFAULT_USERNAME = "superadmin";
 const DEFAULT_PASSWORD = "SuperAdmin@123";

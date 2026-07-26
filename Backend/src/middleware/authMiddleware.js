@@ -1,7 +1,7 @@
 "use strict";
 
 const { verifyAccessToken } = require("../utils/generateToken");
-const { User } = require("../models/User");
+const { User } = require("../modules/user/user.model");
 const asyncHandler = require("../utils/asyncHandler");
 const AppError = require("../utils/AppError");
 

@@ -64,6 +64,10 @@ test("authenticated user opens match odds and places a bet", async ({ page }) =>
   });
 
   let placedBody;
+  let releaseBetResponse;
+  const betResponseGate = new Promise((resolve) => {
+    releaseBetResponse = resolve;
+  });
   await page.route("**/api/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
@@ -101,7 +105,7 @@ test("authenticated user opens match odds and places a bet", async ({ page }) =>
     }
     if (path.endsWith("/bet/place")) {
       placedBody = request.postDataJSON();
-      await new Promise((resolve) => setTimeout(resolve, 150));
+      await betResponseGate;
       return json(route, {
         success: true,
         data: {
@@ -123,6 +127,7 @@ test("authenticated user opens match odds and places a bet", async ({ page }) =>
   await page.getByRole("button", { name: "DONE" }).click();
 
   await expect(page.getByText("BET PLACE HO RAHI HAI")).toBeVisible();
+  releaseBetResponse();
   await expect(page.getByRole("heading", { name: "Bet Successfully Placed" })).toBeVisible();
   expect(placedBody).toMatchObject({
     matchId: "e2e-match",

@@ -3,13 +3,13 @@
 const mongoose = require("mongoose");
 const { Bet, BET_STATUS, BET_TYPE } = require("./bet.model");
 const { updateUserCoins } = require("../ledger/ledger.service");
-const ManualOptions = require("../../models/ManualModel/ManualOptions");
-const ManualSettings = require("../../models/ManualModel/ManualSettings");
-const ManualRunner = require("../../models/ManualModel/ManualRunner");
-const Session = require("../../models/Session");
-const { sessionTemplate } = require("../../services/sessionCatalog");
-const { DEFAULT_OPTIONS } = require("../../services/manualOptionsService");
-const { User } = require("../../models/User");
+const ManualOptions = require("../manual/manual-options.model");
+const ManualSettings = require("../manual/manual-settings.model");
+const ManualRunner = require("../manual/manual-runner.model");
+const Session = require("../session/session.model");
+const { sessionTemplate } = require("../session/session.catalog");
+const { DEFAULT_OPTIONS } = require("../manual/manual-options.service");
+const { User } = require("../user/user.model");
 const { Ledger } = require("../ledger/ledger.model");
 
 // ---------------------------------------------------------------------------

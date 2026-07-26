@@ -1,6 +1,6 @@
 "use strict";
 
-const { ROLES } = require("../models/User");
+const { ROLES } = require("../modules/user/user.model");
 const AppError = require("../utils/AppError");
 
 const authorize = (...roles) => (req, _res, next) => {
