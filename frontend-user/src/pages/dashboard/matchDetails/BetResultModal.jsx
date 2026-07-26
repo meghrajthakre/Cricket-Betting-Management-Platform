@@ -28,7 +28,9 @@ export default function BetResultModal({ result, onClose }) {
                         {success ? "Bet Successfully Placed" : "Bhav Change"}
                     </h2>
 
-                    <p className="mt-2 text-sm leading-6 text-gray-600">{result.message}</p>
+                    {result.message && (
+                        <p className="mt-2 text-sm leading-6 text-gray-600">{result.message}</p>
+                    )}
 
                     {result.details && (
                         <div

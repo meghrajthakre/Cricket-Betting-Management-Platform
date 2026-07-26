@@ -129,11 +129,11 @@ export default function MatchDetails() {
             });
             return result;
         } catch (error) {
-            const message = error?.response?.data?.error || error?.message || "Current rate par bet accept nahi hui.";
+            setSelectedBet(null);
             setBetResult({
                 type: "error",
-                message: "Market ka bhav change ho gaya ya bet accept nahi hui. Latest rate check karke dobara try karein.",
-                details: message,
+                message: "",
+                details: "",
             });
             throw error;
         } finally {
