@@ -256,6 +256,7 @@ async function settleSession(matchId, sessionId, resultRun, settledBy) {
       session.resultStatus = "settled";
       session.status = "closed";
       session.lockStatus = "lock";
+      session.isVisible = false;
       session.settledAt = new Date();
       session.settledBy = settledBy;
       await session.save({ session: dbSession });

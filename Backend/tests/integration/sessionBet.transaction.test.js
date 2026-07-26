@@ -163,6 +163,7 @@ test("session settlement credits a winning YES bet and closes the session", { sk
     assert.equal(bet.resultRun, 91);
     assert.equal(session.resultStatus, "settled");
     assert.equal(session.status, "closed");
+    assert.equal(session.isVisible, false);
   } finally {
     await cleanupCase(matchId, user._id);
   }
