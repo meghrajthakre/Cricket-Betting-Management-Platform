@@ -2,32 +2,13 @@
 
 const mongoose = require("mongoose");
 const Session = require("../models/Session");
-const dummySessions = require("../data/dummySessions");
+const { sessionTemplate, sessionTemplates } = require("./sessionCatalog");
 const { Bet, BET_STATUS, BET_TYPE } = require("../modules/bet/bet.model");
 const { User } = require("../models/User");
 const { Ledger } = require("../modules/ledger/ledger.model");
 const AppError = require("../utils/AppError");
 
 let sessionIndexesReady;
-
-async function migrateLegacySessions(matchId) {
-  const existingSession = await Session.exists({ matchId });
-  if (existingSession) return;
-
-  const legacyCollection = mongoose.connection.collection("manualsessions");
-  const legacySessions = await legacyCollection.find({ matchId }).toArray();
-  if (!legacySessions.length) return;
-
-  try {
-    await Session.collection.insertMany(legacySessions, { ordered: false });
-  } catch (error) {
-    const writeErrors = error?.writeErrors || [];
-    const duplicateOnly =
-      error?.code === 11000 ||
-      (writeErrors.length > 0 && writeErrors.every((item) => item?.code === 11000));
-    if (!duplicateOnly) throw error;
-  }
-}
 
 async function ensureSessionIndexes() {
   if (!sessionIndexesReady) {
@@ -39,73 +20,21 @@ async function ensureSessionIndexes() {
   return sessionIndexesReady;
 }
 
-const cloneSessionsForMatch = (matchId) =>
-  dummySessions.map((session) => ({ ...session, matchId }));
-
 async function getSessions(matchId) {
-  await migrateLegacySessions(matchId);
   await ensureSessionIndexes();
-  const templates = cloneSessionsForMatch(matchId);
-  let initialized = false;
-
-  try {
-    const result = await Session.bulkWrite(
-      templates.map((session) => ({
-        updateOne: {
-          filter: { matchId, id: session.id },
-          update: { $setOnInsert: session },
-          upsert: true,
-        },
-      })),
-      { ordered: false }
-    );
-    initialized = (result.upsertedCount || 0) > 0;
-  } catch (error) {
-    const writeErrors = error?.writeErrors || error?.result?.result?.writeErrors || [];
-    const duplicateOnly =
-      error?.code === 11000 ||
-      (writeErrors.length > 0 && writeErrors.every((item) => item?.code === 11000));
-    if (!duplicateOnly) throw error;
-    initialized = true;
-  }
-
-  await Session.updateMany(
-    {
-      matchId,
-      id: { $in: templates.map((session) => session.id) },
-      visibilityVersion: { $ne: 2 },
-    },
-    { $set: { isVisible: false, visibilityVersion: 2 } }
-  );
-
-  await Session.bulkWrite(
-    templates.map((session) => ({
-      updateOne: {
-        filter: { matchId, id: session.id, resultStatus: { $ne: "settled" } },
-        update: {
-          $set: {
-            noRun: session.noRun,
-            noRate: session.noRate,
-            yesRate: session.yesRate,
-          },
-        },
-      },
-    })),
-    { ordered: false }
-  );
-
-  await Session.updateMany(
-    { matchId, resultStatus: { $ne: "settled" } },
-    [{ $set: { yesRun: { $add: ["$noRun", { $ifNull: ["$rateDiff", 1] }] } } }],
-    { updatePipeline: true }
-  );
-
-  const sessions = await Session.find({ matchId }).sort({ displayOrder: 1 }).lean();
-  return { sessions, initialized };
+  const [templates, storedSessions] = await Promise.all([
+    Promise.resolve(sessionTemplates(matchId)),
+    Session.find({ matchId }).lean(),
+  ]);
+  const storedById = new Map(storedSessions.map((session) => [String(session.id), session]));
+  const templateIds = new Set(templates.map((session) => String(session.id)));
+  const sessions = templates.map((template) => storedById.get(String(template.id)) || template);
+  sessions.push(...storedSessions.filter((session) => !templateIds.has(String(session.id))));
+  sessions.sort((a, b) => Number(a.displayOrder) - Number(b.displayOrder));
+  return { sessions, initialized: false };
 }
 
 async function getPendingBetSessions(matchId) {
-  await migrateLegacySessions(matchId);
   const counts = await Bet.aggregate([
     {
       $match: {
@@ -121,11 +50,16 @@ async function getPendingBetSessions(matchId) {
   const countBySessionId = new Map(
     counts.map((item) => [String(item._id), item.pendingBetCount])
   );
-  const sessions = await Session.find({
+  const storedSessions = await Session.find({
     matchId,
     id: { $in: [...countBySessionId.keys()] },
     resultStatus: { $ne: "settled" },
-  }).sort({ displayOrder: 1 }).lean();
+  }).lean();
+  const storedById = new Map(storedSessions.map((session) => [String(session.id), session]));
+  const sessions = [...countBySessionId.keys()]
+    .map((sessionId) => storedById.get(sessionId) || sessionTemplate(matchId, sessionId))
+    .filter(Boolean)
+    .sort((a, b) => Number(a.displayOrder) - Number(b.displayOrder));
 
   return sessions.map((session) => ({
     ...session,
@@ -134,8 +68,8 @@ async function getPendingBetSessions(matchId) {
 }
 
 async function updateSession(matchId, sessionId, updates) {
-  await migrateLegacySessions(matchId);
-  const current = await Session.findOne({ matchId, id: sessionId }).lean();
+  const storedCurrent = await Session.findOne({ matchId, id: sessionId }).lean();
+  const current = storedCurrent || sessionTemplate(matchId, sessionId);
   if (!current) return null;
   if (current.resultStatus === "settled") {
     throw new AppError("Settled session cannot be changed", 409);
@@ -146,15 +80,19 @@ async function updateSession(matchId, sessionId, updates) {
     nextUpdates.yesRun = Number(current.noRun) + Number(updates.rateDiff);
   }
 
+  if (!storedCurrent) {
+    const created = await Session.create({ ...current, ...nextUpdates });
+    return created.toObject();
+  }
+
   return Session.findOneAndUpdate(
-    { matchId, id: sessionId, resultStatus: { $ne: "settled" } },
+    { matchId, id: sessionId },
     { $set: nextUpdates },
     { returnDocument: "after", runValidators: true }
   ).lean();
 }
 
 async function updateAllSessionStatuses(matchId, status) {
-  await migrateLegacySessions(matchId);
   const unsettled = { matchId, resultStatus: { $ne: "settled" } };
   if (status === "open") {
     await Session.updateMany(
@@ -168,7 +106,6 @@ async function updateAllSessionStatuses(matchId, status) {
 }
 
 async function resetSessions(matchId) {
-  await migrateLegacySessions(matchId);
   const pendingBets = await Bet.exists({
     matchId,
     marketType: "session",
@@ -178,8 +115,7 @@ async function resetSessions(matchId) {
     throw new AppError("Pending session bets must be settled before reset", 409);
   }
   await Session.deleteMany({ matchId });
-  const sessions = await Session.insertMany(cloneSessionsForMatch(matchId));
-  return sessions.map((session) => session.toObject());
+  return sessionTemplates(matchId);
 }
 
 function sessionBetWon(bet, resultRun) {
@@ -190,7 +126,6 @@ function sessionBetWon(bet, resultRun) {
 }
 
 async function settleSession(matchId, sessionId, resultRun, settledBy) {
-  await migrateLegacySessions(matchId);
   const numericResult = Number(resultRun);
   if (!Number.isFinite(numericResult) || numericResult < 0) {
     throw new AppError("resultRun must be a valid non-negative number", 400);
@@ -201,8 +136,12 @@ async function settleSession(matchId, sessionId, resultRun, settledBy) {
 
   try {
     await dbSession.withTransaction(async () => {
-      const session = await Session.findOne({ matchId, id: sessionId }).session(dbSession);
-      if (!session) throw new AppError("Session not found", 404);
+      let session = await Session.findOne({ matchId, id: sessionId }).session(dbSession);
+      if (!session) {
+        const template = sessionTemplate(matchId, sessionId);
+        if (!template) throw new AppError("Session not found", 404);
+        [session] = await Session.create([template], { session: dbSession });
+      }
       if (session.resultStatus === "settled") {
         throw new AppError("Session has already been settled", 409);
       }

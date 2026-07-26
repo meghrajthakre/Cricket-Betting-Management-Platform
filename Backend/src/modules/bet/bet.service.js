@@ -7,6 +7,7 @@ const ManualOptions = require("../../models/ManualModel/ManualOptions");
 const ManualSettings = require("../../models/ManualModel/ManualSettings");
 const ManualRunner = require("../../models/ManualModel/ManualRunner");
 const Session = require("../../models/Session");
+const { sessionTemplate } = require("../../services/sessionCatalog");
 const { DEFAULT_OPTIONS } = require("../../services/manualOptionsService");
 const { User } = require("../../models/User");
 const { Ledger } = require("../ledger/ledger.model");
@@ -75,7 +76,9 @@ const loadBetMarketState = async ({
     if (marketType === "session") {
         if (settings?.sessionLock) throw new Error("Session betting is currently locked");
 
-        const session = await Session.findOne({ matchId, id: marketId }).lean();
+        const session =
+            await Session.findOne({ matchId, id: marketId }).lean() ||
+            sessionTemplate(matchId, marketId);
         if (!session) throw new Error("Session market not found");
         if (!session.isVisible || session.status !== "open" || session.lockStatus === "lock") {
             throw new Error("Session market is not open");
