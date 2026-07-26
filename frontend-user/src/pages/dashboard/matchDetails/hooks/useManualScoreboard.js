@@ -3,7 +3,7 @@ import {
     getManualState,
     getManualSettings,
     getManualScore,
-    getManualSessions,
+    getSessions,
     getManualOptions,
     getSSEUrl,
 } from "../../../../api/userService";
@@ -60,6 +60,7 @@ export default function useManualScoreboard(matchId) {
     const [scoreData, setScoreData] = useState(INITIAL_SCORE_DATA);
     const [sessions, setSessions] = useState([]);
     const [options, setOptions] = useState(INITIAL_OPTIONS);
+    const [sessionSettlementVersion, setSessionSettlementVersion] = useState(0);
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -88,7 +89,7 @@ export default function useManualScoreboard(matchId) {
                     console.error("Failed to load score:", err);
                     return null;
                 }),
-                getManualSessions(matchId).catch((err) => {
+                getSessions(matchId).catch((err) => {
                     console.error("Failed to load sessions:", err);
                     return null;
                 }),
@@ -192,6 +193,14 @@ export default function useManualScoreboard(matchId) {
 
                 if (parsed.type === "SESSIONS_UPDATED" && parsed.payload?.sessions) {
                     setSessions(parsed.payload.sessions);
+                }
+
+                if (parsed.type === "SESSION_SETTLED" && parsed.payload?.session) {
+                    const settledSession = parsed.payload.session;
+                    setSessions((prev) =>
+                        prev.map((session) => session.id === settledSession.id ? settledSession : session)
+                    );
+                    setSessionSettlementVersion((current) => current + 1);
                 }
 
                 if (parsed.type === "OPTIONS_UPDATED" && parsed.payload) {
@@ -300,6 +309,7 @@ export default function useManualScoreboard(matchId) {
         loading,
         error,
         sseConnected,
+        sessionSettlementVersion,
         fetchLatestData,
     };
 }

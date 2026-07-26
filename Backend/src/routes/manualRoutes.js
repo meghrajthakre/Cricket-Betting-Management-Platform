@@ -9,12 +9,6 @@ const {
     getSettings,
     getScore,
     updateScore,
-    getSessions,
-    updateSession,
-    updateSessionStatus,
-    updateSessionVisibility,
-    updateAllSessionStatuses,
-    resetSessions,
 } = require("../controllers/manualController");
 
 const router = Router();
@@ -31,14 +25,6 @@ router.post("/settings/update", protect, allowRoles("support", "superadmin"), up
 // Score
 router.get("/score/:matchId", getScore);
 router.post("/score/update", protect, allowRoles("support", "superadmin"), updateScore);
-
-// Sessions
-router.get("/sessions/:matchId", getSessions);
-router.patch("/sessions/:matchId/status", protect, allowRoles("support", "superadmin"), updateAllSessionStatuses);
-router.post("/sessions/:matchId/reset", protect, allowRoles("support", "superadmin"), resetSessions);
-router.patch("/sessions/:matchId/:sessionId/status", protect, allowRoles("support", "superadmin"), updateSessionStatus);
-router.patch("/sessions/:matchId/:sessionId/visibility", protect, allowRoles("support", "superadmin"), updateSessionVisibility);
-router.patch("/sessions/:matchId/:sessionId", protect, allowRoles("support", "superadmin"), updateSession);
 
 // SSE
 router.get("/events", events);

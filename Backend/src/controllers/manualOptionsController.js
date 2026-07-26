@@ -4,7 +4,7 @@ const asyncHandler = require("../utils/asyncHandler");
 const AppError = require("../utils/AppError");
 const optionsService = require("../services/manualOptionsService");
 const sse = require("../ManualEngine/sseServer");
-const ManualSession = require("../models/ManualModel/ManualSession");
+const Session = require("../models/Session");
 
 const OPTION_FIELDS = [
   "tossWinMessage",
@@ -92,11 +92,11 @@ const updateOptions = asyncHandler(async (req, res) => {
   const options = await optionsService.updateOptions(matchId, updates, req.user?._id);
 
   if (updates.sessionRateDifference !== undefined) {
-    await ManualSession.updateMany(
-      { matchId },
+    await Session.updateMany(
+      { matchId, resultStatus: { $ne: "settled" } },
       { $set: { rateDiff: updates.sessionRateDifference } }
     );
-    const sessions = await ManualSession.find({ matchId }).sort({ displayOrder: 1 }).lean();
+    const sessions = await Session.find({ matchId }).sort({ displayOrder: 1 }).lean();
     sse.broadcast(matchId, { type: "SESSIONS_UPDATED", payload: { matchId, sessions } });
   }
 

@@ -11,7 +11,7 @@ import { MOCK_DATA } from "./mockData.js";
 import MatchMessages from "./MatchMessages.jsx";
 import BetSlip from "./BetSlip.jsx";
 import BetResultModal from "./BetResultModal.jsx";
-import { getMyBets, placeBet } from "../../../api/userService.js";
+import { getMyBets, getWalletBalance, placeBet } from "../../../api/userService.js";
 import { useAuthStore } from "../../../store/authStore.js";
 import { useCoinStore } from "../../../store/coinStore.js";
 
@@ -53,6 +53,7 @@ export default function MatchDetails() {
         loading,
         error,
         sseConnected,
+        sessionSettlementVersion,
         fetchLatestData,
     } = useManualScoreboard(matchId);
 
@@ -69,6 +70,17 @@ export default function MatchDetails() {
     useEffect(() => {
         loadMyBets();
     }, [loadMyBets]);
+
+    useEffect(() => {
+        if (!sessionSettlementVersion || !user?._id) return;
+        loadMyBets();
+        getWalletBalance(user._id)
+            .then((response) => {
+                const balance = response.data?.data?.balance;
+                if (Number.isFinite(Number(balance))) setCoins(Number(balance));
+            })
+            .catch(() => {});
+    }, [loadMyBets, sessionSettlementVersion, setCoins, user?._id]);
 
     const runnerPositions = useMemo(() => {
         const matchRunners = runners.filter((runner) => runner.runnerId);
@@ -111,6 +123,9 @@ export default function MatchDetails() {
                 type: selectedBet.type,
                 marketType: selectedBet.marketType,
                 marketId: selectedBet.marketId || "",
+                ...(selectedBet.marketType === "session"
+                    ? { sessionRate: selectedBet.sessionRate }
+                    : {}),
             });
 
             if (result.data) {
@@ -125,7 +140,9 @@ export default function MatchDetails() {
             setBetResult({
                 type: "success",
                 message: "Aapki bet successfully accept ho gayi hai.",
-                details: `${submittedBet.name} · ${submittedBet.type === "yes" ? "LAGAI" : "KHAI"} · Rate ${submittedBet.rate} · Coins ${amount}`,
+                details: submittedBet.marketType === "session"
+                    ? `${submittedBet.name} · ${submittedBet.type.toUpperCase()} · Run ${submittedBet.rate} · Rate ${submittedBet.sessionRate} · Coins ${amount}`
+                    : `${submittedBet.name} · ${submittedBet.type === "yes" ? "LAGAI" : "KHAI"} · Rate ${submittedBet.rate} · Coins ${amount}`,
             });
             return result;
         } catch (error) {

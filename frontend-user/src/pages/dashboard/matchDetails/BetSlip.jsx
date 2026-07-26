@@ -26,8 +26,17 @@ export default function BetSlip({ selection, maxBet, positions = {}, runners = [
     const financials = useMemo(() => {
         const stake = Number(amount);
         const rate = Number(selection?.rate);
+        const sessionRate = Number(selection?.sessionRate);
         if (!Number.isFinite(stake) || stake <= 0 || !Number.isFinite(rate)) {
             return { profit: 0, liability: 0 };
+        }
+        if (selection?.marketType === "session") {
+            if (!Number.isFinite(sessionRate) || sessionRate <= 0) {
+                return { profit: 0, liability: 0 };
+            }
+            return selection.type === "yes"
+                ? { profit: sessionRate * stake, liability: stake }
+                : { profit: stake, liability: sessionRate * stake };
         }
         return selection.type === "yes"
             ? { profit: (rate * stake) / 100, liability: stake }
@@ -135,7 +144,11 @@ export default function BetSlip({ selection, maxBet, positions = {}, runners = [
             <div className="grid grid-cols-3 bg-[#f4f4f2] text-center text-xs font-bold text-[#444]">
                 <div className="flex items-center justify-center border-r border-b border-[#7890aa] px-2 py-2">{selection.name}</div>
                 <div className="flex items-center justify-center border-r border-b border-[#7890aa] px-2 py-2">{isYes ? "LAGAI" : "KHAI"}</div>
-                <div className="flex items-center justify-center border-b border-[#7890aa] px-2 py-2">RATE : {selection.rate}</div>
+                <div className="flex items-center justify-center border-b border-[#7890aa] px-2 py-2">
+                    {selection.marketType === "session"
+                        ? `RUN : ${selection.rate} · RATE : ${selection.sessionRate}`
+                        : `RATE : ${selection.rate}`}
+                </div>
             </div>
 
             <div className="grid grid-cols-[3fr_2fr] border-b border-[#24466f]">

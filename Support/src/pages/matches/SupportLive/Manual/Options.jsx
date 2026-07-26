@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiClient } from "../../../../services/api";
 import { getManualOptions, settleManualTie, settleManualToss, updateManualOptions } from "../../../../services/manualOptionsService";
+import { getPendingBetSessions, settleSession } from "../../../../services/sessionService";
 import "./Options.css";
 
 const inputClass = "h-12 w-full rounded-md border border-slate-300 bg-white px-4 text-lg text-slate-800 outline-none focus:border-cyan-600 focus:ring-2 focus:ring-cyan-100";
@@ -39,6 +40,8 @@ export default function Options() {
     const [savedSection, setSavedSection] = useState("");
     const [savingSection, setSavingSection] = useState("");
     const [requestError, setRequestError] = useState("");
+    const [sessions, setSessions] = useState([]);
+    const [sessionResults, setSessionResults] = useState({});
     const [values, setValues] = useState({
         tossWinMessage: "",
         errorMessage: "",
@@ -54,6 +57,12 @@ export default function Options() {
         tossResult: "",
     });
 
+    const refreshPendingSessions = useCallback(async () => {
+        if (!matchId) return;
+        const response = await getPendingBetSessions(matchId);
+        setSessions(response.data?.data?.sessions || []);
+    }, [matchId]);
+
     useEffect(() => {
         if (!matchId) return;
         let cancelled = false;
@@ -61,8 +70,9 @@ export default function Options() {
         Promise.all([
             apiClient.get(`/matches/saved/${matchId}`),
             getManualOptions(matchId),
+            getPendingBetSessions(matchId),
         ])
-            .then(([matchResponse, optionsResponse]) => {
+            .then(([matchResponse, optionsResponse, sessionsResponse]) => {
                 if (cancelled) return;
                 setTeamName(matchResponse.data?.data?.homeTeam || "Team");
                 const options = optionsResponse.data?.data;
@@ -73,6 +83,7 @@ export default function Options() {
                         newTarget: options.newTarget ?? "",
                     }));
                 }
+                setSessions(sessionsResponse.data?.data?.sessions || []);
             })
             .catch((error) => {
                 console.error("Failed to load match options:", error);
@@ -83,6 +94,27 @@ export default function Options() {
             cancelled = true;
         };
     }, [matchId]);
+
+    useEffect(() => {
+        if (!matchId) return undefined;
+        const eventSource = new EventSource(
+            `${apiClient.defaults.baseURL}/manual/events?matchId=${encodeURIComponent(matchId)}`
+        );
+        eventSource.onmessage = (event) => {
+            try {
+                const message = JSON.parse(event.data);
+                if (
+                    message.payload?.matchId === matchId &&
+                    ["SESSION_BET_PLACED", "SESSION_SETTLED"].includes(message.type)
+                ) {
+                    refreshPendingSessions().catch(() => {});
+                }
+            } catch {
+                // Ignore malformed SSE events; the normal page refresh still works.
+            }
+        };
+        return () => eventSource.close();
+    }, [matchId, refreshPendingSessions]);
 
     const updateValue = (field) => (event) => {
         setValues((current) => ({ ...current, [field]: event.target.value }));
@@ -102,6 +134,32 @@ export default function Options() {
             window.setTimeout(() => setSavedSection(""), 1800);
         } catch (error) {
             setRequestError(error.response?.data?.message || error.message || "Could not save options");
+        } finally {
+            setSavingSection("");
+        }
+    };
+
+    const submitSessionResult = async (session) => {
+        const resultRun = Number(sessionResults[session.id]);
+        if (!Number.isFinite(resultRun) || resultRun < 0 || savingSection) {
+            setRequestError("Valid session result run enter karein");
+            return;
+        }
+        if (!window.confirm(`${session.sessionName} ko ${resultRun} runs par settle karna hai?`)) return;
+
+        const section = `Session:${session.id}`;
+        setSavingSection(section);
+        setRequestError("");
+        try {
+            const response = await settleSession(matchId, session.id, resultRun);
+            const settled = response.data?.data?.session;
+            if (settled) {
+                setSessions((current) => current.filter((item) => item.id !== settled.id));
+            }
+            setSavedSection(`${session.sessionName} settled`);
+            window.setTimeout(() => setSavedSection(""), 1800);
+        } catch (error) {
+            setRequestError(error.response?.data?.message || error.message || "Session settle nahi hua");
         } finally {
             setSavingSection("");
         }
@@ -141,6 +199,58 @@ export default function Options() {
 
                 <TableShell minWidth="0" summary>
                     <thead><tr><th className={labelCell}>Session</th><th className={labelCell}>Run</th><th className={labelCell}>Action</th></tr></thead>
+                    <tbody>
+                        {sessions.map((session) => {
+                            const settled = session.resultStatus === "settled";
+                            const section = `Session:${session.id}`;
+                            return (
+                                <tr key={session.id}>
+                                    <td className={labelCell}>
+                                        {session.sessionName}
+                                        <span className="ml-2 text-sm font-semibold text-cyan-700">
+                                            ({session.pendingBetCount} bets)
+                                        </span>
+                                    </td>
+                                    <td className={labelCell}>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="1"
+                                            value={settled ? session.resultRun : (sessionResults[session.id] ?? "")}
+                                            onChange={(event) => setSessionResults((current) => ({
+                                                ...current,
+                                                [session.id]: event.target.value,
+                                            }))}
+                                            disabled={settled}
+                                            placeholder="Result run"
+                                            className={inputClass}
+                                        />
+                                    </td>
+                                    <td className={actionCell}>
+                                        {settled ? (
+                                            <span className="font-semibold text-emerald-700">
+                                                Settled: {session.resultRun}
+                                            </span>
+                                        ) : (
+                                            <ActionButton
+                                                disabled={savingSection === section}
+                                                onClick={() => submitSessionResult(session)}
+                                            >
+                                                Settle Session
+                                            </ActionButton>
+                                        )}
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                        {sessions.length === 0 && (
+                            <tr>
+                                <td colSpan="3" className={labelCell}>
+                                    No pending user session bets
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
                 </TableShell>
 
                 <TableShell>

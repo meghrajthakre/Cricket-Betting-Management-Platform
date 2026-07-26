@@ -6,7 +6,7 @@ const { updateUserCoins } = require("../ledger/ledger.service");
 const ManualOptions = require("../../models/ManualModel/ManualOptions");
 const ManualSettings = require("../../models/ManualModel/ManualSettings");
 const ManualRunner = require("../../models/ManualModel/ManualRunner");
-const ManualSession = require("../../models/ManualModel/ManualSession");
+const Session = require("../../models/Session");
 const { DEFAULT_OPTIONS } = require("../../services/manualOptionsService");
 const { User } = require("../../models/User");
 const { Ledger } = require("../ledger/ledger.model");
@@ -54,6 +54,7 @@ const loadBetMarketState = async ({
     marketType,
     type,
     requestedRate,
+    requestedSessionRate,
     amount,
 }) => {
     const [storedOptions, settings] = await Promise.all([
@@ -69,11 +70,12 @@ const loadBetMarketState = async ({
     let maxBet;
     let delaySeconds;
     let currentRate;
+    let currentSessionRate;
 
     if (marketType === "session") {
         if (settings?.sessionLock) throw new Error("Session betting is currently locked");
 
-        const session = await ManualSession.findOne({ matchId, id: marketId }).lean();
+        const session = await Session.findOne({ matchId, id: marketId }).lean();
         if (!session) throw new Error("Session market not found");
         if (!session.isVisible || session.status !== "open" || session.lockStatus === "lock") {
             throw new Error("Session market is not open");
@@ -85,6 +87,7 @@ const loadBetMarketState = async ({
         );
         delaySeconds = Number(options.sessionDelay) || 0;
         currentRate = type === BET_TYPE.YES ? session.yesRun : session.noRun;
+        currentSessionRate = type === BET_TYPE.YES ? session.yesRate : session.noRate;
     } else {
         const runner = await ManualRunner.findOne({ matchId, runnerId: marketId }).lean();
         if (!runner) throw new Error("Match runner not found");
@@ -101,9 +104,20 @@ const loadBetMarketState = async ({
     if (amount > maxBet) {
         throw new Error(`Maximum ${marketType} bet allowed is ${maxBet}`);
     }
+    if (
+        marketType === "session" &&
+        requestedSessionRate !== undefined &&
+        normalizeRate(requestedSessionRate) !== normalizeRate(currentSessionRate)
+    ) {
+        const error = new Error("Session rate changed. Please review and try again.");
+        error.statusCode = 409;
+        error.code = "PRICE_CHANGED";
+        throw error;
+    }
 
     return {
         acceptedRate: acceptCurrentMarketRate(requestedRate, currentRate),
+        acceptedSessionRate: marketType === "session" ? normalizeRate(currentSessionRate) : undefined,
         delaySeconds,
         maxBet,
     };
@@ -138,6 +152,23 @@ const calculateBetFinancials = (type, amount, rate) => {
     return { profit, liability };
 };
 
+const calculateSessionFinancials = (type, amount, sessionRate) => {
+    const multiplier = Number(sessionRate);
+    if (!Number.isFinite(multiplier) || multiplier <= 0) {
+        throw new Error("Session payout rate is unavailable");
+    }
+    if (type === BET_TYPE.YES) {
+        return {
+            profit: Number((amount * multiplier).toFixed(2)),
+            liability: Number(amount.toFixed(2)),
+        };
+    }
+    return {
+        profit: Number(amount.toFixed(2)),
+        liability: Number((amount * multiplier).toFixed(2)),
+    };
+};
+
 // ---------------------------------------------------------------------------
 // Service functions
 // ---------------------------------------------------------------------------
@@ -154,7 +185,16 @@ const calculateBetFinancials = (type, amount, rate) => {
  * @param {"yes"|"no"}  type    - Lagai (yes) or Khai (no)
  * @returns {Promise<import("./bet.model").Bet>}
  */
-const placeBet = async (userId, matchId, amount, rate, type, marketType = "match", marketId = "") => {
+const placeBet = async (
+    userId,
+    matchId,
+    amount,
+    rate,
+    type,
+    marketType = "match",
+    marketId = "",
+    requestedSessionRate
+) => {
     // --- Validate inputs -------------------------------------------------------
     if (!amount || amount <= 0) {
         throw new Error("Bet amount must be greater than 0");
@@ -186,6 +226,7 @@ const placeBet = async (userId, matchId, amount, rate, type, marketType = "match
         marketType,
         type,
         requestedRate: rate,
+        requestedSessionRate,
         amount,
     });
     await waitForBetDelay(initialMarket.delaySeconds);
@@ -195,12 +236,15 @@ const placeBet = async (userId, matchId, amount, rate, type, marketType = "match
         marketType,
         type,
         requestedRate: initialMarket.acceptedRate,
+        requestedSessionRate: initialMarket.acceptedSessionRate,
         amount,
     });
     const acceptedRate = finalMarket.acceptedRate;
 
     // --- Calculate financials --------------------------------------------------
-    const { profit, liability } = calculateBetFinancials(type, amount, acceptedRate);
+    const { profit, liability } = marketType === "session"
+        ? calculateSessionFinancials(type, amount, finalMarket.acceptedSessionRate)
+        : calculateBetFinancials(type, amount, acceptedRate);
 
     // Sessions currently keep independent liability accounting.
     if (marketType === "session") {
@@ -241,6 +285,8 @@ const placeBet = async (userId, matchId, amount, rate, type, marketType = "match
                     marketId,
                     amount,
                     rate: acceptedRate,
+                    sessionRun: acceptedRate,
+                    sessionRate: finalMarket.acceptedSessionRate,
                     type,
                     profit,
                     loss: liability,
@@ -434,6 +480,7 @@ module.exports = {
     acceptCurrentMarketRate,
     waitForBetDelay,
     calculateBetFinancials,
+    calculateSessionFinancials,
     addBetToPositions,
     requiredExposure,
 };

@@ -23,6 +23,7 @@ const walletRoutes = require("./src/modules/wallet/wallet.routes");
 const cricketRoutes = require("./src/routes/cricketroutes");
 const supportRoutes = require("./src/routes/supportRoutes");
 const manualRoutes = require("./src/routes/manualRoutes");
+const sessionRoutes = require("./src/routes/sessionRoutes");
 
 // ── App initialisation ────────────────────────────────────────────────────────
 const app = express();
@@ -106,6 +107,7 @@ app.use("/api/ledger", ledgerRoutes);
 app.use("/api/bet", betRoutes);
 app.use("/api/cricket", cricketRoutes);
 app.use("/api/manual", manualRoutes);
+app.use("/api/session", sessionRoutes);
 
 // ── 404 + global error handler (must be last) ─────────────────────────────────
 app.use(notFound);

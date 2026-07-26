@@ -6,10 +6,11 @@ const mongoose = require("mongoose");
 const { User } = require("../../src/models/User");
 const ManualOptions = require("../../src/models/ManualModel/ManualOptions");
 const ManualSettings = require("../../src/models/ManualModel/ManualSettings");
-const ManualSession = require("../../src/models/ManualModel/ManualSession");
+const Session = require("../../src/models/Session");
 const { Bet } = require("../../src/modules/bet/bet.model");
 const { Ledger } = require("../../src/modules/ledger/ledger.model");
 const { placeBet } = require("../../src/modules/bet/bet.service");
+const { settleSession } = require("../../src/services/sessionService");
 
 const enabled = (
   process.env.TEST_ALLOW_DB_WRITES === "true" &&
@@ -39,7 +40,7 @@ async function seedSessionCase(suffix) {
     sessionLock: false,
     marketStatus: "OPEN",
   });
-  await ManualSession.create({
+  await Session.create({
     id: "session-1",
     matchId,
     sessionName: "Test session",
@@ -60,7 +61,7 @@ async function cleanupCase(matchId, userId) {
   await Promise.all([
     Bet.deleteMany({ matchId }),
     Ledger.deleteMany({ userId }),
-    ManualSession.deleteMany({ matchId }),
+    Session.deleteMany({ matchId }),
     ManualOptions.deleteMany({ matchId }),
     ManualSettings.deleteMany({ matchId }),
     User.deleteOne({ _id: userId }),
@@ -138,6 +139,48 @@ test("session bet creation failure rolls wallet and ledger back", { skip: !enabl
     assert.equal(freshUser.coins, 1000);
     assert.equal(ledgerCount, 0);
     assert.equal(betCount, 0);
+  } finally {
+    await cleanupCase(matchId, user._id);
+  }
+});
+
+test("session settlement credits a winning YES bet and closes the session", { skip: !enabled }, async () => {
+  const { matchId, user } = await seedSessionCase("settle-win");
+  try {
+    await placeBet(user._id.toString(), matchId, 100, 91, "yes", "session", "session-1", 1);
+    const result = await settleSession(matchId, "session-1", 91, user._id);
+
+    const [freshUser, bet, session] = await Promise.all([
+      User.findById(user._id).lean(),
+      Bet.findOne({ userId: user._id, matchId }).lean(),
+      Session.findOne({ matchId, id: "session-1" }).lean(),
+    ]);
+
+    assert.equal(result.won, 1);
+    assert.equal(result.totalCredit, 200);
+    assert.equal(freshUser.coins, 1100);
+    assert.equal(bet.status, "won");
+    assert.equal(bet.resultRun, 91);
+    assert.equal(session.resultStatus, "settled");
+    assert.equal(session.status, "closed");
+  } finally {
+    await cleanupCase(matchId, user._id);
+  }
+});
+
+test("session settlement makes NO lose when result equals its line", { skip: !enabled }, async () => {
+  const { matchId, user } = await seedSessionCase("settle-no-equal");
+  try {
+    await placeBet(user._id.toString(), matchId, 100, 90, "no", "session", "session-1", 1);
+    const result = await settleSession(matchId, "session-1", 90, user._id);
+    const [freshUser, bet] = await Promise.all([
+      User.findById(user._id).lean(),
+      Bet.findOne({ userId: user._id, matchId }).lean(),
+    ]);
+
+    assert.equal(result.lost, 1);
+    assert.equal(freshUser.coins, 900);
+    assert.equal(bet.status, "lost");
   } finally {
     await cleanupCase(matchId, user._id);
   }

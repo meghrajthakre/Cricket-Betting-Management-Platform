@@ -84,7 +84,7 @@ test("authenticated user opens match odds and places a bet", async ({ page }) =>
     if (path.endsWith("/manual/score/e2e-match")) {
       return json(route, { success: true, data: { status: "", runs: 0, wickets: 0, overs: 0 } });
     }
-    if (path.endsWith("/manual/sessions/e2e-match")) {
+    if (path.endsWith("/session/e2e-match")) {
       return json(route, { success: true, data: { sessions: [] } });
     }
     if (path.endsWith("/manual/options/e2e-match")) {

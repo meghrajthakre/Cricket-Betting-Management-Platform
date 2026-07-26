@@ -7,7 +7,7 @@ const { User } = require("../../src/models/User");
 const ManualOptions = require("../../src/models/ManualModel/ManualOptions");
 const ManualSettings = require("../../src/models/ManualModel/ManualSettings");
 const ManualRunner = require("../../src/models/ManualModel/ManualRunner");
-const ManualSession = require("../../src/models/ManualModel/ManualSession");
+const Session = require("../../src/models/Session");
 const { Bet } = require("../../src/modules/bet/bet.model");
 const { Ledger } = require("../../src/modules/ledger/ledger.model");
 const { placeBet } = require("../../src/modules/bet/bet.service");
@@ -45,7 +45,7 @@ async function seed({ delay = 0 } = {}) {
       { matchId, runnerId: "a", runnerName: "A", lagai: 90, khai: 91, status: "open" },
       { matchId, runnerId: "b", runnerName: "B", lagai: 90, khai: 91, status: "open" },
     ]),
-    ManualSession.create({
+    Session.create({
       matchId,
       id: "s1",
       sessionName: "Session",
@@ -66,7 +66,7 @@ async function cleanup(matchId, userId) {
     Bet.deleteMany({ matchId }),
     Ledger.deleteMany({ userId }),
     ManualRunner.deleteMany({ matchId }),
-    ManualSession.deleteMany({ matchId }),
+    Session.deleteMany({ matchId }),
     ManualOptions.deleteMany({ matchId }),
     ManualSettings.deleteMany({ matchId }),
     User.deleteOne({ _id: userId }),
@@ -100,7 +100,7 @@ test("rate change during delay rejects without wallet movement", { skip: !enable
   try {
     const pending = placeBet(user._id.toString(), matchId, 100, 91, "yes", "session", "s1");
     await new Promise((resolve) => setTimeout(resolve, 60));
-    await ManualSession.updateOne({ matchId, id: "s1" }, { $set: { yesRun: 92 } });
+    await Session.updateOne({ matchId, id: "s1" }, { $set: { yesRun: 92 } });
     await assert.rejects(pending, (error) => error.code === "PRICE_CHANGED");
     const refreshed = await User.findById(user._id).lean();
     assert.equal(refreshed.coins, 1000);

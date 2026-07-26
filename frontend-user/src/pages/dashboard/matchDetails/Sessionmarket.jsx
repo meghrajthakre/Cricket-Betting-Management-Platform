@@ -7,13 +7,14 @@ function SessionRow({ session, onBet, sessionLocked }) {
     const isSuspended = session.status !== "open" || session.lockStatus === "lock";
     const bettingDisabled = sessionLocked || isSuspended;
 
-    const handleBet = (type, rate) => {
+    const handleBet = (type, run, payoutRate) => {
         if (bettingDisabled) return;
         if (onBet) {
             onBet({
                 name: sessionName,
                 type,
-                rate: Number(rate),
+                rate: Number(run),
+                sessionRate: Number(payoutRate),
                 marketType: "session",
                 marketId: String(session.id || sessionName),
                 marketLabel: "Session",
@@ -30,7 +31,7 @@ function SessionRow({ session, onBet, sessionLocked }) {
             </td>
             <td className="py-2 px-1 w-[22%] relative">
                 <button
-                    onClick={() => handleBet("no", noRun)}
+                    onClick={() => handleBet("no", noRun, noRate)}
                     disabled={bettingDisabled}
                     className="w-full min-h-11 bg-[#a8cce8] hover:bg-[#7fb3d9] rounded text-center cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:brightness-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
@@ -44,7 +45,7 @@ function SessionRow({ session, onBet, sessionLocked }) {
             </td>
             <td className="py-2 px-1 w-[22%] relative">
                 <button
-                    onClick={() => handleBet("yes", yesRun)}
+                    onClick={() => handleBet("yes", yesRun, yesRate)}
                     disabled={bettingDisabled}
                     className="w-full min-h-11 bg-[#f5c99a] hover:bg-[#f0b87a] rounded text-center cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:brightness-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >

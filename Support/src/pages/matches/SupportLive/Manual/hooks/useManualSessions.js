@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-    getManualSessions,
-    updateAllManualSessionStatuses,
-    updateManualSession,
-    updateManualSessionStatus,
-    updateManualSessionVisibility,
-} from "../../../../../services/manualSessionService";
+    getSessions,
+    updateAllSessionStatuses,
+    updateSession,
+    updateSessionStatus,
+    updateSessionVisibility,
+} from "../../../../../services/sessionService";
 
 export function useManualSessions(matchId) {
     const [sessions, setSessions] = useState([]);
@@ -19,7 +19,7 @@ export function useManualSessions(matchId) {
         setSessionsLoading(true);
         setSessionsError("");
         try {
-            const { data } = await getManualSessions(matchId);
+            const { data } = await getSessions(matchId);
             setSessions(data?.data?.sessions || []);
         } catch (requestError) {
             setSessionsError(
@@ -84,7 +84,7 @@ export function useManualSessions(matchId) {
             sessionId,
             field,
             value,
-            () => updateManualSession(matchId, sessionId, { [field]: value })
+            () => updateSession(matchId, sessionId, { [field]: value })
         );
 
     const handleSessionStatus = (sessionId, status) =>
@@ -92,7 +92,7 @@ export function useManualSessions(matchId) {
             sessionId,
             "status",
             status,
-            () => updateManualSessionStatus(matchId, sessionId, status),
+            () => updateSessionStatus(matchId, sessionId, status),
             true
         );
 
@@ -101,7 +101,7 @@ export function useManualSessions(matchId) {
             sessionId,
             "isVisible",
             isVisible,
-            () => updateManualSessionVisibility(matchId, sessionId, isVisible)
+            () => updateSessionVisibility(matchId, sessionId, isVisible)
         );
 
     const updateAllStatuses = async (status) => {
@@ -110,7 +110,7 @@ export function useManualSessions(matchId) {
         setBulkSessionPending(true);
         setSessions((current) => current.map((session) => ({ ...session, status })));
         try {
-            const { data } = await updateAllManualSessionStatuses(matchId, status);
+            const { data } = await updateAllSessionStatuses(matchId, status);
             setSessions(data?.data?.sessions || []);
         } catch (requestError) {
             setSessions(previous);

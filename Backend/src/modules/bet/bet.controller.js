@@ -3,6 +3,7 @@
 const { placeBet, settleBet, getUserMatchBets } = require("./bet.service");
 const { z } = require("zod");
 const mongoose = require("mongoose");
+const sse = require("../../ManualEngine/sseServer");
 
 // ---------------------------------------------------------------------------
 // Validation schemas
@@ -46,6 +47,7 @@ const placeBetSchema = z.object({
     }),
     marketType: z.enum(["match", "session"]).default("match"),
     marketId: z.string().trim().optional().default(""),
+    sessionRate: z.number().positive().finite().optional(),
 });
 
 const settleBetSchema = z.object({
@@ -83,8 +85,18 @@ const placeBetController = async (req, res) => {
             parsed.rate,
             parsed.type,
             parsed.marketType,
-            parsed.marketId
+            parsed.marketId,
+            parsed.sessionRate
         );
+        if (bet.marketType === "session") {
+            sse.broadcast(bet.matchId, {
+                type: "SESSION_BET_PLACED",
+                payload: {
+                    matchId: bet.matchId,
+                    sessionId: bet.marketId,
+                },
+            });
+        }
 
         return res.status(201).json({
             success: true,

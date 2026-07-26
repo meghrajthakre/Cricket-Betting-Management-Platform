@@ -55,6 +55,10 @@ const betSchema = new mongoose.Schema(
             required: [true, "rate is required"],
             min: [1, "Rate must be at least 1"],
         },
+        // Session bets keep the selected run line and payout multiplier apart.
+        sessionRun: { type: Number, default: undefined },
+        sessionRate: { type: Number, default: undefined },
+        resultRun: { type: Number, default: undefined },
         /**
          * "yes"  → Lagai (back / favour the outcome)
          * "no"   → Khai  (lay / oppose the outcome)
