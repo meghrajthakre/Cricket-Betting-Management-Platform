@@ -55,6 +55,7 @@ export default function OddsMarket({
     maxBet,
     onSelectBet,
     positions = {},
+    settledResult = 0,
 }) {
     return (
         <div className="bg-white mt-2 rounded shadow-sm overflow-hidden">
@@ -64,6 +65,17 @@ export default function OddsMarket({
                 <div className="text-center">KHAI</div>
                 <div className="text-right">POSITION</div>
             </div>
+
+            {Number(settledResult) !== 0 && (
+                <div className={`border-b border-[#CDD9E5] px-3 py-1.5 text-right text-sm font-extrabold ${
+                    Number(settledResult) > 0
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-red-50 text-red-700"
+                }`}>
+                    Match P/L: {Number(settledResult) > 0 ? "+" : ""}
+                    {Number(settledResult).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                </div>
+            )}
 
             {Number(maxBet) > 0 && (
                 <div className="border-b border-[#CDD9E5] bg-white px-3 py-1 text-right text-[11px] font-semibold text-[#60758A]">

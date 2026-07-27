@@ -92,16 +92,9 @@ function SessionRow({ session, onBet, sessionLocked }) {
     );
 }
 
-export default function SessionMarket({ sessions, settings, onPlaceBet, maxBet }) {
+export default function SessionMarket({ sessions, settings, onPlaceBet, maxBet, settledResult = 0 }) {
     return (
         <div className="bg-white mt-2 rounded shadow-sm overflow-hidden">
-            <div className="grid grid-cols-[1fr_auto] bg-[#4B75B8] px-3 py-2">
-                <span className="text-white text-sm font-bold font-rajdhani tracking-wider">
-                    SESSION
-                </span>
-                <span className="text-white text-sm font-bold font-rajdhani">0</span>
-            </div>
-
             {Number(maxBet) > 0 && (
                 <div className="border-b border-[#CDD9E5] bg-white px-3 py-1 text-right text-[11px] font-semibold text-[#60758A]">
                     Max session bet: {Number(maxBet).toLocaleString("en-IN")}
@@ -118,7 +111,16 @@ export default function SessionMarket({ sessions, settings, onPlaceBet, maxBet }
                     <div>Yes</div>
                     <div className="font-normal opacity-70">RATE</div>
                 </div>
-                <div></div>
+                <div className={`flex items-center justify-end text-sm font-extrabold ${
+                    Number(settledResult) > 0
+                        ? "text-emerald-300"
+                        : Number(settledResult) < 0
+                            ? "text-red-300"
+                            : "text-white"
+                }`}>
+                    {Number(settledResult) > 0 ? "+" : ""}
+                    {Number(settledResult).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                </div>
             </div>
 
             {settings.sessionLock && (

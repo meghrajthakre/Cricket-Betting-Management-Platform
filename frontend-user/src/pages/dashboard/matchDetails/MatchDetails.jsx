@@ -14,6 +14,7 @@ import BetResultModal from "./BetResultModal.jsx";
 import { getMyBets, getWalletBalance, placeBet } from "../../../api/userService.js";
 import { useAuthStore } from "../../../store/authStore.js";
 import { useCoinStore } from "../../../store/coinStore.js";
+import RecentMatchesAndBets from "./RecentMatchesAndBets.jsx";
 
 const MIN_BET_LOADER_MS = 500;
 
@@ -105,6 +106,19 @@ export default function MatchDetails() {
 
         return positions;
     }, [myBets, runners]);
+
+    const settledResults = useMemo(() => myBets.reduce(
+        (results, bet) => {
+            if (bet.status !== "won" && bet.status !== "lost") return results;
+            const key = bet.marketType === "session" ? "session" : "match";
+            const amount = bet.status === "won"
+                ? Number(bet.profit) || 0
+                : -(Number(bet.loss) || 0);
+            results[key] = Number((results[key] + amount).toFixed(2));
+            return results;
+        },
+        { match: 0, session: 0 }
+    ), [myBets]);
 
     const openBetSlip = (selection) => {
         if (!Number.isFinite(Number(selection.rate)) || Number(selection.rate) < 1) return;
@@ -226,6 +240,7 @@ export default function MatchDetails() {
                     maxBet={options.matchMaxBet}
                     onSelectBet={openBetSlip}
                     positions={runnerPositions}
+                    settledResult={settledResults.match}
                 />
 
                 <BetSlip
@@ -244,6 +259,14 @@ export default function MatchDetails() {
                     settings={settings}
                     onPlaceBet={openBetSlip}
                     maxBet={options.sessionMaxBet}
+                    settledResult={settledResults.session}
+                />
+
+                <RecentMatchesAndBets
+                    matchId={matchId}
+                    bets={myBets}
+                    runners={runners}
+                    sessions={sessions}
                 />
 
             </div>

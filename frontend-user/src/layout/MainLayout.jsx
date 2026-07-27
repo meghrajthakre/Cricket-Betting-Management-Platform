@@ -1,10 +1,13 @@
 import React from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import MarqueeBanner from '../components/MarqueeBanner';
 import Footer from "../pages/Footer";
 import Navbar from "../components/Navbar";
 
 const MainLayout = () => {
+  const { pathname } = useLocation();
+  const isMatchDetailsPage = /^\/match\/[^/]+\/?$/.test(pathname);
+
   return (
     <div className="flex min-h-dvh flex-col bg-(--color-bg-main)">
 
@@ -19,9 +22,11 @@ const MainLayout = () => {
         <Outlet />
       </main>
 
-      <footer className="mt-auto">
-        <Footer />
-      </footer>
+      {!isMatchDetailsPage && (
+        <footer className="mt-auto">
+          <Footer />
+        </footer>
+      )}
 
     </div>
   );
