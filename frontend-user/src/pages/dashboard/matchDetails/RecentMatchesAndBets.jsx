@@ -105,8 +105,8 @@ export default function RecentMatchesAndBets({ matchId, bets, runners, sessions 
 
     return (
         <div className="mt-3 space-y-3 pb-4">
-            {renderBetGroup("Session Bets", sessionBets)}
-            {renderBetGroup("Match Bets", matchBets)}
+            {sessionBets.length > 0 && renderBetGroup("Session Bets", sessionBets)}
+            {matchBets.length > 0 && renderBetGroup("Match Bets", matchBets)}
 
             <section className="overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm">
                 <div className="bg-[#12304b] px-3 py-2 text-sm font-extrabold uppercase tracking-wide text-white">
