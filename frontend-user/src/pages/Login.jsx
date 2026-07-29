@@ -19,7 +19,7 @@ const INPUT_CLS = `
   block w-full px-4 py-3 rounded-md
   border border-(--color-border)
   bg-(--color-input-bg)
-  text-(--color-text-dark) text-[15px]
+  text-(--color-text-dark) text-base
   font-nunito
   outline-none transition-all
   focus:border-(--color-accent)
@@ -73,6 +73,8 @@ const handleLogin = async () => {
 
     login(user);
     setCoins(user.coins ?? 0);
+    document.activeElement?.blur();
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     navigate("/dashboard");
 
   } catch (err) {
@@ -105,7 +107,7 @@ const handleLogin = async () => {
   return (
     // ── Full-page wrapper ────────────────────────────────────────────────────
     <div className="
-      min-h-screen w-full
+      min-h-dvh w-full
       flex items-center justify-center
       bg-(--color-bg-main)
       px-4

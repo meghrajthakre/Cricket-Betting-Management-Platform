@@ -24,7 +24,7 @@ const UserDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-(--color-bg-main) font-nunito">
+    <div className="min-h-[calc(100dvh-5.5rem)] bg-(--color-bg-main) font-nunito sm:min-h-[calc(100dvh-6rem)]">
 
 
 
