@@ -1,8 +1,9 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { MdSportsCricket } from 'react-icons/md';
 
 const MENU_ITEMS = [
-  { label: 'LIVE MATCH', icon: 'ri-broadcast-line', key: 'live' },
+  { label: 'LIVE MATCH', icon: MdSportsCricket, key: 'live' },
   { label: 'RULES', icon: 'ri-information-line', key: 'rules' },
   { label: 'LEDGER', icon: 'ri-file-list-3-line', key: 'ledger' },
   { label: 'PASSWORD', icon: 'ri-lock-password-line', key: 'password' },
@@ -29,19 +30,19 @@ const UserDashboard = () => {
 
 
 
-      <main className="py-8 sm:py-10 px-3 sm:px-5 flex justify-center">
+      <main className="flex justify-center px-3 pb-8 pt-10 sm:px-5 sm:pb-12 sm:pt-12">
 
         <div className="max-w-[740px] mx-auto">
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-[24px]">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-7">
 
-            {MENU_ITEMS.map(({ label, icon, key }) => (
+            {MENU_ITEMS.map(({ label, icon: Icon, key }) => (
 
               <button
                 key={key}
                 onClick={() => go(key)}
                 className="
-                  flex items-center gap-4 justify-center
+                  flex items-center justify-center gap-5 sm:gap-6
                   px-4 sm:px-6 py-[14px] sm:py-[18px]
                   rounded-[50px]
                   border-2 border-(--color-btn-border)
@@ -60,7 +61,9 @@ const UserDashboard = () => {
                 "
               >
 
-                <i className={`${icon} text-[22px] sm:text-[26px]`} />
+                {typeof Icon === 'string'
+                  ? <i className={`${Icon} text-[22px] sm:text-[26px]`} aria-hidden="true" />
+                  : <Icon className="text-[24px] sm:text-[28px]" aria-hidden="true" />}
 
                 {label}
 

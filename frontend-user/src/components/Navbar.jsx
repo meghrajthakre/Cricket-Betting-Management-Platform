@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 import { useCoinStore } from "../store/coinStore";
 import { logoutUser , getWalletBalance} from "../api/userService";
+import { MdSportsCricket } from "react-icons/md";
 
 const NAV_ITEMS = [
   {
@@ -14,7 +15,7 @@ const NAV_ITEMS = [
   {
     key: "live",
     label: "LIVE MATCH",
-    icon: "ri-broadcast-line",
+    icon: MdSportsCricket,
     path: "/dashboard/live",
   },
   { key: "logout", label: "LOGOUT", icon: "ri-shut-down-line", path: null },
@@ -250,7 +251,7 @@ const Navbar = () => {
 
         {/* ── Navigation ── */}
         <nav className="flex shrink-0 items-center gap-0.5 sm:gap-1 lg:gap-2" aria-label="Primary navigation">
-          {NAV_ITEMS.map(({ key, label, icon, path }) => {
+          {NAV_ITEMS.map(({ key, label, icon: Icon, path }) => {
             const isActive = activeKey === key && key !== "logout";
             return (
               <button
@@ -278,7 +279,9 @@ const Navbar = () => {
                   }
                 `}
               >
-                <i className={`${icon} text-lg`} aria-hidden="true" />
+                {typeof Icon === "string"
+                  ? <i className={`${Icon} text-lg`} aria-hidden="true" />
+                  : <Icon className="text-xl" aria-hidden="true" />}
                 <span className="hidden lg:inline whitespace-nowrap">{label}</span>
               </button>
             );
