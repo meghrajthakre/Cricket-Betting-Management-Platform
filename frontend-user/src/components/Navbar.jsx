@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 import { useCoinStore } from "../store/coinStore";
@@ -105,6 +105,8 @@ const CoinIcon = () => (
 );
 
 const Navbar = () => {
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const coins = useCoinStore((state) => state.coins);
@@ -142,19 +144,26 @@ const Navbar = () => {
 
   const activeKey = getActiveKey();
 
-  const handleNavClick = async (key, path) => {
+  const confirmLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+
+    try {
+      await logoutUser();
+    } catch {
+      /* silent */
+    } finally {
+      logout();
+      setCoins(0);
+      localStorage.removeItem("token");
+      localStorage.removeItem("userAccessToken");
+      navigate("/");
+    }
+  };
+
+  const handleNavClick = (key, path) => {
     if (key === "logout") {
-      try {
-        await logoutUser();
-      } catch {
-        /* silent */
-      } finally {
-        logout();
-        setCoins(0);
-        localStorage.removeItem("token");
-        localStorage.removeItem("userAccessToken");
-        navigate("/");
-      }
+      setShowLogoutConfirm(true);
     } else if (path) {
       navigate(path);
     }
@@ -276,6 +285,46 @@ const Navbar = () => {
           })}
         </nav>
       </div>
+
+      {showLogoutConfirm && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-[#07182a]/65 px-4 backdrop-blur-[1px]"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="logout-confirm-title"
+          onClick={() => !loggingOut && setShowLogoutConfirm(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-lg border border-(--color-btn-border) bg-(--color-bg-card) p-5 text-center shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full border border-(--color-accent) bg-white/10 text-(--color-text-muted)">
+              <i className="ri-logout-box-r-line text-2xl" aria-hidden="true" />
+            </div>
+            <h2 id="logout-confirm-title" className="mt-3 font-rajdhani text-xl font-bold text-(--color-text-muted)">
+              Are you sure you want to logout?
+            </h2>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                disabled={loggingOut}
+                onClick={() => setShowLogoutConfirm(false)}
+                className="rounded-md border border-(--color-accent) bg-transparent px-4 py-2.5 font-semibold text-(--color-text-muted) hover:bg-white/10 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={loggingOut}
+                onClick={confirmLogout}
+                className="rounded-md border border-(--color-btn-border) bg-(--color-btn-bg) px-4 py-2.5 font-semibold text-(--color-text-muted) hover:bg-(--color-btn-hover) disabled:opacity-60"
+              >
+                {loggingOut ? "Logging out..." : "Logout"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 };
