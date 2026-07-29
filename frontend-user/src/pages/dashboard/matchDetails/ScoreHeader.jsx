@@ -159,9 +159,32 @@ export default function ScoreHeader({
         return null;
     };
 
-    const getTeamDisplay = (team) => {
-        const scoreStr = getTeamScoreText(team);
-        return scoreStr ? `${team} ${scoreStr}` : team;
+    const isCurrentlyBatting = (team) =>
+        (currentInnings === 1 && isFirstBatter(team))
+        || (currentInnings === 2 && isSecondBatter(team));
+
+    const renderTeamScore = (team) => {
+        const score = getTeamScoreText(team);
+        const batting = isCurrentlyBatting(team);
+
+        return (
+            <div className={`flex min-w-0 items-baseline gap-1.5 font-serif leading-tight ${
+                batting ? "text-white" : "text-[#D6E4F5]"
+            }`}>
+                <span className={`min-w-0 truncate font-bold ${
+                    batting ? "text-sm sm:text-base md:text-lg lg:text-xl" : "text-[13px] sm:text-sm md:text-base lg:text-lg"
+                }`}>
+                    {team}
+                </span>
+                {score && (
+                    <span className={`shrink-0 font-extrabold ${
+                        batting ? "text-lg sm:text-xl md:text-2xl lg:text-3xl" : "text-sm sm:text-base md:text-lg lg:text-xl"
+                    }`}>
+                        {score}
+                    </span>
+                )}
+            </div>
+        );
     };
 
     // Determine what to show in the middle badge
@@ -213,13 +236,13 @@ export default function ScoreHeader({
     return (
         <div className="w-full max-w-full overflow-hidden">
             {/* Top Section - Score and Bet Status */}
-            <div className="flex flex-row items-stretch gap-2 sm:gap-4 lg:gap-4">
+            <div className="flex min-h-[118px] flex-row items-stretch gap-2 sm:min-h-0 sm:gap-4 lg:gap-4">
                 {/* Left - Score Section */}
-                <div className="bg-[#1E3A5F] flex items-center justify-center gap-6 sm:gap-6 lg:gap-4 px-2 sm:px-5 lg:px-6 py-2.5 sm:py-3 lg:py-4 flex-1 min-w-0">
+                <div className="bg-[#1E3A5F] flex min-w-0 flex-1 items-center justify-center gap-3 px-2 py-3.5 sm:gap-6 sm:px-5 sm:py-3 lg:gap-4 lg:px-6 lg:py-4">
                     <svg
                         viewBox="0 0 56 64"
                         fill="none"
-                        className="shrink-0 w-12 h-13 sm:w-20 sm:h-22 lg:w-24 lg:h-26"
+                        className="h-13 w-11 shrink-0 sm:h-22 sm:w-20 lg:h-26 lg:w-24"
                     >
                         <circle cx="8" cy="8" r="7" fill="#2E5080" />
                         <path
@@ -244,14 +267,10 @@ export default function ScoreHeader({
                         <circle cx="35" cy="30" r="3" fill="#D6E4F5" />
                     </svg>
 
-                    <div className="min-w-0 flex flex-col gap-1 sm:gap-2 lg:gap-2">
-                        <p className="text-white text-xs sm:text-base md:text-lg lg:text-xl font-bold font-serif leading-tight py-1 sm:py-1.5 lg:py-2 truncate">
-                            {getTeamDisplay(match?.team1)}
-                        </p>
-                        <p className="text-[#D6E4F5] text-[10px] sm:text-sm md:text-base lg:text-lg font-bold font-serif leading-tight py-1 sm:py-1.5 lg:py-2 truncate">
-                            {getTeamDisplay(match?.team2)}
-                        </p>
-                        <p className="text-[#90B4D4] text-[10px] sm:text-xs md:text-sm lg:text-base font-semibold font-serif leading-tight py-1 sm:py-1.5 lg:py-2 truncate">
+                    <div className="flex min-w-0 flex-col gap-2 sm:gap-2 lg:gap-2">
+                        {renderTeamScore(match?.team1)}
+                        {renderTeamScore(match?.team2)}
+                        <p className="truncate font-serif text-xs font-semibold leading-tight text-[#90B4D4] sm:text-sm md:text-base">
                             {getStatusMessage()}
                         </p>
                     </div>
@@ -259,8 +278,8 @@ export default function ScoreHeader({
 
                 {/* Right - Bet Status / Live Score Status */}
                 {/* Right - Bet Status / Live Score Status */}
-                <div className="bg-[#1E3A5F] flex items-center justify-center px-2 sm:px-4 lg:px-6 shrink-0 w-[110px] sm:w-[160px] md:w-[190px] lg:w-[220px]">
-                    <div className="text-white text-[11px] sm:text-xl md:text-2xl lg:text-3xl font-bold font-serif text-center leading-tight break-words">
+                <div className="flex w-[118px] shrink-0 items-center justify-center bg-[#1E3A5F] px-2 sm:w-[160px] sm:px-4 md:w-[190px] lg:w-[220px] lg:px-6">
+                    <div className="break-words text-center font-serif text-base font-bold leading-tight text-white sm:text-xl md:text-2xl lg:text-3xl">
                         {middleText.split(' ').map((word, i) => (
                             <React.Fragment key={i}>
                                 {word}
