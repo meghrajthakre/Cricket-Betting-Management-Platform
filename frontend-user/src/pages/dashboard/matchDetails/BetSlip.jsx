@@ -119,7 +119,7 @@ export default function BetSlip({ selection, maxBet, positions = {}, runners = [
             />
             <form
                 onSubmit={submit}
-                className="fixed inset-x-0 bottom-0 z-[70] mx-auto max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl border-x-2 border-t-2 border-[#24466f] bg-white shadow-[0_-18px_60px_rgba(0,0,0,0.35)] animate-[betSlipUp_280ms_cubic-bezier(0.22,1,0.36,1)]"
+                className="fixed inset-x-0 bottom-0 z-[70] mx-auto max-h-[92dvh] w-full max-w-md overscroll-contain overflow-y-auto rounded-t-2xl border-x-2 border-t-2 border-[#24466f] bg-white shadow-[0_-18px_60px_rgba(0,0,0,0.35)] animate-[betSlipUp_280ms_cubic-bezier(0.22,1,0.36,1)]"
             >
             <div className="sticky top-0 z-10 flex justify-center bg-[#eef2f5] py-2">
                 <div className="h-1.5 w-12 rounded-full bg-[#8da0b3]" />
@@ -153,13 +153,13 @@ export default function BetSlip({ selection, maxBet, positions = {}, runners = [
 
             <div className="grid grid-cols-[3fr_2fr] border-b border-[#24466f]">
                 <input
-                    autoFocus
                     type="text"
-                    inputMode="numeric"
+                    inputMode="none"
+                    readOnly
                     value={amount}
                     disabled={submitting}
-                    onChange={(event) => setAmount(event.target.value.replace(/\D/g, "").slice(0, 9))}
                     placeholder="Enter Coins"
+                    aria-label="Bet amount"
                     className="min-w-0 border-r border-[#24466f] bg-[#f1f1f1] px-3 py-3 text-center text-base font-bold outline-none placeholder:font-medium placeholder:text-gray-400"
                 />
                 <button type="button" onClick={() => setAmount((value) => value.slice(0, -1))} className="bg-[#925c59] text-lg font-bold text-white">×</button>
