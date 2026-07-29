@@ -13,6 +13,8 @@ const QUICK_AMOUNTS = [
 export default function BetSlip({ selection, maxBet, positions = {}, runners = [], onClose, onSubmit, submitting }) {
     const [amount, setAmount] = useState("");
     const [error, setError] = useState("");
+    const suppressNativeKeyboard = typeof window !== "undefined"
+        && window.matchMedia("(pointer: coarse)").matches;
 
     useEffect(() => {
         if (!selection) return undefined;
@@ -154,10 +156,11 @@ export default function BetSlip({ selection, maxBet, positions = {}, runners = [
             <div className="grid grid-cols-[3fr_2fr] border-b border-[#24466f]">
                 <input
                     type="text"
-                    inputMode="none"
-                    readOnly
+                    inputMode={suppressNativeKeyboard ? "none" : "numeric"}
+                    readOnly={suppressNativeKeyboard}
                     value={amount}
                     disabled={submitting}
+                    onChange={(event) => setAmount(event.target.value.replace(/\D/g, "").slice(0, 9))}
                     placeholder="Enter Coins"
                     aria-label="Bet amount"
                     className="min-w-0 border-r border-[#24466f] bg-[#f1f1f1] px-3 py-3 text-center text-base font-bold outline-none placeholder:font-medium placeholder:text-gray-400"
