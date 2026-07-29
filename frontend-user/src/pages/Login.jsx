@@ -75,6 +75,7 @@ const handleLogin = async () => {
     setCoins(user.coins ?? 0);
     document.activeElement?.blur();
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    await new Promise((resolve) => window.requestAnimationFrame(resolve));
     navigate("/dashboard");
 
   } catch (err) {
