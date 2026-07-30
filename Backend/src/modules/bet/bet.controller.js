@@ -1,6 +1,6 @@
 "use strict";
 
-const { placeBet, settleBet, getUserMatchBets } = require("./bet.service");
+const { placeBet, settleBet, getUserMatchBets, getAllMatchBets } = require("./bet.service");
 const { z } = require("zod");
 const mongoose = require("mongoose");
 const sse = require("../manual/manual.events");
@@ -153,4 +153,21 @@ const getMyBetsController = async (req, res) => {
     }
 };
 
-module.exports = { placeBetController, settleBetController, getMyBetsController };
+/** GET /bet/match?matchId=... — superadmin sees all users' bets. */
+const getAllMatchBetsController = async (req, res) => {
+    try {
+        const matchId = z.string().min(1, "matchId is required").parse(req.query.matchId);
+        const bets = await getAllMatchBets(matchId);
+
+        return res.status(200).json({ success: true, count: bets.length, data: bets });
+    } catch (error) {
+        return res.status(400).json({ success: false, error: error.message });
+    }
+};
+
+module.exports = {
+    placeBetController,
+    settleBetController,
+    getMyBetsController,
+    getAllMatchBetsController,
+};

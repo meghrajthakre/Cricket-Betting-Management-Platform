@@ -476,10 +476,35 @@ const getUserMatchBets = async (userId, matchId) => {
         .lean();
 };
 
+/** Returns every user's bets for one match (superadmin report). */
+const getAllMatchBets = async (matchId) => {
+    if (!matchId) throw new Error("matchId is required");
+
+    const [bets, runners, sessions] = await Promise.all([
+        Bet.find({ matchId })
+            .populate("userId", "username firstName role")
+            .sort({ createdAt: -1 })
+            .lean(),
+        ManualRunner.find({ matchId }).select("runnerId runnerName").lean(),
+        Session.find({ matchId }).select("id sessionName").lean(),
+    ]);
+
+    const runnerNames = new Map(runners.map((runner) => [runner.runnerId, runner.runnerName]));
+    const sessionNames = new Map(sessions.map((session) => [session.id, session.sessionName]));
+
+    return bets.map((bet) => ({
+        ...bet,
+        selectionName: bet.marketType === "session"
+            ? sessionNames.get(bet.marketId) || bet.marketId
+            : runnerNames.get(bet.marketId) || bet.marketId,
+    }));
+};
+
 module.exports = {
     placeBet,
     settleBet,
     getUserMatchBets,
+    getAllMatchBets,
     acceptCurrentMarketRate,
     waitForBetDelay,
     calculateBetFinancials,

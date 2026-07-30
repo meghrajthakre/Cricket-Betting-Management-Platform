@@ -1,7 +1,12 @@
 "use strict";
 
 const express = require("express");
-const { placeBetController, settleBetController, getMyBetsController } = require("./bet.controller");
+const {
+    placeBetController,
+    settleBetController,
+    getMyBetsController,
+    getAllMatchBetsController,
+} = require("./bet.controller");
 const { protect, allowRoles } = require("../../middleware/authMiddleware");
 const { betLimiter } = require("../../middleware/rateLimiters");
 
@@ -12,6 +17,9 @@ router.post("/place", protect, allowRoles("user"), betLimiter, placeBetControlle
 
 // GET /bet/mine?matchId=...
 router.get("/mine", protect, allowRoles("user"), getMyBetsController);
+
+// GET /bet/match?matchId=...
+router.get("/match", protect, allowRoles("superadmin"), getAllMatchBetsController);
 
 // POST /bet/settle
 router.post("/settle", protect, allowRoles("support", "superadmin"), settleBetController);

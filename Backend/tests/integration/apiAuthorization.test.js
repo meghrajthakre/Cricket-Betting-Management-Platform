@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 const app = require("../../server");
 const { User } = require("../../src/modules/user/user.model");
 const { Ledger } = require("../../src/modules/ledger/ledger.model");
+const { Bet } = require("../../src/modules/bet/bet.model");
 const { generateAccessToken } = require("../../src/utils/generateToken");
 
 const enabled = (
@@ -19,6 +20,7 @@ let normalUser;
 let otherUser;
 let superadmin;
 let balanceUser;
+let reportMatchId;
 
 const auth = (user) => ({
   Authorization: `Bearer ${generateAccessToken({ id: user._id, role: user.role })}`,
@@ -55,6 +57,31 @@ test.before(async () => {
       createdBy: superadmin._id,
     },
   ]);
+  reportMatchId = `report-${stamp}`;
+  await Bet.create([
+    {
+      userId: normalUser._id,
+      matchId: reportMatchId,
+      marketType: "match",
+      marketId: "runner-1",
+      amount: 100,
+      rate: 90,
+      type: "yes",
+      profit: 90,
+      loss: 100,
+    },
+    {
+      userId: otherUser._id,
+      matchId: reportMatchId,
+      marketType: "session",
+      marketId: "session-1",
+      amount: 50,
+      rate: 75,
+      type: "no",
+      profit: 50,
+      loss: 37.5,
+    },
+  ]);
   server = app.listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
   baseUrl = `http://127.0.0.1:${server.address().port}`;
@@ -66,6 +93,7 @@ test.after(async () => {
   await Ledger.deleteMany({
     userId: { $in: [normalUser._id, otherUser._id, balanceUser._id] },
   });
+  await Bet.deleteMany({ matchId: reportMatchId });
   await User.deleteMany({
     _id: { $in: [normalUser._id, otherUser._id, balanceUser._id, superadmin._id] },
   });
@@ -89,6 +117,27 @@ test("superadmin can access superadmin user routes", { skip: !enabled }, async (
     headers: auth(superadmin),
   });
   assert.equal(response.status, 200);
+});
+
+test("match bet report is superadmin-only and returns every user's bet", { skip: !enabled }, async () => {
+  const normalResponse = await fetch(
+    `${baseUrl}/api/bet/match?matchId=${encodeURIComponent(reportMatchId)}`,
+    { headers: auth(normalUser) },
+  );
+  assert.equal(normalResponse.status, 403);
+
+  const superadminResponse = await fetch(
+    `${baseUrl}/api/bet/match?matchId=${encodeURIComponent(reportMatchId)}`,
+    { headers: auth(superadmin) },
+  );
+  assert.equal(superadminResponse.status, 200);
+
+  const body = await superadminResponse.json();
+  assert.equal(body.count, 2);
+  assert.deepEqual(
+    new Set(body.data.map((bet) => bet.userId.username)),
+    new Set([normalUser.username, otherUser.username]),
+  );
 });
 
 test("wallet endpoint rejects missing authentication", { skip: !enabled }, async () => {
