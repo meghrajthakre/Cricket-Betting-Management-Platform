@@ -7,7 +7,10 @@ import api from "../../constants/api";
 const REFRESH_INTERVAL = 3000;
 const RECENT_MATCHES_REFRESH_INTERVAL = 30000;
 
-const formatNumber = (value) => Number(value || 0).toLocaleString("en-IN");
+const formatNumber = (value) =>
+  Number(value || 0).toLocaleString("en-IN", {
+    maximumFractionDigits: 0,
+  });
 
 function ProfitLoss({ value }) {
   const amount = Number(value || 0);
@@ -149,6 +152,7 @@ function SessionTable({ sessions, bets }) {
           <tbody>
             {sessions.map((session) => {
               const selected = selectedSessionId === session.id;
+              const isSuspended = session.status !== "open";
               const totalAmount = bets
                 .filter((bet) => bet.marketType === "session" && bet.marketId === session.id)
                 .reduce((total, bet) => total + Number(bet.amount || 0), 0);
@@ -176,12 +180,16 @@ function SessionTable({ sessions, bets }) {
                     {session.sessionName}
                   </td>
                   <td className="border border-gray-200 bg-blue-100 px-1 py-3 text-center sm:px-4">
-                    <div className="font-bold">{session.noRun}</div>
-                    <div className="text-xs font-semibold">{session.noRate}</div>
+                    <div className="font-bold">{isSuspended ? 0 : session.noRun}</div>
+                    <div className="text-xs font-semibold">
+                      {isSuspended ? "0.0" : session.noRate}
+                    </div>
                   </td>
                   <td className="border border-gray-200 bg-pink-200 px-1 py-3 text-center sm:px-4">
-                    <div className="font-bold">{session.yesRun}</div>
-                    <div className="text-xs font-semibold">{session.yesRate}</div>
+                    <div className="font-bold">{isSuspended ? 0 : session.yesRun}</div>
+                    <div className="text-xs font-semibold">
+                      {isSuspended ? "0.0" : session.yesRate}
+                    </div>
                   </td>
                   <td className="border border-gray-200 px-1 py-3 text-center font-bold text-(--color-primary) sm:px-4">
                     {formatNumber(totalAmount)}
@@ -511,7 +519,10 @@ export default function MatchLiveReport() {
 
   const runningSessions = useMemo(
     () => sessions.filter(
-      (session) => session.isVisible && session.resultStatus !== "settled" && session.status !== "closed"
+      (session) =>
+        session.isVisible &&
+        session.resultStatus !== "settled" &&
+        session.status !== "closed"
     ),
     [sessions]
   );
