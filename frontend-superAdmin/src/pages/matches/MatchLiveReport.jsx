@@ -539,40 +539,7 @@ export default function MatchLiveReport() {
     <div className="min-h-full bg-(--color-bg-main) px-3 py-5 text-(--color-text-dark) md:px-6">
       <Toaster position="top-center" />
       <div className="w-full space-y-4">
-        <header className="flex items-center justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              title="Back"
-              className="flex h-9 w-9 shrink-0 items-center justify-center text-gray-500 hover:text-gray-900"
-            >
-              <ArrowLeft size={20} />
-            </button>
-            <div className="min-w-0">
-              <h1 className="text-xl font-bold text-gray-900">Match Live Report</h1>
-              <p className="truncate text-xs text-gray-500">
-                {match ? `${match.homeTeam} vs ${match.awayTeam}` : `ID: ${matchId}`}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {updatedAt && (
-              <span className="hidden text-xs text-gray-400 sm:inline">
-                Updated {updatedAt.toLocaleTimeString("en-IN")}
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() => loadReport()}
-              disabled={refreshing}
-              title="Refresh report"
-              className="flex h-9 w-9 items-center justify-center border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-            >
-              <RefreshCw size={17} className={refreshing ? "animate-spin" : ""} />
-            </button>
-          </div>
-        </header>
+      
 
         {error && (
           <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
