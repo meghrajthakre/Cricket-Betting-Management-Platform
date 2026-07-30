@@ -24,8 +24,8 @@ function ScorePanel({ match, score }) {
     : score?.firstBattingTeam;
 
   return (
-    <section className="overflow-hidden border border-[#5070aa] bg-white">
-      <div className="bg-[#5070aa] px-4 py-2 text-center text-white">
+    <section className="overflow-hidden rounded-lg border border-(--color-border) bg-white shadow-sm">
+      <div className="bg-(--color-banner) px-4 py-2 text-center text-white">
         <p className="text-base font-bold">
           CR Over - {balls.map((ball) => ball.isWicket ? "W" : ball.runs).join("  ") || "0"}
         </p>
@@ -35,7 +35,7 @@ function ScorePanel({ match, score }) {
         <div className="flex min-w-0 items-center justify-center bg-[#acd0df] px-1 py-2 text-[10px] sm:px-3 sm:text-sm">
           {battingTeam || match?.homeTeam || "Team 1"} {Number(score?.runs || 0)}-{Number(score?.wickets || 0)} ({score?.overs || 0})
         </div>
-        <div className="flex min-w-0 items-center justify-center overflow-hidden bg-[#5070aa] px-1 py-2 text-sm text-white sm:px-3 sm:text-xl">
+        <div className="flex min-w-0 items-center justify-center overflow-hidden bg-(--color-primary) px-1 py-2 text-sm text-white sm:px-3 sm:text-xl">
           {score?.status || "LIVE"}
         </div>
         <div className="flex min-w-0 items-center justify-center bg-[#acd0df] px-1 py-2 text-[10px] sm:px-3 sm:text-sm">
@@ -50,14 +50,14 @@ function ScorePanel({ match, score }) {
 
 function OddsTable({ runners, positions }) {
   return (
-    <section className="overflow-hidden border border-gray-200 bg-white shadow-sm">
+    <section className="overflow-hidden rounded-lg border border-(--color-border) bg-white shadow-sm">
       <table className="w-full table-fixed border-collapse text-[10px] sm:text-sm">
         <thead>
           <tr>
-            <th className="w-[30%] bg-[#4c89a8] px-1 py-2 font-semibold text-white sm:px-4 sm:py-3">RUNNER</th>
+            <th className="w-[30%] bg-(--color-primary) px-1 py-2 font-semibold text-white sm:px-4 sm:py-3">RUNNER</th>
             <th className="w-[22%] bg-blue-200 px-1 py-2 text-center font-semibold text-gray-800 sm:px-4 sm:py-3">LAGAI</th>
             <th className="w-[22%] bg-pink-200 px-1 py-2 text-center font-semibold text-gray-800 sm:px-4 sm:py-3">KHAI</th>
-            <th className="w-[26%] bg-[#4c89a8] px-1 py-2 text-center font-semibold text-white sm:px-4 sm:py-3">+/-</th>
+            <th className="w-[26%] bg-(--color-primary) px-1 py-2 text-center font-semibold text-white sm:px-4 sm:py-3">+/-</th>
           </tr>
         </thead>
         <tbody>
@@ -90,48 +90,85 @@ function OddsTable({ runners, positions }) {
   );
 }
 
-function SessionTable({ sessions, positions }) {
+function buildSessionLadder(session, bets) {
+  const pendingBets = bets.filter(
+    (bet) => bet.marketType === "session" && bet.marketId === session.id && bet.status === "pending"
+  );
+  const lines = pendingBets
+    .map((bet) => Number(bet.sessionRun ?? bet.rate))
+    .filter(Number.isFinite);
+  const quoteLines = [Number(session.noRun), Number(session.yesRun)].filter(Number.isFinite);
+  const allLines = [...lines, ...quoteLines];
+  const minimum = allLines.length ? Math.min(...allLines) : 0;
+  const maximum = allLines.length ? Math.max(...allLines) : 10;
+  const start = Math.max(0, Math.floor(minimum) - 5);
+  const end = Math.min(start + 60, Math.ceil(maximum) + 10);
+
+  return Array.from({ length: end - start + 1 }, (_, index) => {
+    const run = start + index;
+    const position = pendingBets.reduce((total, bet) => {
+      const line = Number(bet.sessionRun ?? bet.rate);
+      const userWon = bet.type === "yes" ? run >= line : run < line;
+      return total + (userWon ? -Number(bet.profit || 0) : Number(bet.loss || 0));
+    }, 0);
+    return { run, position: Number(position.toFixed(2)) };
+  });
+}
+
+function SessionTable({ sessions, bets }) {
+  const [selectedSessionId, setSelectedSessionId] = useState(null);
+  const selectedSession = sessions.find((session) => session.id === selectedSessionId);
+  const selectedLadder = selectedSession ? buildSessionLadder(selectedSession, bets) : [];
+
   return (
-    <section className="overflow-hidden border border-gray-200 bg-white">
-      <div className="bg-[#5070aa] px-4 py-2 text-center text-sm font-bold text-white">
+    <section className="overflow-hidden rounded-lg border border-(--color-border) bg-white shadow-sm">
+      <div className="bg-(--color-banner) px-4 py-2 text-center text-sm font-bold text-white">
         Running Session
       </div>
       <div className="overflow-hidden">
         <table className="w-full table-fixed border-collapse text-[10px] sm:text-sm">
           <thead>
             <tr>
-              <th className="w-[32%] bg-[#4c89a8] px-1 py-2 text-left font-semibold text-white sm:px-4 sm:py-3">SESSION</th>
-              <th className="w-[17%] bg-blue-200 px-1 py-2 text-center font-semibold text-gray-800 sm:px-4 sm:py-3">NO RUN</th>
-              <th className="w-[17%] bg-pink-200 px-1 py-2 text-center font-semibold text-gray-800 sm:px-4 sm:py-3">YES RUN</th>
-              <th className="w-[17%] bg-[#4c89a8] px-1 py-2 text-center font-semibold text-white sm:px-4 sm:py-3">NOT POS</th>
-              <th className="w-[17%] bg-[#4c89a8] px-1 py-2 text-center font-semibold text-white sm:px-4 sm:py-3">YES POS</th>
+              <th className="w-[40%] bg-(--color-primary) px-2 py-2 text-left font-semibold text-white sm:px-4 sm:py-3">SESSION</th>
+              <th className="w-[20%] bg-blue-200 px-1 py-2 text-center font-semibold text-gray-800 sm:px-4 sm:py-3">NO RUN</th>
+              <th className="w-[20%] bg-pink-200 px-1 py-2 text-center font-semibold text-gray-800 sm:px-4 sm:py-3">YES RUN</th>
+              <th className="w-[20%] bg-(--color-primary) px-1 py-2 text-center font-semibold text-white sm:px-4 sm:py-3">AMOUNT</th>
             </tr>
           </thead>
           <tbody>
-            {sessions.map((session) => (
-              <tr key={session.id}>
-                <td className="truncate border border-gray-200 px-1 py-3 font-semibold text-fuchsia-700 sm:px-4" title={session.sessionName}>
-                  {session.sessionName}
-                </td>
-                <td className="border border-gray-200 bg-blue-100 px-1 py-3 text-center sm:px-4">
-                  <div className="font-bold">{session.noRun}</div>
-                  <div className="text-xs font-semibold">{session.noRate}</div>
-                </td>
-                <td className="border border-gray-200 bg-pink-200 px-1 py-3 text-center sm:px-4">
-                  <div className="font-bold">{session.yesRun}</div>
-                  <div className="text-xs font-semibold">{session.yesRate}</div>
-                </td>
-                <td className="border border-gray-200 px-1 py-3 text-center sm:px-4">
-                  <ProfitLoss value={positions[session.id]?.no} />
-                </td>
-                <td className="border border-gray-200 px-1 py-3 text-center sm:px-4">
-                  <ProfitLoss value={positions[session.id]?.yes} />
-                </td>
-              </tr>
-            ))}
+            {sessions.map((session) => {
+              const selected = selectedSessionId === session.id;
+              const totalAmount = bets
+                .filter((bet) => bet.marketType === "session" && bet.marketId === session.id)
+                .reduce((total, bet) => total + Number(bet.amount || 0), 0);
+              return (
+                <tr
+                  key={session.id}
+                  onClick={() => setSelectedSessionId(selected ? null : session.id)}
+                  className={`cursor-pointer transition-colors ${
+                    selected ? "bg-blue-50" : "hover:bg-blue-50"
+                  }`}
+                >
+                  <td className="truncate border border-gray-200 px-2 py-3 font-semibold text-(--color-primary) sm:px-4" title={session.sessionName}>
+                    {session.sessionName}
+                  </td>
+                  <td className="border border-gray-200 bg-blue-100 px-1 py-3 text-center sm:px-4">
+                    <div className="font-bold">{session.noRun}</div>
+                    <div className="text-xs font-semibold">{session.noRate}</div>
+                  </td>
+                  <td className="border border-gray-200 bg-pink-200 px-1 py-3 text-center sm:px-4">
+                    <div className="font-bold">{session.yesRun}</div>
+                    <div className="text-xs font-semibold">{session.yesRate}</div>
+                  </td>
+                  <td className="border border-gray-200 px-1 py-3 text-center font-bold text-(--color-primary) sm:px-4">
+                    {formatNumber(totalAmount)}
+                  </td>
+                </tr>
+              );
+            })}
             {!sessions.length && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
+                <td colSpan={4} className="px-4 py-8 text-center text-gray-400">
                   Running session abhi available nahi hai.
                 </td>
               </tr>
@@ -139,6 +176,33 @@ function SessionTable({ sessions, positions }) {
           </tbody>
         </table>
       </div>
+      {selectedSession && (
+        <div className="border-t-4 border-(--color-bg-main) bg-[#f8fafc] p-2 sm:p-4">
+          <div className="mb-2 bg-(--color-primary) px-3 py-2 text-center text-xs font-bold text-white sm:text-sm">
+            {selectedSession.sessionName} - Live Position
+          </div>
+          <table className="w-full table-fixed border-collapse text-xs sm:text-sm">
+            <thead>
+              <tr>
+                <th className="bg-[#4c89a8] px-3 py-2 text-center text-white">RUN</th>
+                <th className="bg-[#4c89a8] px-3 py-2 text-center text-white">LIVE POSITION</th>
+              </tr>
+            </thead>
+            <tbody>
+              {selectedLadder.map((row) => (
+                <tr key={row.run}>
+                  <td className="border-2 border-gray-200 bg-white px-3 py-3 text-center font-semibold text-(--color-primary)">
+                    {row.run}
+                  </td>
+                  <td className="border-2 border-gray-200 bg-white px-3 py-3 text-center">
+                    <ProfitLoss value={row.position} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   );
 }
@@ -149,8 +213,8 @@ function RecentLiveMatches({ matches, currentMatchId, onOpen }) {
     .slice(0, 6);
 
   return (
-    <section className="overflow-hidden border border-gray-200 bg-white">
-      <div className="bg-[#5070aa] px-4 py-2 text-center text-sm font-bold text-white">
+    <section className="overflow-hidden rounded-lg border border-(--color-border) bg-white shadow-sm">
+      <div className="bg-(--color-banner) px-4 py-2 text-center text-sm font-bold text-white">
         Recent Live Matches
       </div>
       {recentMatches.length ? (
@@ -160,7 +224,7 @@ function RecentLiveMatches({ matches, currentMatchId, onOpen }) {
               key={item.matchId}
               type="button"
               onClick={() => onOpen(item.matchId)}
-              className="grid w-full grid-cols-[1fr_auto] items-center gap-3 px-3 py-3 text-left hover:bg-blue-50 sm:px-5"
+              className="grid w-full cursor-pointer grid-cols-[1fr_auto] items-center gap-3 px-3 py-3 text-left hover:bg-blue-50 sm:px-5"
             >
               <span className="min-w-0">
                 <span className="block truncate text-xs font-bold text-gray-900 sm:text-sm">
@@ -189,7 +253,7 @@ function RecentLiveMatches({ matches, currentMatchId, onOpen }) {
 
 function BetsTable({ bets }) {
   return (
-    <section className="overflow-hidden border border-gray-200 bg-white shadow-sm">
+    <section className="overflow-hidden rounded-lg border border-(--color-border) bg-white shadow-sm">
       <div className="border-b border-gray-200 px-5 py-4">
         <h2 className="font-bold text-gray-900">Live Bets ({bets.length})</h2>
       </div>
@@ -349,27 +413,8 @@ export default function MatchLiveReport() {
     return values;
   }, [bets, runners]);
 
-  const sessionPositions = useMemo(() => {
-    const values = Object.fromEntries(sessions.map((session) => [session.id, { no: 0, yes: 0 }]));
-    const sessionBets = bets.filter((bet) => bet.marketType === "session" && bet.status === "pending");
-
-    for (const bet of sessionBets) {
-      if (!values[bet.marketId]) continue;
-      const profit = Number(bet.profit || 0);
-      const loss = Number(bet.loss || 0);
-      if (bet.type === "yes") {
-        values[bet.marketId].yes -= profit;
-        values[bet.marketId].no += loss;
-      } else {
-        values[bet.marketId].no -= profit;
-        values[bet.marketId].yes += loss;
-      }
-    }
-    return values;
-  }, [bets, sessions]);
-
   return (
-    <div className="min-h-full bg-[#f3f5f7] px-3 py-5 text-gray-800 md:px-6">
+    <div className="min-h-full bg-(--color-bg-main) px-3 py-5 text-(--color-text-dark) md:px-6">
       <div className="w-full space-y-4">
         <header className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -412,22 +457,26 @@ export default function MatchLiveReport() {
 
         <ScorePanel match={match} score={score} />
         <OddsTable runners={runners} positions={positions} />
-        <SessionTable sessions={sessions} positions={sessionPositions} />
+        <SessionTable sessions={sessions} bets={bets} />
         <RecentLiveMatches
           matches={liveMatches}
           currentMatchId={matchId}
-          onOpen={(nextMatchId) => navigate(`/superadmin/matches/${encodeURIComponent(nextMatchId)}/live-report`)}
+          onOpen={(nextMatchId) => {
+            window.location.assign(
+              `/superadmin/matches/${encodeURIComponent(nextMatchId)}/live-report`
+            );
+          }}
         />
 
         <button
           type="button"
           onClick={() => setShowMatchBets((visible) => !visible)}
-          className="w-full bg-[#5070aa] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#405f99]"
+          className="w-full cursor-pointer rounded-lg bg-(--color-btn-bg) px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-(--color-btn-hover)"
         >
-          {showMatchBets ? "Hide Match Bets" : "Show Match Bets"}
+          {showMatchBets ? "Hide All Bets" : "Show All Bets"}
         </button>
 
-        {showMatchBets && <BetsTable bets={bets} />}
+        {showMatchBets && <BetsTable bets={bets.filter((bet) => bet.marketType === "match")} />}
       </div>
     </div>
   );
