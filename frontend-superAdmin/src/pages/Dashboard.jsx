@@ -11,7 +11,7 @@
       <div className="animate-fade-up">
         <h1
           className="text-2xl font-bold mb-6"
-          style={{ fontFamily: "var(--font-rajdhani)", color: "var(--color-text-dark)" }}
+          style={{ fontFamily: "var(--font-nunito)", color: "var(--color-text-dark)" }}
         >
           Dashboard
         </h1>
@@ -40,7 +40,7 @@
               </p>
               <p
                 className="text-lg font-bold"
-                style={{ color: "var(--color-text-dark)", fontFamily: "var(--font-rajdhani)" }}
+                style={{ color: "var(--color-text-dark)", fontFamily: "var(--font-nunito)" }}
               >
                 {value}
               </p>

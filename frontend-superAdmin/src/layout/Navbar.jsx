@@ -24,7 +24,7 @@ export default function Navbar({ onMenuClick }) {
         <span
           className="text-xl font-bold tracking-wide"
           style={{
-            fontFamily: "var(--font-rajdhani)",
+            fontFamily: "var(--font-nunito)",
             color: "var(--color-text-dark)",
           }}
         >

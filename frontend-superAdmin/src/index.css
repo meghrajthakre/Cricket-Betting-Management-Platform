@@ -2,11 +2,10 @@
 
   /* ─────────────────────────────────────────────────────────────────────────────
     @theme — registers CSS variables as Tailwind design tokens.
-    This is what makes bg-(--color-primary), font-rajdhani, etc. work.
+    This is what makes theme color and font utilities work.
     ───────────────────────────────────────────────────────────────────────────── */
   @theme {
     /* Fonts */
-    --font-rajdhani: 'Rajdhani', sans-serif;
     --font-nunito:   'Nunito',   sans-serif;
 
     /* Colors */
