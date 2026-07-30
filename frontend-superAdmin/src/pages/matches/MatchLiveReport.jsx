@@ -4,6 +4,7 @@ import { ArrowLeft, RefreshCw } from "lucide-react";
 import api from "../../constants/api";
 
 const REFRESH_INTERVAL = 3000;
+const RECENT_MATCHES_REFRESH_INTERVAL = 30000;
 
 const formatNumber = (value) => Number(value || 0).toLocaleString("en-IN");
 
@@ -23,36 +24,24 @@ function ScorePanel({ match, score }) {
     : score?.firstBattingTeam;
 
   return (
-    <section className="overflow-hidden border border-gray-200 bg-white shadow-sm">
-      <div className="bg-[#5070aa] px-4 py-3 text-center text-white">
-        <p className="text-sm font-bold">
-          {match?.homeTeam || score?.firstBattingTeam || "Team 1"} vs{" "}
-          {match?.awayTeam || score?.secondBattingTeam || "Team 2"}
+    <section className="overflow-hidden border border-[#5070aa] bg-white">
+      <div className="bg-[#5070aa] px-4 py-2 text-center text-white">
+        <p className="text-base font-bold">
+          CR Over - {balls.map((ball) => ball.isWicket ? "W" : ball.runs).join("  ") || "0"}
         </p>
-        <p className="mt-1 text-xs text-blue-100">{score?.status || "Match status unavailable"}</p>
       </div>
 
-      <div className="grid grid-cols-1 border-b border-gray-200 sm:grid-cols-[1fr_auto]">
-        <div className="px-5 py-4">
-          <p className="text-xs font-semibold uppercase text-gray-500">{battingTeam || "Current innings"}</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">
-            {Number(score?.runs || 0)}-{Number(score?.wickets || 0)}
-            <span className="ml-2 text-base font-medium text-gray-500">({score?.overs || 0})</span>
-          </p>
+      <div className="grid min-h-12 grid-cols-[40%_20%_40%] border-b border-gray-300 text-center font-bold">
+        <div className="flex min-w-0 items-center justify-center bg-[#acd0df] px-1 py-2 text-[10px] sm:px-3 sm:text-sm">
+          {battingTeam || match?.homeTeam || "Team 1"} {Number(score?.runs || 0)}-{Number(score?.wickets || 0)} ({score?.overs || 0})
         </div>
-        <div className="flex min-w-64 items-center gap-2 border-t border-gray-200 px-5 py-4 sm:border-l sm:border-t-0">
-          <span className="mr-1 text-xs font-semibold text-gray-500">THIS OVER</span>
-          {balls.length ? balls.map((ball, index) => (
-            <span
-              key={`${ball.over}-${index}`}
-              title={ball.label}
-              className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white ${
-                ball.isWicket ? "bg-red-600" : Number(ball.runs) === 4 ? "bg-green-600" : "bg-gray-700"
-              }`}
-            >
-              {ball.isWicket ? "W" : ball.runs}
-            </span>
-          )) : <span className="text-sm text-gray-400">No ball data</span>}
+        <div className="flex min-w-0 items-center justify-center overflow-hidden bg-[#5070aa] px-1 py-2 text-sm text-white sm:px-3 sm:text-xl">
+          {score?.status || "LIVE"}
+        </div>
+        <div className="flex min-w-0 items-center justify-center bg-[#acd0df] px-1 py-2 text-[10px] sm:px-3 sm:text-sm">
+          {score?.currentInnings === 2
+            ? score?.firstBattingTeam
+            : score?.secondBattingTeam || match?.awayTeam || "Team 2"}
         </div>
       </div>
     </section>
@@ -61,29 +50,29 @@ function ScorePanel({ match, score }) {
 
 function OddsTable({ runners, positions }) {
   return (
-    <section className="overflow-x-auto border border-gray-200 bg-white shadow-sm">
-      <table className="w-full min-w-[620px] border-collapse text-sm">
+    <section className="overflow-hidden border border-gray-200 bg-white shadow-sm">
+      <table className="w-full table-fixed border-collapse text-[10px] sm:text-sm">
         <thead>
           <tr>
-            <th className="bg-[#4c89a8] px-4 py-3 text-left font-semibold text-white">TEAM</th>
-            <th className="bg-blue-200 px-4 py-3 text-center font-semibold text-gray-800">LAGAI</th>
-            <th className="bg-pink-200 px-4 py-3 text-center font-semibold text-gray-800">KHAI</th>
-            <th className="bg-[#4c89a8] px-4 py-3 text-center font-semibold text-white">SUPERADMIN +/-</th>
+            <th className="w-[30%] bg-[#4c89a8] px-1 py-2 font-semibold text-white sm:px-4 sm:py-3">RUNNER</th>
+            <th className="w-[22%] bg-blue-200 px-1 py-2 text-center font-semibold text-gray-800 sm:px-4 sm:py-3">LAGAI</th>
+            <th className="w-[22%] bg-pink-200 px-1 py-2 text-center font-semibold text-gray-800 sm:px-4 sm:py-3">KHAI</th>
+            <th className="w-[26%] bg-[#4c89a8] px-1 py-2 text-center font-semibold text-white sm:px-4 sm:py-3">+/-</th>
           </tr>
         </thead>
         <tbody>
           {runners.map((runner) => (
             <tr key={runner.runnerId}>
-              <td className="border border-gray-200 px-4 py-4 font-semibold text-gray-800">
+              <td className="truncate border border-gray-200 px-2 py-3 font-semibold text-gray-800 sm:px-4 sm:py-4" title={runner.runnerName}>
                 {runner.runnerName}
               </td>
-              <td className="border border-gray-200 bg-blue-50 px-4 py-4 text-center font-bold">
+              <td className="border border-gray-200 bg-blue-50 px-1 py-3 text-center font-bold sm:px-4 sm:py-4">
                 {runner.lagai || "-"}
               </td>
-              <td className="border border-gray-200 bg-pink-50 px-4 py-4 text-center font-bold">
+              <td className="border border-gray-200 bg-pink-50 px-1 py-3 text-center font-bold sm:px-4 sm:py-4">
                 {runner.khai || "-"}
               </td>
-              <td className="border border-gray-200 px-4 py-4 text-center">
+              <td className="border border-gray-200 px-1 py-3 text-center sm:px-4 sm:py-4">
                 <ProfitLoss value={positions[runner.runnerId]} />
               </td>
             </tr>
@@ -97,6 +86,103 @@ function OddsTable({ runners, positions }) {
           )}
         </tbody>
       </table>
+    </section>
+  );
+}
+
+function SessionTable({ sessions, positions }) {
+  return (
+    <section className="overflow-hidden border border-gray-200 bg-white">
+      <div className="bg-[#5070aa] px-4 py-2 text-center text-sm font-bold text-white">
+        Running Session
+      </div>
+      <div className="overflow-hidden">
+        <table className="w-full table-fixed border-collapse text-[10px] sm:text-sm">
+          <thead>
+            <tr>
+              <th className="w-[32%] bg-[#4c89a8] px-1 py-2 text-left font-semibold text-white sm:px-4 sm:py-3">SESSION</th>
+              <th className="w-[17%] bg-blue-200 px-1 py-2 text-center font-semibold text-gray-800 sm:px-4 sm:py-3">NO RUN</th>
+              <th className="w-[17%] bg-pink-200 px-1 py-2 text-center font-semibold text-gray-800 sm:px-4 sm:py-3">YES RUN</th>
+              <th className="w-[17%] bg-[#4c89a8] px-1 py-2 text-center font-semibold text-white sm:px-4 sm:py-3">NOT POS</th>
+              <th className="w-[17%] bg-[#4c89a8] px-1 py-2 text-center font-semibold text-white sm:px-4 sm:py-3">YES POS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sessions.map((session) => (
+              <tr key={session.id}>
+                <td className="truncate border border-gray-200 px-1 py-3 font-semibold text-fuchsia-700 sm:px-4" title={session.sessionName}>
+                  {session.sessionName}
+                </td>
+                <td className="border border-gray-200 bg-blue-100 px-1 py-3 text-center sm:px-4">
+                  <div className="font-bold">{session.noRun}</div>
+                  <div className="text-xs font-semibold">{session.noRate}</div>
+                </td>
+                <td className="border border-gray-200 bg-pink-200 px-1 py-3 text-center sm:px-4">
+                  <div className="font-bold">{session.yesRun}</div>
+                  <div className="text-xs font-semibold">{session.yesRate}</div>
+                </td>
+                <td className="border border-gray-200 px-1 py-3 text-center sm:px-4">
+                  <ProfitLoss value={positions[session.id]?.no} />
+                </td>
+                <td className="border border-gray-200 px-1 py-3 text-center sm:px-4">
+                  <ProfitLoss value={positions[session.id]?.yes} />
+                </td>
+              </tr>
+            ))}
+            {!sessions.length && (
+              <tr>
+                <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
+                  Running session abhi available nahi hai.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function RecentLiveMatches({ matches, currentMatchId, onOpen }) {
+  const recentMatches = matches
+    .filter((item) => item.matchId && item.matchId !== currentMatchId)
+    .slice(0, 6);
+
+  return (
+    <section className="overflow-hidden border border-gray-200 bg-white">
+      <div className="bg-[#5070aa] px-4 py-2 text-center text-sm font-bold text-white">
+        Recent Live Matches
+      </div>
+      {recentMatches.length ? (
+        <div className="divide-y divide-gray-200">
+          {recentMatches.map((item) => (
+            <button
+              key={item.matchId}
+              type="button"
+              onClick={() => onOpen(item.matchId)}
+              className="grid w-full grid-cols-[1fr_auto] items-center gap-3 px-3 py-3 text-left hover:bg-blue-50 sm:px-5"
+            >
+              <span className="min-w-0">
+                <span className="block truncate text-xs font-bold text-gray-900 sm:text-sm">
+                  {item.homeTeam} vs {item.awayTeam}
+                </span>
+                <span className="mt-0.5 block truncate text-[10px] text-gray-500 sm:text-xs">
+                  {item.sportTitle || item.sportKey || "Cricket"}
+                </span>
+              </span>
+              <span className={`whitespace-nowrap text-[10px] font-bold uppercase sm:text-xs ${
+                item.isLive ? "text-green-600" : "text-gray-500"
+              }`}>
+                {item.isLive ? "Live" : "Recent"}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="px-4 py-6 text-center text-xs text-gray-400">
+          Abhi koi aur live match available nahi hai.
+        </p>
+      )}
     </section>
   );
 }
@@ -166,7 +252,10 @@ export default function MatchLiveReport() {
   const [match, setMatch] = useState(null);
   const [score, setScore] = useState(null);
   const [runners, setRunners] = useState([]);
+  const [sessions, setSessions] = useState([]);
+  const [liveMatches, setLiveMatches] = useState([]);
   const [bets, setBets] = useState([]);
+  const [showMatchBets, setShowMatchBets] = useState(false);
   const [error, setError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [updatedAt, setUpdatedAt] = useState(null);
@@ -175,10 +264,11 @@ export default function MatchLiveReport() {
     if (!matchId) return;
     if (!silent) setRefreshing(true);
 
-    const [matchResult, scoreResult, runnersResult, betsResult] = await Promise.allSettled([
+    const [matchResult, scoreResult, runnersResult, sessionsResult, betsResult] = await Promise.allSettled([
       api.get(`/matches/saved/${encodeURIComponent(matchId)}`),
       api.get(`/manual/score/${encodeURIComponent(matchId)}`),
       api.get(`/manual/state/${encodeURIComponent(matchId)}`),
+      api.get(`/session/${encodeURIComponent(matchId)}`),
       api.get("/bet/match", { params: { matchId } }),
     ]);
 
@@ -186,6 +276,10 @@ export default function MatchLiveReport() {
     if (scoreResult.status === "fulfilled") setScore(scoreResult.value.data?.data || null);
     if (runnersResult.status === "fulfilled") {
       setRunners(Array.isArray(runnersResult.value.data?.data) ? runnersResult.value.data.data : []);
+    }
+    if (sessionsResult.status === "fulfilled") {
+      const rows = sessionsResult.value.data?.data?.sessions;
+      setSessions(Array.isArray(rows) ? rows.filter((session) => session.isVisible) : []);
     }
     if (betsResult.status === "fulfilled") {
       setBets(Array.isArray(betsResult.value.data?.data) ? betsResult.value.data.data : []);
@@ -197,10 +291,29 @@ export default function MatchLiveReport() {
         "Live bets load nahi ho paaye."
       );
     }
-
     setUpdatedAt(new Date());
     if (!silent) setRefreshing(false);
   }, [matchId]);
+
+  const loadRecentMatches = useCallback(async () => {
+    const [liveResult, savedResult] = await Promise.allSettled([
+      api.get("/cricket/live"),
+      api.get("/matches/saved"),
+    ]);
+    const live = liveResult.status === "fulfilled" && Array.isArray(liveResult.value.data?.matches)
+      ? liveResult.value.data.matches.map((item) => ({ ...item, isLive: true }))
+      : [];
+    const saved = savedResult.status === "fulfilled" && Array.isArray(savedResult.value.data?.data)
+      ? savedResult.value.data.data.map((item) => ({ ...item, isLive: false }))
+      : [];
+    const merged = new Map(saved.map((item) => [item.matchId, item]));
+    live.forEach((item) => merged.set(item.matchId, item));
+    setLiveMatches(
+      [...merged.values()].sort(
+        (a, b) => new Date(b.commenceTime || 0) - new Date(a.commenceTime || 0)
+      )
+    );
+  }, []);
 
   useEffect(() => {
     const initialLoad = setTimeout(loadReport, 0);
@@ -210,6 +323,15 @@ export default function MatchLiveReport() {
       clearInterval(interval);
     };
   }, [loadReport]);
+
+  useEffect(() => {
+    const initialLoad = setTimeout(loadRecentMatches, 0);
+    const interval = setInterval(loadRecentMatches, RECENT_MATCHES_REFRESH_INTERVAL);
+    return () => {
+      clearTimeout(initialLoad);
+      clearInterval(interval);
+    };
+  }, [loadRecentMatches]);
 
   const positions = useMemo(() => {
     const values = Object.fromEntries(runners.map((runner) => [runner.runnerId, 0]));
@@ -227,9 +349,28 @@ export default function MatchLiveReport() {
     return values;
   }, [bets, runners]);
 
+  const sessionPositions = useMemo(() => {
+    const values = Object.fromEntries(sessions.map((session) => [session.id, { no: 0, yes: 0 }]));
+    const sessionBets = bets.filter((bet) => bet.marketType === "session" && bet.status === "pending");
+
+    for (const bet of sessionBets) {
+      if (!values[bet.marketId]) continue;
+      const profit = Number(bet.profit || 0);
+      const loss = Number(bet.loss || 0);
+      if (bet.type === "yes") {
+        values[bet.marketId].yes -= profit;
+        values[bet.marketId].no += loss;
+      } else {
+        values[bet.marketId].no -= profit;
+        values[bet.marketId].yes += loss;
+      }
+    }
+    return values;
+  }, [bets, sessions]);
+
   return (
     <div className="min-h-full bg-[#f3f5f7] px-3 py-5 text-gray-800 md:px-6">
-      <div className="mx-auto max-w-6xl space-y-4">
+      <div className="w-full space-y-4">
         <header className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
             <button
@@ -271,7 +412,22 @@ export default function MatchLiveReport() {
 
         <ScorePanel match={match} score={score} />
         <OddsTable runners={runners} positions={positions} />
-        <BetsTable bets={bets} />
+        <SessionTable sessions={sessions} positions={sessionPositions} />
+        <RecentLiveMatches
+          matches={liveMatches}
+          currentMatchId={matchId}
+          onOpen={(nextMatchId) => navigate(`/superadmin/matches/${encodeURIComponent(nextMatchId)}/live-report`)}
+        />
+
+        <button
+          type="button"
+          onClick={() => setShowMatchBets((visible) => !visible)}
+          className="w-full bg-[#5070aa] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#405f99]"
+        >
+          {showMatchBets ? "Hide Match Bets" : "Show Match Bets"}
+        </button>
+
+        {showMatchBets && <BetsTable bets={bets} />}
       </div>
     </div>
   );
