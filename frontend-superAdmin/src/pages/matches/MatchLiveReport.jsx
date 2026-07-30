@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, RefreshCw } from "lucide-react";
+import toast, { Toaster } from "react-hot-toast";
 import api from "../../constants/api";
 
 const REFRESH_INTERVAL = 3000;
@@ -151,10 +152,22 @@ function SessionTable({ sessions, bets }) {
               const totalAmount = bets
                 .filter((bet) => bet.marketType === "session" && bet.marketId === session.id)
                 .reduce((total, bet) => total + Number(bet.amount || 0), 0);
+              const hasPendingBets = bets.some(
+                (bet) =>
+                  bet.marketType === "session" &&
+                  bet.marketId === session.id &&
+                  bet.status === "pending"
+              );
               return (
                 <tr
                   key={session.id}
-                  onClick={() => setSelectedSessionId(selected ? null : session.id)}
+                  onClick={() => {
+                    if (!hasPendingBets) {
+                      toast.error("Is session par koi bet nahi lagi hai.");
+                      return;
+                    }
+                    setSelectedSessionId(selected ? null : session.id);
+                  }}
                   className={`cursor-pointer transition-colors ${
                     selected ? "bg-blue-50" : "hover:bg-blue-50"
                   }`}
@@ -191,12 +204,7 @@ function SessionTable({ sessions, bets }) {
           <div className="mb-2 bg-(--color-primary) px-3 py-2 text-center text-xs font-bold text-white sm:text-sm">
             {selectedSession.sessionName} - Live Position
           </div>
-          {!selectedSessionBets.length ? (
-            <div className="border border-(--color-border) bg-white px-4 py-8 text-center text-sm font-semibold text-gray-500">
-              Is session par koi bet nahi lagi hai.
-            </div>
-          ) : (
-            <table className="w-full table-fixed border-collapse text-xs sm:text-sm">
+          <table className="w-full table-fixed border-collapse text-xs sm:text-sm">
               <thead>
                 <tr>
                   <th className="bg-[#4c89a8] px-3 py-2 text-center text-white">RUN</th>
@@ -216,7 +224,6 @@ function SessionTable({ sessions, bets }) {
                 ))}
               </tbody>
             </table>
-          )}
         </div>
       )}
     </section>
@@ -513,6 +520,7 @@ export default function MatchLiveReport() {
 
   return (
     <div className="min-h-full bg-(--color-bg-main) px-3 py-5 text-(--color-text-dark) md:px-6">
+      <Toaster position="top-center" />
       <div className="w-full space-y-4">
         <header className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">

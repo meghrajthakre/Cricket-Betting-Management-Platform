@@ -1,7 +1,5 @@
 @import "tailwindcss";
-  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Nunito:wght@400;600;700&display=swap');
- @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@700;800&display=swap');
- 
+
   /* ─────────────────────────────────────────────────────────────────────────────
     @theme — registers CSS variables as Tailwind design tokens.
     This is what makes bg-(--color-primary), font-rajdhani, etc. work.
