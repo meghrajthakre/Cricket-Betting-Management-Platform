@@ -128,7 +128,7 @@ function MarqueeBannerManager() {
             ) : text ? (
               <span
                 className="inline-block whitespace-nowrap animate-marquee font-bold text-[13px]"
-                style={{ color: "#fbbf24", fontFamily: "var(--font-nunito)", letterSpacing: "0.03em" }}
+                style={{ color: "#fbbf24", fontFamily: "var(--font-app)", letterSpacing: "0.03em" }}
               >
                 {text}
               </span>
@@ -150,7 +150,7 @@ function MarqueeBannerManager() {
               placeholder:text-gray-300 bg-white
               focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent
               disabled:opacity-50 disabled:cursor-not-allowed resize-none transition"
-            style={{ fontFamily: "var(--font-nunito)" }}
+            style={{ fontFamily: "var(--font-app)" }}
           />
           <div className="flex justify-end mt-1">
             <span className={`text-xs font-medium ${charCount >= MAX_CHARS ? "text-red-400" : "text-gray-300"}`}>

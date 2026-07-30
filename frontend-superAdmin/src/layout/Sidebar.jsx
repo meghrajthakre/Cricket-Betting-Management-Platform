@@ -37,7 +37,7 @@ function NavItem({ label, icon: Icon, isActive, onClick }) {
           : "text-white/70 hover:bg-white/10 hover:text-white hover:translate-x-0.5"
         }
       `}
-      style={{ fontFamily: "var(--font-nunito)" }}
+      style={{ fontFamily: "var(--font-app)" }}
     >
       {/* Active indicator - modern gradient bar */}
       {isActive && (
@@ -144,7 +144,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 style={{ 
                   color: "rgba(255,255,255,0.3)",
                   backgroundColor: SIDEBAR_BG,
-                  fontFamily: "var(--font-nunito)"
+                  fontFamily: "var(--font-app)"
                 }}
               >
                 Account
@@ -167,7 +167,7 @@ export default function Sidebar({ isOpen, onClose }) {
             className="text-[10px] font-medium tracking-wider"
             style={{ 
               color: "rgba(255,255,255,0.25)",
-              fontFamily: "var(--font-nunito)"
+              fontFamily: "var(--font-app)"
             }}
           >
             v2.0.0

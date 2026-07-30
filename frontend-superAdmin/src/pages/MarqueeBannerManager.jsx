@@ -52,11 +52,11 @@ export default function MarqueeBannerManager() {
         <Megaphone size={15} strokeWidth={2} color="#2E4151" />
         <span
           className="text-sm font-semibold"
-          style={{ color: "#2E4151", fontFamily: "var(--font-nunito)" }}
+          style={{ color: "#2E4151", fontFamily: "var(--font-app)" }}
         >
           Marquee Banner
         </span>
-        <span className="ml-auto text-xs text-gray-400" style={{ fontFamily: "var(--font-nunito)" }}>
+        <span className="ml-auto text-xs text-gray-400" style={{ fontFamily: "var(--font-app)" }}>
           Visible to all users
         </span>
       </div>
@@ -67,7 +67,7 @@ export default function MarqueeBannerManager() {
         <div>
           <label
             className="block text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-1.5"
-            style={{ fontFamily: "var(--font-nunito)" }}
+            style={{ fontFamily: "var(--font-app)" }}
           >
             Preview
           </label>
@@ -78,14 +78,14 @@ export default function MarqueeBannerManager() {
             {text ? (
               <span
                 className="inline-block whitespace-nowrap animate-marquee font-bold"
-                style={{ fontFamily: "var(--font-nunito)", fontSize: "13px", color: "#fbbf24", letterSpacing: "0.03em" }}
+                style={{ fontFamily: "var(--font-app)", fontSize: "13px", color: "#fbbf24", letterSpacing: "0.03em" }}
               >
                 {text}
               </span>
             ) : (
               <span
                 className="px-4 text-xs"
-                style={{ color: "rgba(255,255,255,0.25)", fontFamily: "var(--font-nunito)" }}
+                style={{ color: "rgba(255,255,255,0.25)", fontFamily: "var(--font-app)" }}
               >
                 No banner text set
               </span>
@@ -98,7 +98,7 @@ export default function MarqueeBannerManager() {
           <label
             htmlFor="marquee-input"
             className="block text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-1.5"
-            style={{ fontFamily: "var(--font-nunito)" }}
+            style={{ fontFamily: "var(--font-app)" }}
           >
             Banner Text
           </label>
@@ -117,13 +117,13 @@ export default function MarqueeBannerManager() {
               disabled:opacity-50 disabled:cursor-not-allowed
               resize-none transition
             "
-            style={{ fontFamily: "var(--font-nunito)", focusRingColor: "#2E415133" }}
+            style={{ fontFamily: "var(--font-app)", focusRingColor: "#2E415133" }}
           />
           {/* char counter */}
           <div className="flex justify-end mt-1">
             <span
               className={`text-[11px] font-medium ${charCount >= MAX ? "text-red-400" : "text-gray-300"}`}
-              style={{ fontFamily: "var(--font-nunito)" }}
+              style={{ fontFamily: "var(--font-app)" }}
             >
               {charCount} / {MAX}
             </span>
@@ -141,7 +141,7 @@ export default function MarqueeBannerManager() {
               disabled:opacity-50 disabled:cursor-not-allowed
               transition-all duration-150
             "
-            style={{ backgroundColor: "#2E4151", fontFamily: "var(--font-nunito)" }}
+            style={{ backgroundColor: "#2E4151", fontFamily: "var(--font-app)" }}
           >
             {status === "saving" ? (
               <Loader2 size={14} strokeWidth={2} className="animate-spin" />
@@ -154,7 +154,7 @@ export default function MarqueeBannerManager() {
           {status === "ok" && (
             <span
               className="text-sm font-medium text-green-500"
-              style={{ fontFamily: "var(--font-nunito)" }}
+              style={{ fontFamily: "var(--font-app)" }}
             >
               ✓ Saved — users see the new text within 30 s
             </span>
@@ -162,7 +162,7 @@ export default function MarqueeBannerManager() {
           {status === "err" && (
             <span
               className="text-sm font-medium text-red-400"
-              style={{ fontFamily: "var(--font-nunito)" }}
+              style={{ fontFamily: "var(--font-app)" }}
             >
               ✗ Failed to save. Try again.
             </span>

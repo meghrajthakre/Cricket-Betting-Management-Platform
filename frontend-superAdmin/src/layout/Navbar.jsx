@@ -24,7 +24,7 @@ export default function Navbar({ onMenuClick }) {
         <span
           className="text-xl font-bold tracking-wide"
           style={{
-            fontFamily: "var(--font-nunito)",
+            fontFamily: "var(--font-app)",
             color: "var(--color-text-dark)",
           }}
         >
@@ -36,7 +36,7 @@ export default function Navbar({ onMenuClick }) {
       <div
         className="flex items-center gap-1.5 text-sm font-semibold"
         style={{
-          fontFamily: "var(--font-nunito)",
+          fontFamily: "var(--font-app)",
           color: "var(--color-text-dark)",
         }}
       >
