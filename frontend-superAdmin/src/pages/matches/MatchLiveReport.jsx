@@ -118,7 +118,17 @@ function buildSessionLadder(session, bets) {
 function SessionTable({ sessions, bets }) {
   const [selectedSessionId, setSelectedSessionId] = useState(null);
   const selectedSession = sessions.find((session) => session.id === selectedSessionId);
-  const selectedLadder = selectedSession ? buildSessionLadder(selectedSession, bets) : [];
+  const selectedSessionBets = selectedSession
+    ? bets.filter(
+        (bet) =>
+          bet.marketType === "session" &&
+          bet.marketId === selectedSession.id &&
+          bet.status === "pending"
+      )
+    : [];
+  const selectedLadder = selectedSessionBets.length
+    ? buildSessionLadder(selectedSession, bets)
+    : [];
 
   return (
     <section className="overflow-hidden rounded-lg border border-(--color-border) bg-white shadow-sm">
@@ -181,28 +191,101 @@ function SessionTable({ sessions, bets }) {
           <div className="mb-2 bg-(--color-primary) px-3 py-2 text-center text-xs font-bold text-white sm:text-sm">
             {selectedSession.sessionName} - Live Position
           </div>
-          <table className="w-full table-fixed border-collapse text-xs sm:text-sm">
-            <thead>
-              <tr>
-                <th className="bg-[#4c89a8] px-3 py-2 text-center text-white">RUN</th>
-                <th className="bg-[#4c89a8] px-3 py-2 text-center text-white">LIVE POSITION</th>
-              </tr>
-            </thead>
-            <tbody>
-              {selectedLadder.map((row) => (
-                <tr key={row.run}>
-                  <td className="border-2 border-gray-200 bg-white px-3 py-3 text-center font-semibold text-(--color-primary)">
-                    {row.run}
-                  </td>
-                  <td className="border-2 border-gray-200 bg-white px-3 py-3 text-center">
-                    <ProfitLoss value={row.position} />
-                  </td>
+          {!selectedSessionBets.length ? (
+            <div className="border border-(--color-border) bg-white px-4 py-8 text-center text-sm font-semibold text-gray-500">
+              Is session par koi bet nahi lagi hai.
+            </div>
+          ) : (
+            <table className="w-full table-fixed border-collapse text-xs sm:text-sm">
+              <thead>
+                <tr>
+                  <th className="bg-[#4c89a8] px-3 py-2 text-center text-white">RUN</th>
+                  <th className="bg-[#4c89a8] px-3 py-2 text-center text-white">LIVE POSITION</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {selectedLadder.map((row) => (
+                  <tr key={row.run}>
+                    <td className="border-2 border-gray-200 bg-white px-3 py-3 text-center font-semibold text-(--color-primary)">
+                      {row.run}
+                    </td>
+                    <td className="border-2 border-gray-200 bg-white px-3 py-3 text-center">
+                      <ProfitLoss value={row.position} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
+    </section>
+  );
+}
+
+function DeclaredSessionsTable({ sessions, bets }) {
+  const rows = sessions.map((session) => {
+    const sessionBets = bets.filter(
+      (bet) => bet.marketType === "session" && bet.marketId === session.id
+    );
+    const plusMinus = sessionBets.reduce((total, bet) => {
+      if (bet.status === "won") return total - Number(bet.profit || 0);
+      if (bet.status === "lost") return total + Number(bet.loss || 0);
+      return total;
+    }, 0);
+    return { ...session, plusMinus: Number(plusMinus.toFixed(2)) };
+  });
+  const total = rows.reduce((sum, session) => sum + session.plusMinus, 0);
+
+  if (!rows.length) return null;
+
+  return (
+    <section className="overflow-hidden rounded-lg border border-(--color-border) bg-white shadow-sm">
+      <div className="bg-(--color-banner) px-4 py-2 text-center text-sm font-bold text-white">
+        Declared Session
+      </div>
+      <div className="overflow-hidden">
+        <table className="w-full table-fixed border-collapse text-[9px] sm:text-sm">
+          <thead>
+            <tr>
+              <th className="w-[34%] bg-(--color-primary) px-1 py-3 text-center font-semibold text-white sm:px-3">SESSION</th>
+              <th className="w-[18%] bg-(--color-primary) px-1 py-3 text-center font-semibold text-white sm:px-3">RUN</th>
+              <th className="w-[20%] bg-(--color-primary) px-1 py-3 text-center font-semibold text-white sm:px-3">+/-</th>
+              <th className="w-[28%] bg-(--color-primary) px-1 py-3 text-center font-semibold text-white sm:px-3">SETTLED TIME</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((session) => (
+              <tr key={session.id}>
+                <td className="break-words border-2 border-gray-200 px-1 py-3 text-center font-semibold text-(--color-primary) sm:px-3">
+                  {session.sessionName}
+                </td>
+                <td className="border-2 border-gray-200 px-1 py-3 text-center font-semibold sm:px-3">
+                  {session.resultRun ?? "-"}
+                </td>
+                <td className="border-2 border-gray-200 px-1 py-3 text-center sm:px-3">
+                  <ProfitLoss value={session.plusMinus} />
+                </td>
+                <td className="break-words border-2 border-gray-200 px-1 py-3 text-center text-gray-600 sm:px-3">
+                  {session.settledAt
+                    ? new Date(session.settledAt).toLocaleString("en-IN")
+                    : "-"}
+                </td>
+              </tr>
+            ))}
+            <tr className="bg-gray-50">
+              <td className="border-2 border-gray-200 px-3 py-3" />
+              <td className="border-2 border-gray-200 px-3 py-3 text-center font-bold text-(--color-primary)">
+                Total
+              </td>
+              <td className="border-2 border-gray-200 px-3 py-3 text-center">
+                <ProfitLoss value={Number(total.toFixed(2))} />
+              </td>
+              <td className="border-2 border-gray-200 px-3 py-3" />
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }
@@ -343,7 +426,7 @@ export default function MatchLiveReport() {
     }
     if (sessionsResult.status === "fulfilled") {
       const rows = sessionsResult.value.data?.data?.sessions;
-      setSessions(Array.isArray(rows) ? rows.filter((session) => session.isVisible) : []);
+      setSessions(Array.isArray(rows) ? rows : []);
     }
     if (betsResult.status === "fulfilled") {
       setBets(Array.isArray(betsResult.value.data?.data) ? betsResult.value.data.data : []);
@@ -413,6 +496,21 @@ export default function MatchLiveReport() {
     return values;
   }, [bets, runners]);
 
+  const runningSessions = useMemo(
+    () => sessions.filter(
+      (session) => session.isVisible && session.resultStatus !== "settled" && session.status !== "closed"
+    ),
+    [sessions]
+  );
+  const declaredSessions = useMemo(
+    () => sessions.filter(
+      (session) => session.resultStatus === "settled" || (
+        session.status === "closed" && session.resultRun !== null && session.resultRun !== undefined
+      )
+    ),
+    [sessions]
+  );
+
   return (
     <div className="min-h-full bg-(--color-bg-main) px-3 py-5 text-(--color-text-dark) md:px-6">
       <div className="w-full space-y-4">
@@ -457,7 +555,8 @@ export default function MatchLiveReport() {
 
         <ScorePanel match={match} score={score} />
         <OddsTable runners={runners} positions={positions} />
-        <SessionTable sessions={sessions} bets={bets} />
+        <SessionTable sessions={runningSessions} bets={bets} />
+        <DeclaredSessionsTable sessions={declaredSessions} bets={bets} />
         <RecentLiveMatches
           matches={liveMatches}
           currentMatchId={matchId}
