@@ -231,17 +231,23 @@ function SessionTable({ sessions, bets }) {
 }
 
 function DeclaredSessionsTable({ sessions, bets }) {
-  const rows = sessions.map((session) => {
-    const sessionBets = bets.filter(
-      (bet) => bet.marketType === "session" && bet.marketId === session.id
+  const rows = sessions
+    .map((session) => {
+      const sessionBets = bets.filter(
+        (bet) => bet.marketType === "session" && bet.marketId === session.id
+      );
+      const plusMinus = sessionBets.reduce((total, bet) => {
+        if (bet.status === "won") return total - Number(bet.profit || 0);
+        if (bet.status === "lost") return total + Number(bet.loss || 0);
+        return total;
+      }, 0);
+      return { ...session, plusMinus: Number(plusMinus.toFixed(2)) };
+    })
+    .sort(
+      (a, b) =>
+        new Date(b.settledAt || 0).getTime() -
+        new Date(a.settledAt || 0).getTime()
     );
-    const plusMinus = sessionBets.reduce((total, bet) => {
-      if (bet.status === "won") return total - Number(bet.profit || 0);
-      if (bet.status === "lost") return total + Number(bet.loss || 0);
-      return total;
-    }, 0);
-    return { ...session, plusMinus: Number(plusMinus.toFixed(2)) };
-  });
   const total = rows.reduce((sum, session) => sum + session.plusMinus, 0);
 
   if (!rows.length) return null;
