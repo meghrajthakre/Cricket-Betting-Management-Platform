@@ -14,4 +14,35 @@ API.interceptors.request.use((config) => {
   return config;
 });
 
+let redirectingToLogin = false;
+
+API.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error.response?.status;
+    const requestUrl = error.config?.url || "";
+    const hadAccessToken = Boolean(localStorage.getItem(USER_ACCESS_TOKEN_KEY));
+    const isLoginRequest = requestUrl.includes("/auth/login");
+
+    if (
+      status === 401 &&
+      hadAccessToken &&
+      !isLoginRequest &&
+      !redirectingToLogin
+    ) {
+      redirectingToLogin = true;
+      localStorage.removeItem(USER_ACCESS_TOKEN_KEY);
+      localStorage.removeItem("token");
+      localStorage.removeItem("auth-store");
+      localStorage.removeItem("coin-store");
+
+      if (window.location.pathname !== "/login") {
+        window.location.replace("/login");
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 export default API;
