@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Clock, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import api from "../../constants/api";
+import Spinner from "../../components/common/Spinner";
 
 const formatDate = (value) => {
   if (!value) return "—";
@@ -100,6 +101,22 @@ export default function MatchesPage() {
     setSearch("");
   };
 
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] w-full flex-col items-center justify-center gap-4">
+        <Spinner size={48} variant="ocean" label="Matches loading" />
+        <div className="text-center">
+          <p className="text-sm font-semibold text-(--color-text-dark)">
+            Matches loading...
+          </p>
+          <p className="mt-1 text-xs text-gray-400">
+            Saved matches fetch ho rahe hain
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <section className="min-h-full text-[#555]">
       <header className="mb-7">
@@ -176,18 +193,7 @@ export default function MatchesPage() {
               </tr>
             </thead>
             <tbody>
-              {loading && (
-                <tr>
-                  <td
-                    colSpan={9}
-                    className="border border-[#dedede] px-4 py-12 text-center text-gray-500"
-                  >
-                    Saved matches loading...
-                  </td>
-                </tr>
-              )}
-
-              {!loading && error && (
+              {error && (
                 <tr>
                   <td
                     colSpan={9}
@@ -198,7 +204,7 @@ export default function MatchesPage() {
                 </tr>
               )}
 
-              {!loading && !error && filteredMatches.length === 0 && (
+              {!error && filteredMatches.length === 0 && (
                 <tr>
                   <td
                     colSpan={9}
@@ -211,8 +217,7 @@ export default function MatchesPage() {
                 </tr>
               )}
 
-              {!loading &&
-                !error &&
+              {!error &&
                 filteredMatches.map((match, index) => (
                   <tr
                     key={match._id || match.matchId}
