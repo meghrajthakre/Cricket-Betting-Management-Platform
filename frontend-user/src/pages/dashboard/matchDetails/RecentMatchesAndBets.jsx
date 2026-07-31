@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSavedMatches } from "../../../api/userService.js";
+import LoadingState from "./LoadingState.jsx";
 
 const money = (value) =>
     Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
@@ -8,6 +9,7 @@ const money = (value) =>
 export default function RecentMatchesAndBets({ matchId, bets, runners, sessions }) {
     const navigate = useNavigate();
     const [matches, setMatches] = useState([]);
+    const [openingMatchId, setOpeningMatchId] = useState(null);
 
     useEffect(() => {
         let active = true;
@@ -45,6 +47,16 @@ export default function RecentMatchesAndBets({ matchId, bets, runners, sessions 
 
     const matchBets = bets.filter((bet) => bet.marketType !== "session");
     const sessionBets = bets.filter((bet) => bet.marketType === "session");
+
+    const openRecentMatch = (recentMatchId) => {
+        if (openingMatchId) return;
+
+        setOpeningMatchId(recentMatchId);
+        window.setTimeout(() => {
+            navigate(`/match/${recentMatchId}`);
+            setOpeningMatchId(null);
+        }, 120);
+    };
 
     const renderBetGroup = (title, groupBets) => {
         const isSessionGroup = groupBets.some((bet) => bet.marketType === "session");
@@ -101,6 +113,12 @@ export default function RecentMatchesAndBets({ matchId, bets, runners, sessions 
 
     return (
         <div className="mt-3 space-y-3 pb-4">
+            {openingMatchId && (
+                <div className="fixed inset-0 z-[100] overflow-y-auto bg-[#E8EDF3]">
+                    <LoadingState />
+                </div>
+            )}
+
             {sessionBets.length > 0 && renderBetGroup("Session Bets", sessionBets)}
             {matchBets.length > 0 && renderBetGroup("Match Bets", matchBets)}
 
@@ -118,8 +136,9 @@ export default function RecentMatchesAndBets({ matchId, bets, runners, sessions 
                             <button
                                 key={match.matchId}
                                 type="button"
-                                onClick={() => navigate(`/match/${match.matchId}`)}
-                                className="w-full cursor-pointer px-3 py-3 text-center transition hover:bg-slate-50"
+                                onClick={() => openRecentMatch(match.matchId)}
+                                disabled={Boolean(openingMatchId)}
+                                className="w-full cursor-pointer px-3 py-3 text-center transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-70"
                             >
                                 <div className="min-w-0">
                                     <p className="break-words text-sm font-bold text-slate-900">
