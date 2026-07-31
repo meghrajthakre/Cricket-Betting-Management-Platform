@@ -1,24 +1,31 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MdSportsCricket } from 'react-icons/md';
+import {
+  RiInformationLine,
+  RiFileList3Line,
+  RiLockPasswordLine,
+  RiCalendarEventLine,
+  RiGamepadLine,
+  RiSettings3Line,
+  RiTrophyLine,
+} from 'react-icons/ri';
 
 const MENU_ITEMS = [
   { label: 'LIVE MATCH', icon: MdSportsCricket, key: 'live' },
-  { label: 'RULES', icon: 'ri-information-line', key: 'rules' },
-  { label: 'LEDGER', icon: 'ri-file-list-3-line', key: 'ledger' },
-  { label: 'PASSWORD', icon: 'ri-lock-password-line', key: 'password' },
-  { label: 'UPCOMING', icon: 'ri-calendar-event-line', key: 'upcoming' },
-  { label: 'ENTERTAINMENT', icon: 'ri-gamepad-line', key: 'entertainment' },
-  { label: 'SETTINGS', icon: 'ri-settings-3-line', key: 'settings' },
-  { label: 'TOURNAMENT', icon: 'ri-trophy-line', key: 'tournament' },
+  { label: 'RULES', icon: RiInformationLine, key: 'rules' },
+  { label: 'LEDGER', icon: RiFileList3Line, key: 'ledger' },
+  { label: 'PASSWORD', icon: RiLockPasswordLine, key: 'password' },
+  { label: 'UPCOMING', icon: RiCalendarEventLine, key: 'upcoming' },
+  { label: 'ENTERTAINMENT', icon: RiGamepadLine, key: 'entertainment' },
+  { label: 'SETTINGS', icon: RiSettings3Line, key: 'settings' },
+  { label: 'TOURNAMENT', icon: RiTrophyLine, key: 'tournament' },
 ];
 
 const UserDashboard = () => {
-
   const navigate = useNavigate();
 
   const go = (key) => {
-
     if (key !== 'logout') {
       navigate(`/dashboard/${key}`);
     }
@@ -26,30 +33,23 @@ const UserDashboard = () => {
 
   return (
     <div className="min-h-[calc(100dvh-5.5rem)] bg-(--color-bg-main) font-nunito sm:min-h-[calc(100dvh-6rem)]">
-
-
-
-
       <main className="flex justify-center px-3 pb-8 pt-10 sm:px-5 sm:pb-12 sm:pt-12">
-
-        <div className="max-w-[740px] mx-auto">
-
+        <div className="mx-auto max-w-[740px]">
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-7">
-
-            {MENU_ITEMS.map(({ label, icon: Icon, key }) => (
-
+            {MENU_ITEMS.map(({ label, icon: Icon, key }, i) => (
               <button
                 key={key}
                 onClick={() => go(key)}
+                style={{ animationDelay: `${i * 60}ms` }}
                 className="
-                  flex items-center justify-center gap-5 sm:gap-6
+                  flex items-center justify-center gap-4 sm:gap-5
                   px-4 sm:px-6 py-[14px] sm:py-[18px]
                   rounded-[50px]
                   border-2 border-(--color-btn-border)
                   bg-(--color-btn-bg)
                   text-(--color-text-muted)
                   font-rajdhani text-[15px] sm:text-[17px]
-                  font-bold tracking-widest uppercase
+                  font-bold tracking-widest uppercase leading-none
                   shadow-[0_8px_32px_rgba(0,0,0,0.18)]
                   cursor-pointer
                   transition-all duration-150
@@ -60,23 +60,16 @@ const UserDashboard = () => {
                   opacity-0 animate-fade-up
                 "
               >
-
-                {typeof Icon === 'string'
-                  ? <i className={`${Icon} text-[22px] sm:text-[26px]`} aria-hidden="true" />
-                  : <Icon className="text-[24px] sm:text-[28px]" aria-hidden="true" />}
-
-                {label}
-
+                <Icon
+                  className="shrink-0 text-[22px] sm:text-[26px]"
+                  aria-hidden="true"
+                />
+                <span className="leading-none">{label}</span>
               </button>
-
             ))}
-
           </div>
-
         </div>
-
       </main>
-
     </div>
   );
 };
