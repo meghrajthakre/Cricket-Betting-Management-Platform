@@ -4,6 +4,7 @@ import { Toaster } from "react-hot-toast";
 import {
   BetsTable,
   DeclaredSessionsTable,
+  LiveReportLoader,
   OddsTable,
   RecentLiveMatches,
   ScorePanel,
@@ -21,12 +22,21 @@ export default function MatchLiveReport() {
     bets,
     liveMatches,
     error,
+    isInitialLoading,
     positions,
     runningSessions,
     declaredSessions,
   } = useLiveReportData(matchId);
 
   const matchBets = bets.filter((bet) => bet.marketType === "match");
+
+  if (isInitialLoading) {
+    return (
+      <div className="min-h-full bg-(--color-bg-main) px-3 py-5 md:px-6">
+        <LiveReportLoader />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-full bg-(--color-bg-main) px-3 py-5 text-(--color-text-dark) md:px-6">

@@ -19,18 +19,30 @@ export function useLiveReportData(matchId) {
   const [bets, setBets] = useState([]);
   const [liveMatches, setLiveMatches] = useState([]);
   const [error, setError] = useState("");
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   const loadReport = useCallback(
-    async () => {
+    async ({ initial = false } = {}) => {
       if (!matchId) return;
+      if (initial) setIsInitialLoading(true);
 
-      const report = await fetchLiveReport(matchId);
-      if (report.match !== undefined) setMatch(report.match || null);
-      if (report.score !== undefined) setScore(report.score || null);
-      if (report.runners !== undefined) setRunners(report.runners);
-      if (report.sessions !== undefined) setSessions(report.sessions);
-      if (report.bets !== undefined) setBets(report.bets);
-      setError(report.betsError);
+      try {
+        const report = await fetchLiveReport(matchId);
+        if (report.match !== undefined) setMatch(report.match || null);
+        if (report.score !== undefined) setScore(report.score || null);
+        if (report.runners !== undefined) setRunners(report.runners);
+        if (report.sessions !== undefined) setSessions(report.sessions);
+        if (report.bets !== undefined) setBets(report.bets);
+        setError(report.betsError);
+      } catch (requestError) {
+        setError(
+          requestError.response?.data?.error ||
+            requestError.message ||
+            "Live report load nahi ho paaya."
+        );
+      } finally {
+        if (initial) setIsInitialLoading(false);
+      }
     },
     [matchId]
   );
@@ -40,7 +52,7 @@ export function useLiveReportData(matchId) {
   }, []);
 
   useEffect(() => {
-    const initialLoad = setTimeout(loadReport, 0);
+    const initialLoad = setTimeout(() => loadReport({ initial: true }), 0);
     const interval = setInterval(loadReport, REPORT_REFRESH_INTERVAL);
     return () => {
       clearTimeout(initialLoad);
@@ -76,6 +88,7 @@ export function useLiveReportData(matchId) {
     bets,
     liveMatches,
     error,
+    isInitialLoading,
     positions,
     runningSessions,
     declaredSessions,
