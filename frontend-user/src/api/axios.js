@@ -1,4 +1,6 @@
 import axios from "axios";
+import { useAuthStore } from "../store/authStore";
+import { useCoinStore } from "../store/coinStore";
 
 export const USER_ACCESS_TOKEN_KEY = "userAccessToken";
 
@@ -31,6 +33,8 @@ API.interceptors.response.use(
       !redirectingToLogin
     ) {
       redirectingToLogin = true;
+      useAuthStore.getState().logout();
+      useCoinStore.getState().setCoins(0);
       localStorage.removeItem(USER_ACCESS_TOKEN_KEY);
       localStorage.removeItem("token");
       localStorage.removeItem("auth-store");

@@ -3,10 +3,6 @@ import React, { useState } from 'react';
 const Rules = () => {
   const [language, setLanguage] = useState('hi');
 
-  const toggleLanguage = () => {
-    setLanguage(prev => prev === 'hi' ? 'en' : 'hi');
-  };
-
   // English translations
   const en = {
     title: 'NICE7777 Rules and Regulations',

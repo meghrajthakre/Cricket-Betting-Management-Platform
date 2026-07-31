@@ -20,7 +20,7 @@ function SessionRow({ session, onBet, sessionLocked }) {
                 marketLabel: "Session",
             });
         } else {
-            console.log(`Bet placed: ${sessionName} - ${type} @ ${rate}`);
+            console.log(`Bet placed: ${sessionName} - ${type} @ ${run}`);
         }
     };
 

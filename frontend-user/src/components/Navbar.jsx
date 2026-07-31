@@ -126,7 +126,9 @@ const Navbar = () => {
     const fetchBalance = async () => {
       try {
         const res = await getWalletBalance(user._id);
-        setCoins(res.data.data.balance);
+        if (localStorage.getItem("userAccessToken")) {
+          setCoins(res.data.data.balance);
+        }
       } catch {
         // silently fail — coins will stay as whatever is in the store
       }

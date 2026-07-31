@@ -21,9 +21,12 @@ export default function MarqueeBanner() {
   };
 
   useEffect(() => {
-    fetchBanner();
+    const initialTimer = setTimeout(fetchBanner, 0);
     timerRef.current = setInterval(fetchBanner, POLL_MS);
-    return () => clearInterval(timerRef.current);
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(timerRef.current);
+    };
   }, []);
 
   if (status === "error" || (status === "done" && !text)) return null;
