@@ -15,6 +15,7 @@ import { getMyBets, getWalletBalance, placeBet } from "../../../api/userService.
 import { useAuthStore } from "../../../store/authStore.js";
 import { useCoinStore } from "../../../store/coinStore.js";
 import RecentMatchesAndBets from "./RecentMatchesAndBets.jsx";
+import LiveTvPanel from "./LiveTvPanel.jsx";
 
 const MIN_BET_LOADER_MS = 500;
 
@@ -209,6 +210,8 @@ export default function MatchDetails() {
             {placingBet && <FullScreenBetLoader />}
             <BetResultModal result={betResult} onClose={() => setBetResult(null)} />
             <div className="max-w-4xl mx-auto px-2 py-2 ">
+                <LiveTvPanel />
+
                 <ScoreHeader
                     sseConnected={sseConnected}
                     matchId={matchId}
