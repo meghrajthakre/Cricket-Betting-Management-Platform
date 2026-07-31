@@ -77,9 +77,6 @@ function groupBallsByOver(balls) {
 }
 
 export default function ScoreHeader({
-    sseConnected,
-    matchId,
-    onRefresh,
     match,
     tossMessage = "",
     chaseBalls = 120,
@@ -97,8 +94,6 @@ export default function ScoreHeader({
     runs = 0,
     wickets = 0,
     overs = 0,
-    team1Score = "",
-    team2Score = "",
 }) {
     const containerRef = useRef(null);
     const prevBallsLength = useRef(0);
@@ -168,7 +163,7 @@ export default function ScoreHeader({
         const batting = isCurrentlyBatting(team);
 
         return (
-            <div className={`flex min-w-0 items-baseline gap-1.5 font-serif leading-tight ${
+            <div className={`flex min-w-0 items-baseline gap-1.5 font-sans leading-tight ${
                 batting ? "text-white" : "text-[#D6E4F5]"
             }`}>
                 <span className={`min-w-0 truncate font-bold ${
@@ -270,7 +265,7 @@ export default function ScoreHeader({
                     <div className="flex min-w-0 flex-col gap-2 sm:gap-2 lg:gap-2">
                         {renderTeamScore(match?.team1)}
                         {renderTeamScore(match?.team2)}
-                        <p className="truncate font-serif text-xs font-semibold leading-tight text-[#90B4D4] sm:text-sm md:text-base">
+                        <p className="truncate font-sans text-xs font-semibold leading-tight text-[#90B4D4] sm:text-sm md:text-base">
                             {getStatusMessage()}
                         </p>
                     </div>
@@ -279,7 +274,7 @@ export default function ScoreHeader({
                 {/* Right - Bet Status / Live Score Status */}
                 {/* Right - Bet Status / Live Score Status */}
                 <div className="flex w-[118px] shrink-0 items-center justify-center bg-[#1E3A5F] px-2 sm:w-[160px] sm:px-4 md:w-[190px] lg:w-[220px] lg:px-6">
-                    <div className="break-words text-center font-serif text-base font-bold leading-tight text-white sm:text-xl md:text-2xl lg:text-3xl">
+                    <div className="break-words text-center font-sans text-base font-bold leading-tight text-white sm:text-xl md:text-2xl lg:text-3xl">
                         {middleText.split(' ').map((word, i) => (
                             <React.Fragment key={i}>
                                 {word}
@@ -307,7 +302,7 @@ export default function ScoreHeader({
                     ) : (
                         overGroups.map((group, gIdx) => (
                             <React.Fragment key={`${group.over}-${gIdx}`}>
-                                <span className="text-white text-[10px] sm:text-lg font-bold font-serif shrink-0 grow-0">
+                                <span className="text-white text-[10px] sm:text-lg font-bold font-sans shrink-0 grow-0">
                                     Over {group.over + 1}
                                 </span>
                                 <span className="text-[#D6E4F5] shrink-0 grow-0">|</span>
@@ -317,7 +312,7 @@ export default function ScoreHeader({
                                 ))}
 
                                 <span className="text-white shrink-0 grow-0">-</span>
-                                <span className="text-white text-[10px] sm:text-lg font-bold font-serif shrink-0 grow-0">
+                                <span className="text-white text-[10px] sm:text-lg font-bold font-sans shrink-0 grow-0">
                                     {group.totalRuns} Runs
                                 </span>
 

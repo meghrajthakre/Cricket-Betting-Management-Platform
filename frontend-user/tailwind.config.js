@@ -28,8 +28,9 @@ export default {
 
       /* ── Typography ───────────────────────────────────────────────────── */
       fontFamily: {
-        display: ["'Rajdhani'", 'sans-serif'],   // headings, labels, buttons
-        body:    ["'Nunito'",   'sans-serif'],    // body text, inputs
+        sans:    ["'Inter'", 'sans-serif'],
+        display: ["'Inter'", 'sans-serif'],
+        body:    ["'Inter'", 'sans-serif'],
       },
 
       /* ── Box shadows ──────────────────────────────────────────────────── */

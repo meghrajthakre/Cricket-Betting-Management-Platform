@@ -83,7 +83,7 @@ const CoinIcon = () => (
         y="33"
         textAnchor="middle"
         dominantBaseline="central"
-        fontFamily="Georgia, serif"
+        fontFamily="Inter, sans-serif"
         fontWeight="800"
         fontSize="22"
         fill="#7A5C00"
