@@ -47,9 +47,14 @@ export default function RecentMatchesAndBets({ matchId, bets, runners, sessions 
     const sessionBets = bets.filter((bet) => bet.marketType === "session");
 
     const renderBetGroup = (title, groupBets) => {
+        const isSessionGroup = groupBets.some((bet) => bet.marketType === "session");
+        const gridClass = isSessionGroup
+            ? "grid-cols-[minmax(0,2fr)_0.8fr_1fr_0.7fr_0.7fr]"
+            : "grid-cols-[minmax(0,2fr)_0.8fr_1fr_0.7fr]";
+
         return (
-            <section className="overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm">
-                <div className="bg-[#12304b] px-3 py-2 text-sm font-extrabold uppercase tracking-wide text-white">
+            <section className="mx-auto w-full max-w-2xl overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm">
+                <div className="bg-[#12304b] px-3 py-2 text-center text-sm font-extrabold uppercase tracking-wide text-white">
                     {title} ({groupBets.length})
                 </div>
 
@@ -58,39 +63,36 @@ export default function RecentMatchesAndBets({ matchId, bets, runners, sessions 
                         Koi {title.toLowerCase()} nahi hai.
                     </p>
                 ) : (
-                    <div className="divide-y divide-slate-200">
+                    <div>
+                        <div className={`grid ${gridClass} items-center gap-1 border-b border-slate-300 bg-slate-100 px-2 py-2 text-center text-[10px] font-bold uppercase text-slate-600 sm:px-3 sm:text-xs`}>
+                            <span className="text-left">Market</span>
+                            <span>Side</span>
+                            <span>Amount</span>
+                            <span>{isSessionGroup ? "Run" : "Rate"}</span>
+                            {isSessionGroup && <span>Rate</span>}
+                        </div>
+                        <div className="divide-y divide-slate-200">
                         {groupBets.map((bet) => (
-                            <div key={bet._id} className="px-3 py-3 text-xs text-slate-700">
-                                <p className="break-words font-bold text-slate-900">
+                            <div
+                                key={bet._id}
+                                className={`grid ${gridClass} items-center gap-1 px-2 py-3 text-center text-[11px] text-slate-700 sm:px-3 sm:text-xs`}
+                            >
+                                <p className="min-w-0 break-words pr-1 text-left font-bold text-slate-900">
                                     {marketNames[String(bet.marketId)] || bet.marketId}
                                 </p>
-                                <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
-                                    <span className="font-semibold text-slate-600">
-                                        {bet.type === "yes" ? "YES / LAGAI" : "NO / KHAI"}
-                                    </span>
-                                    <span>Amount: <strong className="text-slate-900">{money(bet.amount)}</strong></span>
-                                    <span className="col-span-2 sm:col-span-1">
-                                        {bet.marketType === "session" ? "Run" : "Rate"}:{" "}
-                                        <strong className="text-slate-900">
-                                            {bet.marketType === "session" ? bet.sessionRun ?? bet.rate : bet.rate}
-                                        </strong>
-                                    </span>
-                                    {bet.marketType === "session" && (
-                                        <span>Rate: <strong className="text-slate-900">{bet.sessionRate}</strong></span>
-                                    )}
-                                </div>
-                                {bet.status === "won" && (
-                                    <div className="mt-2 rounded bg-emerald-50 px-2 py-1.5 font-extrabold text-emerald-700">
-                                        Profit: +{money(bet.profit)}
-                                    </div>
-                                )}
-                                {bet.status === "lost" && (
-                                    <div className="mt-2 rounded bg-red-50 px-2 py-1.5 font-extrabold text-red-700">
-                                        Loss: -{money(bet.loss)}
-                                    </div>
+                                <span className="font-semibold text-slate-700">
+                                    {bet.type === "yes" ? "LAGAI" : "KHAI"}
+                                </span>
+                                <strong className="text-slate-900">{money(bet.amount)}</strong>
+                                <strong className="text-slate-900">
+                                    {bet.marketType === "session" ? bet.sessionRun ?? bet.rate : bet.rate}
+                                </strong>
+                                {isSessionGroup && (
+                                    <strong className="text-slate-900">{bet.sessionRate ?? "-"}</strong>
                                 )}
                             </div>
                         ))}
+                        </div>
                     </div>
                 )}
             </section>
