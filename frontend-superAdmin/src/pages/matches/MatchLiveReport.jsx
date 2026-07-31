@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
+import Spinner from "../../components/common/Spinner";
 import {
   BetsTable,
   DeclaredSessionsTable,
@@ -23,9 +24,11 @@ export default function MatchLiveReport() {
     liveMatches,
     error,
     isInitialLoading,
+    isBetsLoading,
     positions,
     runningSessions,
     declaredSessions,
+    refreshBets,
   } = useLiveReportData(matchId);
 
   const matchBets = bets.filter((bet) => bet.marketType === "match");
@@ -64,13 +67,34 @@ export default function MatchLiveReport() {
 
         <button
           type="button"
-          onClick={() => setShowMatchBets((visible) => !visible)}
-          className="w-full cursor-pointer rounded-lg bg-(--color-btn-bg) px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-(--color-btn-hover)"
+          onClick={async () => {
+            if (showMatchBets) {
+              setShowMatchBets(false);
+              return;
+            }
+            setShowMatchBets(true);
+            await refreshBets();
+          }}
+          disabled={isBetsLoading}
+          className="flex min-h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-(--color-btn-bg) px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-(--color-btn-hover) disabled:cursor-wait disabled:opacity-80"
         >
-          {showMatchBets ? "Hide All Bets" : "Show All Bets"}
+          {isBetsLoading ? (
+            <>
+              <Spinner
+                size={18}
+                variant="neon"
+                label="Bets loading"
+              />
+              Loading Bets...
+            </>
+          ) : showMatchBets ? (
+            "Hide All Bets"
+          ) : (
+            "Show All Bets"
+          )}
         </button>
 
-        {showMatchBets && <BetsTable bets={matchBets} />}
+        {showMatchBets && !isBetsLoading && <BetsTable bets={matchBets} />}
       </div>
     </div>
   );

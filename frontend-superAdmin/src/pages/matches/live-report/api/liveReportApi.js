@@ -67,3 +67,8 @@ export async function fetchRecentMatches() {
       new Date(a.commenceTime || 0).getTime()
   );
 }
+
+export async function fetchMatchBets(matchId) {
+  const response = await api.get("/bet/match", { params: { matchId } });
+  return Array.isArray(response.data?.data) ? response.data.data : [];
+}

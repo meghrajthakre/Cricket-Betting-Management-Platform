@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  fetchMatchBets,
   fetchLiveReport,
   fetchRecentMatches,
 } from "../api/liveReportApi";
@@ -20,6 +21,7 @@ export function useLiveReportData(matchId) {
   const [liveMatches, setLiveMatches] = useState([]);
   const [error, setError] = useState("");
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isBetsLoading, setIsBetsLoading] = useState(false);
 
   const loadReport = useCallback(
     async ({ initial = false } = {}) => {
@@ -50,6 +52,23 @@ export function useLiveReportData(matchId) {
   const loadRecentMatches = useCallback(async () => {
     setLiveMatches(await fetchRecentMatches());
   }, []);
+
+  const loadBets = useCallback(async () => {
+    if (!matchId || isBetsLoading) return;
+    setIsBetsLoading(true);
+    try {
+      setBets(await fetchMatchBets(matchId));
+      setError("");
+    } catch (requestError) {
+      setError(
+        requestError.response?.data?.error ||
+          requestError.message ||
+          "Live bets load nahi ho paaye."
+      );
+    } finally {
+      setIsBetsLoading(false);
+    }
+  }, [isBetsLoading, matchId]);
 
   useEffect(() => {
     const initialLoad = setTimeout(() => loadReport({ initial: true }), 0);
@@ -89,9 +108,11 @@ export function useLiveReportData(matchId) {
     liveMatches,
     error,
     isInitialLoading,
+    isBetsLoading,
     positions,
     runningSessions,
     declaredSessions,
     refresh: loadReport,
+    refreshBets: loadBets,
   };
 }
