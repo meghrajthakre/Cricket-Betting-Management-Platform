@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { getBanner, updateBanner } from "../services/userService"; // adjust path if needed
+import Spinner from "../components/common/Spinner";
 
 const DEFAULT_SETTINGS = {
   entryFee: 10,
@@ -169,10 +170,7 @@ function MarqueeBannerManager() {
             style={{ backgroundColor: "#2E4151" }}
           >
             {status === "saving" ? (
-              <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24"
-                fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M21 12a9 9 0 11-6.219-8.56" />
-              </svg>
+              <Spinner size={14} variant="neon" label="Banner saving" />
             ) : (
               <Icon d="M20 6L9 17l-5-5" size={14} />
             )}
@@ -248,10 +246,7 @@ function EditSettingsForm({ settings, onBack, onSave }) {
                   transition-all shadow-sm hover:shadow-md active:scale-95">
                 {loading ? (
                   <>
-                    <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24"
-                      fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <path d="M21 12a9 9 0 11-6.219-8.56" />
-                    </svg>
+                    <Spinner size={14} variant="neon" label="Settings saving" />
                     Saving…
                   </>
                 ) : (

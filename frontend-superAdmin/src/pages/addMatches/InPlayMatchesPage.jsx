@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import Spinner from "../../components/common/Spinner";
 
 const API_BASE ="http://localhost:5000"; // Adjust if your backend runs on a different port
 const STORAGE_KEY = "savedMatchIds";
@@ -254,8 +255,11 @@ export default function InPlayMatchesPage() {
                             <button
                               onClick={() => handleAdd(m.id)}
                               disabled={saving === m.id}
-                              className="bg-teal-500 hover:bg-teal-600 disabled:bg-teal-300 disabled:cursor-not-allowed text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition-colors min-w-[72px] text-center"
+                              className="inline-flex min-w-[72px] items-center justify-center gap-1.5 rounded-lg bg-teal-500 px-4 py-1.5 text-center text-xs font-semibold text-white transition-colors hover:bg-teal-600 disabled:cursor-wait disabled:bg-teal-300"
                             >
+                              {saving === m.id && (
+                                <Spinner size={13} variant="neon" label="Match saving" />
+                              )}
                               {saving === m.id ? "Saving…" : "Add"}
                             </button>
                           )}

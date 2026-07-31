@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import api from "../../constants/api";
+import Spinner from "../../components/common/Spinner";
 
 const reportButtons = [
   { label: "Bet Slips" },
@@ -64,6 +65,22 @@ export default function MatchDashboard() {
       ]
     : [];
 
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] w-full flex-col items-center justify-center gap-4">
+        <Spinner size={48} variant="ocean" label="Match dashboard loading" />
+        <div className="text-center">
+          <p className="text-sm font-semibold text-(--color-text-dark)">
+            Match dashboard loading...
+          </p>
+          <p className="mt-1 text-xs text-gray-400">
+            Match markets fetch ho rahe hain
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <section className="min-h-full text-[#555]">
       <header className="mb-7">
@@ -79,7 +96,7 @@ export default function MatchDashboard() {
           </Link>
           <span className="text-gray-300">/</span>
           <span className="max-w-[75vw] truncate font-bold" title={title}>
-            {loading ? "Loading..." : title}
+            {title}
           </span>
         </nav>
       </header>
@@ -138,14 +155,7 @@ export default function MatchDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan={4} className="px-3 py-8 text-center">
-                        Match markets loading...
-                      </td>
-                    </tr>
-                  ) : (
-                    marketRows.map((market) => (
+                  {marketRows.map((market) => (
                       <tr key={market.marketId} className="hover:bg-[#f6fbfb]">
                         <td className="border-b border-[#e5e5e5] px-3 py-3">
                           {market.id}
@@ -160,8 +170,7 @@ export default function MatchDashboard() {
                           {market.runners || "—"}
                         </td>
                       </tr>
-                    ))
-                  )}
+                    ))}
                 </tbody>
               </table>
             </div>
