@@ -39,7 +39,7 @@ export default function MatchLiveReport() {
   }
 
   return (
-    <div className="min-h-full bg-(--color-bg-main) px-3 py-5 text-(--color-text-dark) md:px-6">
+    <div className="min-h-full bg-(--color-bg-main) p-2 text-(--color-text-dark) md:px-6">
       <Toaster position="top-center" />
       <div className="w-full space-y-4">
         {error && (
