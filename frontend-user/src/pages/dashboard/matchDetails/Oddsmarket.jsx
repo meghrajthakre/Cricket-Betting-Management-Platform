@@ -59,7 +59,7 @@ export default function OddsMarket({
 }) {
     return (
         <div className="bg-white mt-2 rounded shadow-sm overflow-hidden">
-            <div className="grid grid-cols-4 bg-[#1E3A5F] px-3 py-1.5 font-sans text-xs font-bold tracking-wide text-white">
+            <div className="grid grid-cols-[minmax(0,1.8fr)_minmax(3.5rem,1fr)_minmax(3.5rem,1fr)_minmax(3.75rem,1fr)] bg-[#1E3A5F] px-2 py-1.5 font-sans text-[10px] font-bold tracking-wide text-white sm:px-3 sm:text-xs">
                 <div>RUNNER</div>
                 <div className="text-center">LAGAI</div>
                 <div className="text-center">KHAI</div>
@@ -87,9 +87,9 @@ export default function OddsMarket({
                 teamNames.filter(Boolean).map((teamName) => (
                     <div
                         key={teamName}
-                        className="grid grid-cols-4 items-center px-3 py-2 border-b border-[#CDD9E5] last:border-0"
+                        className="grid grid-cols-[minmax(0,1.8fr)_minmax(3.5rem,1fr)_minmax(3.5rem,1fr)_minmax(3.75rem,1fr)] items-center border-b border-[#CDD9E5] px-2 py-2 last:border-0 sm:px-3"
                     >
-                        <div className="text-sm font-semibold text-[#1A2B3C]">
+                        <div className="min-w-0 break-words pr-1 text-xs font-semibold leading-tight text-[#1A2B3C] sm:text-sm">
                             {teamName}
                         </div>
                         <div className="px-1">
@@ -119,9 +119,9 @@ export default function OddsMarket({
                     return (
                         <div
                             key={r.runnerId || r.runnerName || index}
-                            className="grid grid-cols-4 items-center px-3 py-2 border-b border-[#CDD9E5] last:border-0"
+                            className="grid grid-cols-[minmax(0,1.8fr)_minmax(3.5rem,1fr)_minmax(3.5rem,1fr)_minmax(3.75rem,1fr)] items-center border-b border-[#CDD9E5] px-2 py-2 last:border-0 sm:px-3"
                         >
-                            <div className="text-sm font-semibold text-[#1A2B3C]">
+                            <div className="min-w-0 break-words pr-1 text-xs font-semibold leading-tight text-[#1A2B3C] sm:text-sm">
                                 {r.runnerName}
                             </div>
                             <div className="px-1">
