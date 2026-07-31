@@ -59,7 +59,7 @@ export default function OddsMarket({
 }) {
     return (
         <div className="bg-white mt-2 rounded shadow-sm overflow-hidden">
-            <div className="grid grid-cols-4 bg-[#1E3A5F] text-white text-xs font-bold font-rajdhani px-3 py-1.5 tracking-wider">
+            <div className="grid grid-cols-4 bg-[#1E3A5F] px-3 py-1.5 font-sans text-xs font-bold tracking-wide text-white">
                 <div>RUNNER</div>
                 <div className="text-center">LAGAI</div>
                 <div className="text-center">KHAI</div>
@@ -78,7 +78,7 @@ export default function OddsMarket({
             )}
 
             {Number(maxBet) > 0 && (
-                <div className="border-b border-[#CDD9E5] bg-white px-3 py-1 text-right text-[11px] font-semibold text-[#60758A]">
+                <div className="border-b border-[#CDD9E5] bg-white px-3 py-1 text-right text-xs font-semibold text-[#60758A]">
                     Max match bet: {Number(maxBet).toLocaleString("en-IN")}
                 </div>
             )}

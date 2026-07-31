@@ -45,7 +45,7 @@ function BallChip({ ball }) {
                 w-6 h-6 sm:w-9 sm:h-9 md:w-10 md:h-10 lg:w-11 lg:h-11
                 min-w-6 min-h-6 sm:min-w-9 sm:min-h-9 md:min-w-10 md:min-h-10 lg:min-w-11 lg:min-h-11
                 rounded-full border sm:border-2
-                text-[10px] sm:text-sm lg:text-base font-bold font-rajdhani leading-none ${getStyle()}`}
+                text-xs sm:text-sm font-bold font-sans leading-none ${getStyle()}`}
             title={ball.label}
         >
             {getShortLabel(ball)}
@@ -167,13 +167,13 @@ export default function ScoreHeader({
                 batting ? "text-white" : "text-[#D6E4F5]"
             }`}>
                 <span className={`min-w-0 truncate font-bold ${
-                    batting ? "text-sm sm:text-base md:text-lg lg:text-xl" : "text-[13px] sm:text-sm md:text-base lg:text-lg"
+                    batting ? "text-sm sm:text-base" : "text-sm sm:text-base"
                 }`}>
                     {team}
                 </span>
                 {score && (
                     <span className={`shrink-0 font-extrabold ${
-                        batting ? "text-lg sm:text-xl md:text-2xl lg:text-3xl" : "text-sm sm:text-base md:text-lg lg:text-xl"
+                        batting ? "text-base sm:text-lg" : "text-sm sm:text-base"
                     }`}>
                         {score}
                     </span>
@@ -265,7 +265,7 @@ export default function ScoreHeader({
                     <div className="flex min-w-0 flex-col gap-2 sm:gap-2 lg:gap-2">
                         {renderTeamScore(match?.team1)}
                         {renderTeamScore(match?.team2)}
-                        <p className="truncate font-sans text-xs font-semibold leading-tight text-[#90B4D4] sm:text-sm md:text-base">
+                        <p className="truncate font-sans text-xs font-semibold leading-tight text-[#90B4D4] sm:text-sm">
                             {getStatusMessage()}
                         </p>
                     </div>
@@ -274,7 +274,7 @@ export default function ScoreHeader({
                 {/* Right - Bet Status / Live Score Status */}
                 {/* Right - Bet Status / Live Score Status */}
                 <div className="flex w-[118px] shrink-0 items-center justify-center bg-[#1E3A5F] px-2 sm:w-[160px] sm:px-4 md:w-[190px] lg:w-[220px] lg:px-6">
-                    <div className="break-words text-center font-sans text-base font-bold leading-tight text-white sm:text-xl md:text-2xl lg:text-3xl">
+                    <div className="break-words text-center font-sans text-base font-bold leading-tight text-white sm:text-lg">
                         {middleText.split(' ').map((word, i) => (
                             <React.Fragment key={i}>
                                 {word}
@@ -296,13 +296,13 @@ export default function ScoreHeader({
                     }}
                 >
                     {overGroups.length === 0 ? (
-                        <span className="text-white/70 text-[11px] sm:text-sm px-1">
+                        <span className="px-1 text-xs text-white/70 sm:text-sm">
                             No balls bowled yet
                         </span>
                     ) : (
                         overGroups.map((group, gIdx) => (
                             <React.Fragment key={`${group.over}-${gIdx}`}>
-                                <span className="text-white text-[10px] sm:text-lg font-bold font-sans shrink-0 grow-0">
+                                <span className="shrink-0 grow-0 font-sans text-xs font-bold text-white sm:text-sm">
                                     Over {group.over + 1}
                                 </span>
                                 <span className="text-[#D6E4F5] shrink-0 grow-0">|</span>
@@ -312,7 +312,7 @@ export default function ScoreHeader({
                                 ))}
 
                                 <span className="text-white shrink-0 grow-0">-</span>
-                                <span className="text-white text-[10px] sm:text-lg font-bold font-sans shrink-0 grow-0">
+                                <span className="shrink-0 grow-0 font-sans text-xs font-bold text-white sm:text-sm">
                                     {group.totalRuns} Runs
                                 </span>
 

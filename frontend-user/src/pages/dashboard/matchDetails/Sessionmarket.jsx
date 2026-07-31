@@ -26,7 +26,7 @@ function SessionRow({ session, onBet, sessionLocked }) {
 
     return (
         <tr className="border-b border-[#CDD9E5] last:border-0">
-            <td className="py-2 px-3 text-sm font-semibold text-[#1A2B3C] font-nunito w-[45%]">
+            <td className="w-[45%] px-3 py-2 font-sans text-sm font-semibold text-[#1A2B3C]">
                 {sessionName}
             </td>
             <td className="py-2 px-1 w-[22%] relative">
@@ -35,7 +35,7 @@ function SessionRow({ session, onBet, sessionLocked }) {
                     disabled={bettingDisabled}
                     className="w-full min-h-11 bg-[#a8cce8] hover:bg-[#7fb3d9] rounded text-center cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:brightness-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
-                    <div className="text-base font-bold text-[#1A2B3C] font-rajdhani leading-tight pt-1">
+                    <div className="pt-1 font-sans text-sm font-bold leading-tight text-[#1A2B3C]">
                         {isSuspended ? 0 : noRun}
                     </div>
                     <div className="text-xs text-[#2B4A7A] pb-1">
@@ -49,7 +49,7 @@ function SessionRow({ session, onBet, sessionLocked }) {
                     disabled={bettingDisabled}
                     className="w-full min-h-11 bg-[#f5c99a] hover:bg-[#f0b87a] rounded text-center cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:brightness-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
-                    <div className="text-base font-bold text-[#1A2B3C] font-rajdhani leading-tight pt-1">
+                    <div className="pt-1 font-sans text-sm font-bold leading-tight text-[#1A2B3C]">
                         {isSuspended ? 0 : yesRun}
                     </div>
                     <div className="text-xs text-[#7A4A2B] pb-1">
@@ -96,12 +96,12 @@ export default function SessionMarket({ sessions, settings, onPlaceBet, maxBet, 
     return (
         <div className="bg-white mt-2 rounded shadow-sm overflow-hidden">
             {Number(maxBet) > 0 && (
-                <div className="border-b border-[#CDD9E5] bg-white px-3 py-1 text-right text-[11px] font-semibold text-[#60758A]">
+                <div className="border-b border-[#CDD9E5] bg-white px-3 py-1 text-right text-xs font-semibold text-[#60758A]">
                     Max session bet: {Number(maxBet).toLocaleString("en-IN")}
                 </div>
             )}
 
-            <div className="grid grid-cols-[45%_22%_22%_11%] bg-[#1E3A5F] text-white text-xs font-bold font-rajdhani px-3 py-1 tracking-wider">
+            <div className="grid grid-cols-[45%_22%_22%_11%] bg-[#1E3A5F] px-3 py-1 font-sans text-xs font-bold tracking-wide text-white">
                 <div>SESSION</div>
                 <div className="text-center">
                     <div>No</div>
