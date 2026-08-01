@@ -22,22 +22,10 @@ const sessionRoutes = require("./modules/session/session.routes");
 const app = express();
 app.set("trust proxy", 1);
 
-const allowedOrigins = [
-  "http://localhost:5173",
-  "http://localhost:5174",
-  "http://localhost:5175",
-  "https://firstfreelance-project.vercel.app",
-  "https://superadmin-phi-eight.vercel.app",
-  "https://firstfreelance-project-4uv9.vercel.app",
-  "firstfreelance-project-jsft8o6fm-meghrajthakres-projects.vercel.app",
-  "https://superadmin-oy4sv2xkd-meghrajthakres-projects.vercel.app",
-].filter(Boolean);
-
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error(`CORS policy: origin '${origin}' is not allowed`));
-  },
+  // Temporary: reflect every requesting origin so credentialed requests work.
+  // Replace this with an explicit production allowlist before deployment.
+  origin: true,
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: [
