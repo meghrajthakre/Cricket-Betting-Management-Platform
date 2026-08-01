@@ -28,8 +28,8 @@ export const logoutUser = async () => {
   }
 };
 
-export const getMe = () =>
-  api.get("/auth/me").then((r) => r.data);
+export const getMe = (signal) =>
+  api.get("/auth/me", { signal }).then((r) => r.data);
 
 // ── Users (superadmin) ────────────────────────────────────────────────────────
 

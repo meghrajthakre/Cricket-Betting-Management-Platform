@@ -11,6 +11,7 @@ import {
   UserPlus,
   ChevronRight,
 } from "lucide-react";
+import { logoutUser } from "../services/userService";
 
 const NAV_ITEMS = [
   { label: "Dashboard",         to: "/superadmin/dashboard",         icon: LayoutDashboard },
@@ -83,9 +84,13 @@ function NavItem({ label, icon: Icon, isActive, onClick }) {
 export default function Sidebar({ isOpen, onClose }) {
   const navigate = useNavigate();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     onClose();
-    navigate("/login");
+    try {
+      await logoutUser();
+    } finally {
+      navigate("/login", { replace: true });
+    }
   };
 
   return (

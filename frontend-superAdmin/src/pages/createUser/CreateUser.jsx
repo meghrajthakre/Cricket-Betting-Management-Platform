@@ -3,7 +3,6 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 import Spinner from "../../components/common/Spinner";
 import { createUser } from "../../services/userService";
-import { creditWallet } from "../../services/walletService";
 
 const EMPTY_FORM = { firstName: "", password: "", confirmPassword: "", coins: "" };
 const inputClassName = "w-full rounded-xl border border-(--color-border) bg-slate-50 px-4 py-2.5 text-sm text-(--color-text-dark) outline-none transition focus:border-(--color-banner) focus:bg-white focus:ring-3 focus:ring-blue-100";
@@ -29,8 +28,7 @@ export default function CreateUser({ onCancel, onSuccess }) {
 
     setLoading(true);
     try {
-      const response = await createUser({ firstName: form.firstName.trim(), password: form.password, confirmPassword: form.confirmPassword, coins: 0 });
-      if (coins > 0) await creditWallet(response.data._id, coins);
+      await createUser({ firstName: form.firstName.trim(), password: form.password, confirmPassword: form.confirmPassword, coins });
       toast.success("User created successfully");
       setForm(EMPTY_FORM);
       onSuccess();

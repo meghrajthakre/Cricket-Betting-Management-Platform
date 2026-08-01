@@ -3,15 +3,15 @@ import api from "../../../../constants/api";
 const fulfilledData = (result) =>
   result.status === "fulfilled" ? result.value.data : undefined;
 
-export async function fetchLiveReport(matchId) {
+export async function fetchLiveReport(matchId, signal) {
   const encodedMatchId = encodeURIComponent(matchId);
   const [matchResult, scoreResult, runnersResult, sessionsResult, betsResult] =
     await Promise.allSettled([
-      api.get(`/matches/saved/${encodedMatchId}`),
-      api.get(`/manual/score/${encodedMatchId}`),
-      api.get(`/manual/state/${encodedMatchId}`),
-      api.get(`/session/${encodedMatchId}`),
-      api.get("/bet/match", { params: { matchId } }),
+      api.get(`/matches/saved/${encodedMatchId}`, { signal }),
+      api.get(`/manual/score/${encodedMatchId}`, { signal }),
+      api.get(`/manual/state/${encodedMatchId}`, { signal }),
+      api.get(`/session/${encodedMatchId}`, { signal }),
+      api.get("/bet/match", { params: { matchId }, signal }),
     ]);
 
   const matchData = fulfilledData(matchResult);
@@ -43,10 +43,10 @@ export async function fetchLiveReport(matchId) {
   };
 }
 
-export async function fetchRecentMatches() {
+export async function fetchRecentMatches(signal) {
   const [liveResult, savedResult] = await Promise.allSettled([
-    api.get("/cricket/live"),
-    api.get("/matches/saved"),
+    api.get("/cricket/live", { signal }),
+    api.get("/matches/saved", { signal }),
   ]);
 
   const liveData = fulfilledData(liveResult);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchMatchBets,
   fetchLiveReport,
@@ -22,14 +22,17 @@ export function useLiveReportData(matchId) {
   const [error, setError] = useState("");
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isBetsLoading, setIsBetsLoading] = useState(false);
+  const reportRequestRef = useRef(false);
+  const recentRequestRef = useRef(false);
 
   const loadReport = useCallback(
-    async ({ initial = false } = {}) => {
-      if (!matchId) return;
+    async ({ initial = false, signal } = {}) => {
+      if (!matchId || reportRequestRef.current || document.hidden) return;
+      reportRequestRef.current = true;
       if (initial) setIsInitialLoading(true);
 
       try {
-        const report = await fetchLiveReport(matchId);
+        const report = await fetchLiveReport(matchId, signal);
         if (report.match !== undefined) setMatch(report.match || null);
         if (report.score !== undefined) setScore(report.score || null);
         if (report.runners !== undefined) setRunners(report.runners);
@@ -37,20 +40,28 @@ export function useLiveReportData(matchId) {
         if (report.bets !== undefined) setBets(report.bets);
         setError(report.betsError);
       } catch (requestError) {
+        if (requestError.code === "ERR_CANCELED") return;
         setError(
           requestError.response?.data?.error ||
             requestError.message ||
             "Live report load nahi ho paaya."
         );
       } finally {
+        reportRequestRef.current = false;
         if (initial) setIsInitialLoading(false);
       }
     },
     [matchId]
   );
 
-  const loadRecentMatches = useCallback(async () => {
-    setLiveMatches(await fetchRecentMatches());
+  const loadRecentMatches = useCallback(async (signal) => {
+    if (recentRequestRef.current || document.hidden) return;
+    recentRequestRef.current = true;
+    try {
+      setLiveMatches(await fetchRecentMatches(signal));
+    } finally {
+      recentRequestRef.current = false;
+    }
   }, []);
 
   const loadBets = useCallback(async () => {
@@ -71,21 +82,31 @@ export function useLiveReportData(matchId) {
   }, [isBetsLoading, matchId]);
 
   useEffect(() => {
-    const initialLoad = setTimeout(() => loadReport({ initial: true }), 0);
-    const interval = setInterval(loadReport, REPORT_REFRESH_INTERVAL);
+    const controller = new AbortController();
+    const initialLoad = setTimeout(
+      () => loadReport({ initial: true, signal: controller.signal }),
+      0
+    );
+    const interval = setInterval(
+      () => loadReport({ signal: controller.signal }),
+      REPORT_REFRESH_INTERVAL
+    );
     return () => {
+      controller.abort();
       clearTimeout(initialLoad);
       clearInterval(interval);
     };
   }, [loadReport]);
 
   useEffect(() => {
-    const initialLoad = setTimeout(loadRecentMatches, 0);
+    const controller = new AbortController();
+    const initialLoad = setTimeout(() => loadRecentMatches(controller.signal), 0);
     const interval = setInterval(
-      loadRecentMatches,
+      () => loadRecentMatches(controller.signal),
       RECENT_MATCHES_REFRESH_INTERVAL
     );
     return () => {
+      controller.abort();
       clearTimeout(initialLoad);
       clearInterval(interval);
     };
