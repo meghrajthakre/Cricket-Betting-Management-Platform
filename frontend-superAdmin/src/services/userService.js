@@ -56,6 +56,3 @@ export const changeUserPassword = (id, password, confirmPassword) =>
     .patch(`/superadmin/users/${id}/password`, { password, confirmPassword })
     .then((r) => r.data);
 
-export const getBanner    = () => api.get("/banner").then((r) => r.data);
-
-export const updateBanner = (text) => api.put("/banner", { text }).then((r) => r.data);

@@ -4,8 +4,8 @@ import Layout from "../layout/Layout";
 import Dashboard from "../pages/Dashboard";
 import AdminsPage from "../pages/AdminPages/AdminsPage";
 import CollectionReport from "../pages/CollectionReport";
-import SuperadminProfilePage from "../pages/changeSuperPassword/Superadminprofilepage";
-import SettingsPage from "../pages/SettingPage";
+import SuperadminProfilePage from "../pages/profile/SuperadminProfilePage";
+import SettingsPage from "../pages/settings/SettingsPage";
 import CreateUserPage from "../pages/createUser/CreateUserPage";
 
 import MatchRoutes from "./MatchRoutes";

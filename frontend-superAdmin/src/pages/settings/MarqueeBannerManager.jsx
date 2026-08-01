@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { AlertCircle, CheckCircle2, Eye, Megaphone, Save } from "lucide-react";
-import Spinner from "../components/common/Spinner";
-import { getBanner, updateBanner } from "../services/userService";
+import Spinner from "../../components/common/Spinner";
+import { getBanner, updateBanner } from "../../services/marqueeBannerService";
 
 const MAX_CHARS = 500;
 
