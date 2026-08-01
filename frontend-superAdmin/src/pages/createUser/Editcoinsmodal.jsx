@@ -70,6 +70,7 @@ export default function EditCoinsModal({ isOpen, user, onClose, onSuccess, showT
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors text-xl leading-none"
           >
@@ -111,12 +112,14 @@ export default function EditCoinsModal({ isOpen, user, onClose, onSuccess, showT
         {/* Actions */}
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={onClose}
             className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
           >
             Cancel
           </button>
           <button
+            type="button"
             onClick={handleSubmit}
             disabled={loading}
             className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 disabled:opacity-60 transition-colors"

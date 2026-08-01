@@ -1,17 +1,23 @@
 import { useState } from "react";
+import Modal from "../../components/common/Modal";
 import CreateUser from "./CreateUser";
 import UsersList from "./UsersList";
 
 export default function CreateUserPage() {
-  const [view, setView] = useState("list");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleCreated = () => {
+    setCreateOpen(false);
+    setRefreshKey((value) => value + 1);
+  };
 
   return (
-    <div className="min-h-screen">
-      {view === "list" ? (
-        <UsersList onGoCreate={() => setView("create")} />
-      ) : (
-        <CreateUser onGoBack={() => setView("list")} />
-      )}
-    </div>
+    <>
+      <UsersList refreshKey={refreshKey} onGoCreate={() => setCreateOpen(true)} />
+      <Modal open={createOpen} title="Create User" onClose={() => setCreateOpen(false)}>
+        <CreateUser onCancel={() => setCreateOpen(false)} onSuccess={handleCreated} />
+      </Modal>
+    </>
   );
 }

@@ -7,8 +7,8 @@ export default function DeleteConfirmModal({ isOpen, user, onClose, onConfirm, s
   const handleDelete = async () => {
     setLoading(true);
     try {
-      await deleteUser(user.id);
-      onConfirm(user.id);
+      await deleteUser(user._id);
+      onConfirm(user._id);
       onClose();
       showToast?.(`${user?.firstName} deleted successfully`); // ✅
     } catch {
@@ -44,12 +44,14 @@ export default function DeleteConfirmModal({ isOpen, user, onClose, onConfirm, s
 
         <div className="flex gap-3 w-full mt-2">
           <button
+            type="button"
             onClick={onClose}
             className="flex-1 py-2.5 rounded-lg border border-gray-200 text-gray-600 text-sm font-semibold hover:bg-gray-50 transition-all"
           >
             Cancel
           </button>
           <button
+            type="button"
             onClick={handleDelete}
             disabled={loading}
             className="flex-1 py-2.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-semibold disabled:opacity-50 transition-all"

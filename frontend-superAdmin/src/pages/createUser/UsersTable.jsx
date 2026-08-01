@@ -1,43 +1,13 @@
-import Spinner from "../../components/common/Spinner";
-  import EmptyState from "./EmptyState";
-  import UserRow from "./UserRow";
+import UserRow from "./UserRow";
 
-  export default function UsersTable({ users, loading, onToggle, onChangePassword, onDelete ,onEditCoins}) {
-    if (loading) {
-      return <Spinner />;
-    }
-
-    if (users.length === 0) {
-      return <EmptyState colSpan={6} message="No users found." />;
-    }
-
-    return (
-      <div className="overflow-x-auto p-2">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-100 text-gray-500 text-xs uppercase tracking-wider">
-              <th className="px-6 py-4 text-left font-semibold">SR. NO.</th>
-              <th className="px-6 py-4 text-left font-semibold">NAME</th>
-              <th className="px-6 py-4 text-left font-semibold">USERNAME</th>
-              <th className="px-6 py-4 text-left font-semibold">COINS</th>
-              <th className="px-6 py-4 text-left font-semibold">STATUS</th>
-              <th className="px-6 py-4 text-left font-semibold">ACTION</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {users.map((user, index) => (
-              <UserRow
-                key={user._id}
-                user={user}
-                index={index}
-                onToggle={onToggle}
-                onChangePassword={onChangePassword}
-                onDelete={onDelete}
-                onEditCoins={onEditCoins}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
+export default function UsersTable({ users, busyUserId, onToggle, onChangePassword, onDelete, onEditCoins }) {
+  if (users.length === 0) return <div className="flex min-h-72 flex-col items-center justify-center text-center"><p className="text-sm font-semibold text-gray-500">No users found</p><p className="mt-1 text-xs text-gray-400">Try clearing your search or create a new user.</p></div>;
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[850px] text-sm">
+        <thead><tr className="border-b border-(--color-border) bg-slate-50 text-xs uppercase tracking-wider text-gray-500"><th className="px-5 py-3 text-left">#</th><th className="px-5 py-3 text-left">User</th><th className="px-5 py-3 text-left">Username</th><th className="px-5 py-3 text-right">Balance</th><th className="px-5 py-3 text-left">Status</th><th className="px-5 py-3 text-left">Actions</th></tr></thead>
+        <tbody>{users.map((user, index) => <UserRow key={user._id} user={user} index={index} busy={busyUserId === user._id} onToggle={onToggle} onChangePassword={onChangePassword} onDelete={onDelete} onEditCoins={onEditCoins} />)}</tbody>
+      </table>
+    </div>
+  );
+}

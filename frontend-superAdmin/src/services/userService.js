@@ -33,8 +33,8 @@ export const getMe = () =>
 
 // ── Users (superadmin) ────────────────────────────────────────────────────────
 
-export const getUsers = (params) =>
-  api.get("/superadmin/users", { params }).then((r) => r.data);
+export const getUsers = (params, signal) =>
+  api.get("/superadmin/users", { params, signal }).then((response) => response.data);
 
 export const getUser = (id) =>
   api.get(`/superadmin/users/${id}`).then((r) => r.data);

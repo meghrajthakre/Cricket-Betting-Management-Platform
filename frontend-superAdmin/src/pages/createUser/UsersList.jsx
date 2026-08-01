@@ -1,173 +1,95 @@
-import { useState, useEffect } from "react";
+import { CircleDollarSign, UserCheck, UserRound, Users } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
+import Spinner from "../../components/common/Spinner";
 import { getUsers, toggleUserStatus } from "../../services/userService";
-import PageHeader from "./PageHeader";
-import SearchBar from "./SearchBar";
-import UsersTable from "./UsersTable";
 import ChangePasswordModal from "./ChangePasswordModal";
 import DeleteConfirmModal from "./DeleteConfirmModal";
 import EditCoinsModal from "./Editcoinsmodal";
-import Spinner from "../../components/common/Spinner";
+import SearchBar from "./SearchBar";
+import UsersTable from "./UsersTable";
 
-export default function UsersList({ onGoCreate }) {
+export default function UsersList({ onGoCreate, refreshKey }) {
   const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState("");
-  const [toggleLoading, setToggleLoading] = useState(false);
-
-  const [pwModal, setPwModal] = useState(null);
-  const [deleteModal, setDeleteModal] = useState(null);
-  const [coinsModal, setCoinsModal] = useState(null);
-
-  const fetchUsers = async () => {
-    setLoading(true);
-    try {
-      const res = await getUsers({ search });
-      setUsers(res.data || []);
-    } catch {
-      setUsers([]);
-      toast.error("Failed to load users");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [busyUserId, setBusyUserId] = useState(null);
+  const [passwordUser, setPasswordUser] = useState(null);
+  const [deleteUser, setDeleteUser] = useState(null);
+  const [balanceUser, setBalanceUser] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    const controller = new AbortController();
+    const loadUsers = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const response = await getUsers({ search: searchQuery }, controller.signal);
+        if (!controller.signal.aborted) setUsers(Array.isArray(response.data) ? response.data : []);
+      } catch (requestError) {
+        if (requestError.code === "ERR_CANCELED" || controller.signal.aborted) return;
+        setError(requestError?.response?.data?.message || "Users could not be loaded.");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    };
+    loadUsers();
+    return () => controller.abort();
+  }, [refreshKey, reloadKey, searchQuery]);
 
-  const handleSearch = () => {
-    fetchUsers();
-  };
+  const showToast = useCallback((message, isError = false) => isError ? toast.error(message) : toast.success(message), []);
 
-  const handleCoinsUpdate = (id, newCoins) => {
-    setUsers((u) =>
-      u.map((x) => (x._id === id ? { ...x, coins: newCoins } : x))
-    );
-    setCoinsModal(null);
-  };
+  const stats = useMemo(() => ({
+    total: users.length,
+    active: users.filter((user) => user.isActive).length,
+    balance: users.reduce((sum, user) => sum + Number(user.coins || 0), 0),
+  }), [users]);
+
+  const applySearch = () => setSearchQuery(searchInput.trim());
+  const clearSearch = () => { setSearchInput(""); setSearchQuery(""); };
 
   const handleToggle = async (id) => {
-    const user = users.find((u) => u._id === id);
-    const action = user?.isActive ? "block" : "activate";
-    const confirmed = window.confirm(
-      `Are you sure you want to ${action} this user?`,
-    );
-
-    if (!confirmed) return;
-
+    const user = users.find((item) => item._id === id);
+    if (!user || !window.confirm(`${user.isActive ? "Block" : "Activate"} ${user.firstName}?`)) return;
+    setBusyUserId(id);
     try {
-      setToggleLoading(true);
       await toggleUserStatus(id);
-      setUsers((u) =>
-        u.map((x) => (x._id === id ? { ...x, isActive: !x.isActive } : x)),
-      );
-      toast.success(`User ${action}d successfully`);
-    } catch (error) {
-      console.error("Failed to toggle user status:", error);
-      toast.error("Failed to update user status. Please try again.");
+      setUsers((items) => items.map((item) => item._id === id ? { ...item, isActive: !item.isActive } : item));
+      toast.success(`User ${user.isActive ? "blocked" : "activated"} successfully`);
+    } catch (requestError) {
+      toast.error(requestError?.response?.data?.message || "Failed to update user status.");
     } finally {
-      setToggleLoading(false);
+      setBusyUserId(null);
     }
   };
 
-  const handlePasswordChange = (id, newPassword) => {
-    setUsers((u) => u.map((x) => (x._id === id ? { ...x } : x)));
-    setPwModal(null);
-  };
-
-  const handleDelete = (id) => {
-    setUsers((u) => u.filter((x) => x._id !== id));
-    setDeleteModal(null);
-  };
-
-  const filteredUsers = users.filter((u) =>
-    u.firstName?.toLowerCase().includes(search.toLowerCase()),
-  );
+  const statCards = [
+    { label: "Users shown", value: stats.total, icon: Users },
+    { label: "Active users", value: stats.active, icon: UserCheck },
+    { label: "Blocked users", value: stats.total - stats.active, icon: UserRound },
+    { label: "Total balance", value: stats.balance.toLocaleString(undefined, { maximumFractionDigits: 2 }), icon: CircleDollarSign },
+  ];
 
   return (
-    <div className="p-1 font-sans bg-transparent">
-      <PageHeader
-        buttonText="+ Create User"
-        onButtonClick={onGoCreate}
-      />
+    <div className="min-h-full bg-(--color-bg-main) p-3 sm:p-6">
+      <div className="mx-auto max-w-7xl space-y-5">
+        <header className="relative overflow-hidden rounded-2xl bg-(--color-primary) px-5 py-5 text-white shadow-sm sm:px-7 sm:py-6"><div className="absolute -top-16 -right-10 h-40 w-40 rounded-full bg-white/5" /><div className="relative"><h1 className="text-xl font-bold sm:text-2xl">Users</h1><p className="mt-1 text-sm text-(--color-text-muted)">Create and manage user accounts and balances.</p></div></header>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <SearchBar
-          search={search}
-          onSearchChange={setSearch}
-          onSearch={handleSearch}
-          loading={loading}
-        />
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{statCards.map((card) => <div key={card.label} className="rounded-2xl border border-(--color-border) bg-white p-4 shadow-sm"><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-blue-50 text-(--color-primary)"><card.icon size={19} /></div><div className="min-w-0"><p className="truncate text-xs font-semibold text-gray-400">{card.label}</p><p className="mt-0.5 truncate text-lg font-bold text-(--color-text-dark)">{card.value}</p></div></div></div>)}</div>
 
-        {loading ? (
-          <div className="min-h-[400px] flex items-center justify-center">
-            <div className="text-center">
-              <Spinner size={48} variant="rainbow" />
-              <p className="mt-4 text-gray-500 text-sm font-medium">
-                Loading users...
-              </p>
-            </div>
-          </div>
-        ) : (
-          <>
-            <UsersTable
-              users={filteredUsers}
-              loading={toggleLoading}
-              onToggle={handleToggle}
-              onChangePassword={(user) => setPwModal(user)}
-              onDelete={(user) => setDeleteModal(user)}
-              onEditCoins={(user) => setCoinsModal(user)}
-            />
-
-            {filteredUsers.length > 0 && (
-              <div className="px-6 py-3 border-t border-gray-100 text-xs text-gray-400 font-medium bg-gray-50/30">
-                Showing {filteredUsers.length} user
-                {filteredUsers.length !== 1 ? "s" : ""}
-              </div>
-            )}
-
-            {filteredUsers.length === 0 && !loading && (
-              <div className="min-h-[400px] flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                  </div>
-                  <p className="text-gray-500 text-sm font-medium">No users found</p>
-                  <p className="text-gray-400 text-xs mt-1">Try adjusting your search</p>
-                </div>
-              </div>
-            )}
-          </>
-        )}
+        <section className="overflow-hidden rounded-2xl border border-(--color-border) bg-white shadow-sm">
+          <SearchBar search={searchInput} onSearchChange={setSearchInput} onSearch={applySearch} onClear={clearSearch} loading={loading} onCreate={onGoCreate} />
+          {searchQuery && <div className="border-b border-gray-100 bg-blue-50/50 px-5 py-2 text-xs text-(--color-primary)">Results for <strong>“{searchQuery}”</strong></div>}
+          {error ? <div className="flex min-h-72 flex-col items-center justify-center gap-3 p-6 text-center"><p className="text-sm font-semibold text-red-500">{error}</p><button type="button" onClick={() => setReloadKey((value) => value + 1)} className="rounded-xl bg-(--color-btn-bg) px-4 py-2 text-sm font-bold text-white">Try Again</button></div> : loading ? <div className="flex min-h-72 items-center justify-center"><span className="flex items-center gap-3 text-sm text-gray-400"><Spinner size={28} variant="ocean" />Loading users...</span></div> : <UsersTable users={users} loading={Boolean(busyUserId)} busyUserId={busyUserId} onToggle={handleToggle} onChangePassword={setPasswordUser} onDelete={setDeleteUser} onEditCoins={setBalanceUser} />}
+        </section>
       </div>
 
-      <ChangePasswordModal
-        isOpen={!!pwModal}
-        user={pwModal}
-        onClose={() => setPwModal(null)}
-        onSuccess={handlePasswordChange}
-        showToast={(msg, err) => err ? toast.error(msg) : toast.success(msg)} 
-      />
-
-      <DeleteConfirmModal
-        isOpen={!!deleteModal}
-        user={deleteModal}
-        onClose={() => setDeleteModal(null)}
-        onConfirm={handleDelete}
-        showToast={(msg, err) => err ? toast.error(msg) : toast.success(msg)} 
-      />
-
-      <EditCoinsModal
-        isOpen={!!coinsModal}
-        user={coinsModal}
-        onClose={() => setCoinsModal(null)}
-        onSuccess={handleCoinsUpdate}
-        showToast={(msg, err) => err ? toast.error(msg) : toast.success(msg)}
-      />
-
+      <ChangePasswordModal isOpen={Boolean(passwordUser)} user={passwordUser} onClose={() => setPasswordUser(null)} onSuccess={() => setPasswordUser(null)} showToast={showToast} />
+      <DeleteConfirmModal isOpen={Boolean(deleteUser)} user={deleteUser} onClose={() => setDeleteUser(null)} onConfirm={(id) => setUsers((items) => items.filter((item) => item._id !== id))} showToast={showToast} />
+      <EditCoinsModal isOpen={Boolean(balanceUser)} user={balanceUser} onClose={() => setBalanceUser(null)} onSuccess={(id, coins) => setUsers((items) => items.map((item) => item._id === id ? { ...item, coins } : item))} showToast={showToast} />
       <Toaster position="bottom-right" />
     </div>
   );
