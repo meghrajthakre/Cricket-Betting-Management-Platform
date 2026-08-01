@@ -1,7 +1,7 @@
 import api from "../constants/api";
 
-export const getAdmins = (params) =>
-  api.get("/superadmin/admins", { params }).then((r) => r.data);
+export const getAdmins = (params, signal) =>
+  api.get("/superadmin/admins", { params, signal }).then((response) => response.data);
 
 export const createAdmin = (body) =>
   api.post("/superadmin/admins", body).then((r) => r.data);

@@ -12,6 +12,7 @@ export default function Modal({ open, title, onClose, children }) {
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-gray-800">{title}</h2>
           <button
+            type="button"
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
           >

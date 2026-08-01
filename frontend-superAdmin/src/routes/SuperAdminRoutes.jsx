@@ -2,7 +2,7 @@ import { Route, Navigate } from "react-router-dom";
 import Layout from "../layout/Layout";
 
 import Dashboard from "../pages/Dashboard";
-import AdminsPage from "../pages/AdminPages/AdminsPage";
+import AdminsPage from "../pages/admins/AdminsPage";
 import CollectionReport from "../pages/CollectionReport";
 import SuperadminProfilePage from "../pages/profile/SuperadminProfilePage";
 import SettingsPage from "../pages/settings/SettingsPage";
