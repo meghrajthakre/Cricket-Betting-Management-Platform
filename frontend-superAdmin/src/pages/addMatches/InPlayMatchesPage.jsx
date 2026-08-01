@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import Spinner from "../../components/common/Spinner";
+const API_BASE = import.meta.env.VITE_API_URL?.replace(/\/api\/?$/, "") || "http://localhost:5000";
 
-const API_BASE ="http://localhost:5000"; // Adjust if your backend runs on a different port
 const STORAGE_KEY = "savedMatchIds";
 
 // ─── LocalStorage helpers ─────────────────────────────────────────────────
@@ -88,7 +88,12 @@ export default function InPlayMatchesPage() {
       const res = await fetch(`${API_BASE}/api/matches/save`, {
         method:      "POST",
         credentials: "include",
-        headers:     { "Content-Type": "application/json" },
+        headers:     {
+          "Content-Type": "application/json",
+          ...(sessionStorage.getItem("accessToken") && {
+            Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
+          }),
+        },
         body: JSON.stringify({
           matchId:      m.matchId,
           homeTeam:     m.homeTeam,
@@ -124,6 +129,9 @@ export default function InPlayMatchesPage() {
       const res = await fetch(`${API_BASE}/api/matches/${id}`, {
         method:      "DELETE",
         credentials: "include",
+        headers: sessionStorage.getItem("accessToken")
+          ? { Authorization: `Bearer ${sessionStorage.getItem("accessToken")}` }
+          : {},
       });
 
       const json = await res.json();

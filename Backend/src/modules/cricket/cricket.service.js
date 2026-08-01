@@ -6,6 +6,12 @@ const axios = require("axios");
 // Get your key at https://the-odds-api.com/#get-access
 const ODDS_API_KEY  = process.env.ODDS_API_KEY;
 const ODDS_API_HOST = "https://api.the-odds-api.com";
+const ODDS_API_REGIONS = process.env.ODDS_API_REGIONS || "uk";
+const ACTIVE_SPORTS_CACHE_MS = 60 * 60 * 1000;
+const ODDS_SNAPSHOT_CACHE_MS = 5 * 60 * 1000;
+
+let activeSportsCache = { data: null, expiresAt: 0, inFlight: null };
+let oddsSnapshotCache = { data: null, expiresAt: 0, inFlight: null };
 
 /**
  * All cricket sport keys supported by The Odds API.
@@ -82,16 +88,31 @@ const callOddsApi = async (path, params = {}) => {
  * instead of relying on a hardcoded list.
  */
 const fetchActiveCricketSportKeys = async () => {
-  try {
-    const sports = await callOddsApi("/v4/sports", { all: false });
-    if (!Array.isArray(sports)) return CRICKET_SPORT_KEYS;
-    return sports
-      .filter((s) => s.group === "Cricket" && s.active)
-      .map((s) => s.key);
-  } catch {
-    // Fall back to static list if /v4/sports fails
-    return CRICKET_SPORT_KEYS;
+  const now = Date.now();
+  if (activeSportsCache.data && activeSportsCache.expiresAt > now) {
+    return activeSportsCache.data;
   }
+  if (activeSportsCache.inFlight) return activeSportsCache.inFlight;
+
+  activeSportsCache.inFlight = (async () => {
+    try {
+      const sports = await callOddsApi("/v4/sports", { all: false });
+      const keys = Array.isArray(sports)
+        ? sports.filter((sport) => sport.group === "Cricket" && sport.active).map((sport) => sport.key)
+        : CRICKET_SPORT_KEYS;
+      activeSportsCache.data = keys;
+      activeSportsCache.expiresAt = Date.now() + ACTIVE_SPORTS_CACHE_MS;
+      return keys;
+    } catch {
+      activeSportsCache.data = CRICKET_SPORT_KEYS;
+      activeSportsCache.expiresAt = Date.now() + ACTIVE_SPORTS_CACHE_MS;
+      return CRICKET_SPORT_KEYS;
+    } finally {
+      activeSportsCache.inFlight = null;
+    }
+  })();
+
+  return activeSportsCache.inFlight;
 };
 
 /**
@@ -135,6 +156,51 @@ const normaliseEvent = (raw, sportKey) => ({
   lastUpdate:   raw.last_update ?? null,
 });
 
+const fetchCricketOddsSnapshot = async () => {
+  const now = Date.now();
+  if (oddsSnapshotCache.data && oddsSnapshotCache.expiresAt > now) {
+    return oddsSnapshotCache.data;
+  }
+  if (oddsSnapshotCache.inFlight) return oddsSnapshotCache.inFlight;
+
+  oddsSnapshotCache.inFlight = (async () => {
+    try {
+      const sportKeys = await fetchActiveCricketSportKeys();
+      const results = await Promise.allSettled(
+        sportKeys.map((sportKey) =>
+          callOddsApi(`/v4/sports/${sportKey}/odds`, {
+            regions: ODDS_API_REGIONS,
+            markets: "h2h",
+            oddsFormat: "decimal",
+            dateFormat: "iso",
+          })
+        )
+      );
+
+      const eventsById = new Map();
+      results.forEach((result, index) => {
+        if (result.status === "rejected") {
+          if (result.reason?.status !== 404) {
+            console.error(`[cricketService] odds fetch failed for ${sportKeys[index]}:`, result.reason?.message);
+          }
+          return;
+        }
+        const events = Array.isArray(result.value) ? result.value : [];
+        events.forEach((event) => eventsById.set(event.id, normaliseEvent(event, sportKeys[index])));
+      });
+
+      const snapshot = [...eventsById.values()];
+      oddsSnapshotCache.data = snapshot;
+      oddsSnapshotCache.expiresAt = Date.now() + ODDS_SNAPSHOT_CACHE_MS;
+      return snapshot;
+    } finally {
+      oddsSnapshotCache.inFlight = null;
+    }
+  })();
+
+  return oddsSnapshotCache.inFlight;
+};
+
 // ─── Exported functions ───────────────────────────────────────────────────────
 
 /**
@@ -146,46 +212,15 @@ const normaliseEvent = (raw, sportKey) => ({
  * We filter by commence_time when "today" or "upcoming" is requested.
  */
 const fetchMatches = async (filter) => {
-  const sportKeys = await fetchActiveCricketSportKeys();
-
   const now        = new Date();
   const endOfToday = new Date();
   endOfToday.setHours(23, 59, 59, 999);
-
-  const results = await Promise.allSettled(
-    sportKeys.map((sportKey) =>
-      callOddsApi(`/v4/sports/${sportKey}/odds`, {
-        regions:    "uk,eu",
-        markets:    "h2h",
-        oddsFormat: "decimal",
-        dateFormat: "iso",
-      })
-    )
-  );
-
-  const matches = [];
-
-  results.forEach((result, i) => {
-    if (result.status === "rejected") {
-      if (result.reason?.status !== 404) {
-        console.error(`[cricketService] fetchMatches failed for ${sportKeys[i]}:`, result.reason?.message);
-      }
-      return;
-    }
-
-    const events = Array.isArray(result.value) ? result.value : [];
-
-    for (const event of events) {
-      const t = new Date(event.commence_time);
-
-      if (filter === "today") {
-        if (t < now || t > endOfToday) continue;
-      } else if (filter === "upcoming") {
-        if (t <= now) continue;
-      }
-
-      matches.push(normaliseEvent(event, sportKeys[i]));
-    }
+  const snapshot = await fetchCricketOddsSnapshot();
+  const matches = snapshot.filter((event) => {
+    const commenceTime = new Date(event.commenceTime);
+    if (filter === "today") return commenceTime >= now && commenceTime <= endOfToday;
+    if (filter === "upcoming") return commenceTime > now;
+    return true;
   });
 
   // Sort by commence_time ascending
@@ -201,42 +236,11 @@ const fetchMatches = async (filter) => {
  * We filter the full odds response to only in-play events.
  */
 const fetchLiveMatches = async () => {
-  const sportKeys = await fetchActiveCricketSportKeys();
-
-  const results = await Promise.allSettled(
-    sportKeys.map((sportKey) =>
-      callOddsApi(`/v4/sports/${sportKey}/odds`, {
-        regions:    "uk,eu",
-        markets:    "h2h",
-        oddsFormat: "decimal",
-        dateFormat: "iso",
-      })
-    )
+  const snapshot = await fetchCricketOddsSnapshot();
+  const now = new Date();
+  return snapshot.filter(
+    (event) => new Date(event.commenceTime) <= now && !event.completed
   );
-
-  const liveMatches = [];
-
-  results.forEach((result, i) => {
-    if (result.status === "rejected") {
-      if (result.reason?.status !== 404) {
-        console.error(`[cricketService] fetchLiveMatches failed for ${sportKeys[i]}:`, result.reason?.message);
-      }
-      return;
-    }
-
-    const events = Array.isArray(result.value) ? result.value : [];
-    const now    = new Date();
-
-    for (const event of events) {
-      // Consider an event live if it has started but isn't completed
-      const started = new Date(event.commence_time) <= now;
-      if (started && !event.completed) {
-        liveMatches.push(normaliseEvent(event, sportKeys[i]));
-      }
-    }
-  });
-
-  return liveMatches;
 };
 
 /**
