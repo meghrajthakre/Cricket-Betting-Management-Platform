@@ -1,175 +1,150 @@
 import { useEffect, useState } from "react";
-import { Megaphone, Save, Loader2 } from "lucide-react";
-import { getBanner, updateBanner } from "../services/userService"; // adjust path if needed
+import { AlertCircle, CheckCircle2, Eye, Megaphone, Save } from "lucide-react";
+import Spinner from "../components/common/Spinner";
+import { getBanner, updateBanner } from "../services/userService";
 
-const MAX = 500;
+const MAX_CHARS = 500;
 
 export default function MarqueeBannerManager() {
-  const [text,      setText]    = useState("");
-  const [status,    setStatus]  = useState("idle"); // "idle" | "loading" | "saving" | "ok" | "err"
-  const [charCount, setCharCount] = useState(0);
+  const [text, setText] = useState("");
+  const [savedText, setSavedText] = useState("");
+  const [status, setStatus] = useState("loading");
 
-  // ── Load current banner on mount ────────────────────────────────────────
   useEffect(() => {
-    setStatus("loading");
     getBanner()
       .then(({ data }) => {
-        const t = data?.text || "";
-        setText(t);
-        setCharCount(t.length);
+        const bannerText = data?.text || "";
+        setText(bannerText);
+        setSavedText(bannerText);
         setStatus("idle");
       })
-      .catch(() => setStatus("idle"));
+      .catch(() => setStatus("load-error"));
   }, []);
 
-  const handleChange = (e) => {
-    const val = e.target.value.slice(0, MAX);
-    setText(val);
-    setCharCount(val.length);
-    if (status === "ok" || status === "err") setStatus("idle");
+  const handleChange = (event) => {
+    setText(event.target.value.slice(0, MAX_CHARS));
+    if (status === "success" || status === "save-error") setStatus("idle");
   };
 
   const handleSave = async () => {
-    if (!text.trim() || status === "saving") return;
+    const nextText = text.trim();
+    if (!nextText || status === "saving") return;
+
     setStatus("saving");
     try {
-      await updateBanner(text.trim());
-      setStatus("ok");
-      setTimeout(() => setStatus("idle"), 3500);
+      await updateBanner(nextText);
+      setText(nextText);
+      setSavedText(nextText);
+      setStatus("success");
     } catch {
-      setStatus("err");
+      setStatus("save-error");
     }
   };
 
+  const isLoading = status === "loading";
+  const isSaving = status === "saving";
+  const hasChanges = text.trim() !== savedText;
+
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+    <section className="animate-fade-up overflow-hidden rounded-2xl border border-(--color-border) bg-white shadow-sm">
+      <header className="relative overflow-hidden bg-(--color-primary) px-5 py-5 text-white sm:px-7 sm:py-6">
+        <div className="absolute -top-16 -right-10 h-40 w-40 rounded-full bg-white/5" />
+        <div className="absolute -right-4 -bottom-20 h-36 w-36 rounded-full bg-(--color-banner)/35" />
+        <div className="relative flex items-start gap-4">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/15 bg-white/10">
+            <Megaphone aria-hidden="true" size={22} />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold sm:text-2xl">Marquee Banner</h1>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-(--color-text-muted)">
+              Create the announcement displayed across the user dashboard.
+            </p>
+          </div>
+        </div>
+      </header>
 
-      {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div
-        className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-100"
-        style={{ backgroundColor: "#f8fafc" }}
-      >
-        <Megaphone size={15} strokeWidth={2} color="#2E4151" />
-        <span
-          className="text-sm font-semibold"
-          style={{ color: "#2E4151", fontFamily: "var(--font-app)" }}
-        >
-          Marquee Banner
-        </span>
-        <span className="ml-auto text-xs text-gray-400" style={{ fontFamily: "var(--font-app)" }}>
-          Visible to all users
-        </span>
-      </div>
-
-      <div className="px-5 py-5 space-y-4">
-
-        {/* ── Live preview ────────────────────────────────────────────────── */}
+      <div className="space-y-6 p-5 sm:p-7">
         <div>
-          <label
-            className="block text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-1.5"
-            style={{ fontFamily: "var(--font-app)" }}
-          >
-            Preview
-          </label>
-          <div
-            className="h-9 rounded-lg overflow-hidden flex items-center"
-            style={{ backgroundColor: "#1a2a38", border: "1px solid rgba(255,255,255,0.08)" }}
-          >
-            {text ? (
-              <span
-                className="inline-block whitespace-nowrap animate-marquee font-bold"
-                style={{ fontFamily: "var(--font-app)", fontSize: "13px", color: "#fbbf24", letterSpacing: "0.03em" }}
-              >
+          <div className="mb-2 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-(--color-text-dark)">
+              <Eye aria-hidden="true" size={15} className="text-(--color-banner)" />
+              Live Preview
+            </div>
+            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-(--color-primary)">
+              Visible to all users
+            </span>
+          </div>
+
+          <div className="flex h-12 items-center overflow-hidden rounded-xl border border-white/10 bg-[#07182A] shadow-inner">
+            {isLoading ? (
+              <div className="flex items-center gap-2 px-4 text-xs text-white/50">
+                <Spinner size={15} variant="neon" label="Banner loading" />
+                Loading preview...
+              </div>
+            ) : text.trim() ? (
+              <span className="inline-block whitespace-nowrap animate-marquee px-4 text-sm font-bold tracking-wide text-amber-300">
                 {text}
               </span>
             ) : (
-              <span
-                className="px-4 text-xs"
-                style={{ color: "rgba(255,255,255,0.25)", fontFamily: "var(--font-app)" }}
-              >
-                No banner text set
-              </span>
+              <span className="px-4 text-xs font-medium text-white/35">Your banner preview will appear here</span>
             )}
           </div>
         </div>
 
-        {/* ── Input ───────────────────────────────────────────────────────── */}
         <div>
-          <label
-            htmlFor="marquee-input"
-            className="block text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-1.5"
-            style={{ fontFamily: "var(--font-app)" }}
-          >
-            Banner Text
-          </label>
+          <div className="mb-2 flex items-end justify-between gap-4">
+            <label htmlFor="marquee-input" className="text-sm font-semibold text-(--color-text-dark)">
+              Banner message
+            </label>
+            <span className={`text-xs font-semibold ${text.length >= MAX_CHARS ? "text-red-500" : "text-gray-400"}`}>
+              {text.length}/{MAX_CHARS}
+            </span>
+          </div>
           <textarea
             id="marquee-input"
-            rows={3}
-            value={status === "loading" ? "" : text}
+            rows={5}
+            value={text}
             onChange={handleChange}
-            disabled={status === "loading" || status === "saving"}
-            placeholder="e.g.  ‖ WELCOME TO Sonu Book GROUP ‖     Jo Group bets Karte he unke Profit..."
-            className="
-              w-full rounded-lg border border-gray-200 bg-gray-50
-              px-3.5 py-2.5 text-sm text-gray-800
-              placeholder:text-gray-300
-              focus:outline-none focus:ring-2 focus:border-[#2E4151]
-              disabled:opacity-50 disabled:cursor-not-allowed
-              resize-none transition
-            "
-            style={{ fontFamily: "var(--font-app)", focusRingColor: "#2E415133" }}
+            disabled={isLoading || isSaving}
+            placeholder="Enter an announcement for your users..."
+            className="w-full resize-none rounded-xl border border-(--color-border) bg-slate-50 px-4 py-3 text-sm leading-6 text-(--color-text-dark) outline-none transition placeholder:text-gray-400 hover:border-(--color-accent) focus:border-(--color-banner) focus:bg-white focus:ring-3 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
           />
-          {/* char counter */}
-          <div className="flex justify-end mt-1">
-            <span
-              className={`text-[11px] font-medium ${charCount >= MAX ? "text-red-400" : "text-gray-300"}`}
-              style={{ fontFamily: "var(--font-app)" }}
-            >
-              {charCount} / {MAX}
-            </span>
-          </div>
+          <p className="mt-2 text-xs leading-5 text-gray-400">
+            Keep the message short and clear so users can read it while it scrolls.
+          </p>
         </div>
 
-        {/* ── Save button + feedback ───────────────────────────────────────── */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleSave}
-            disabled={status === "saving" || status === "loading" || !text.trim()}
-            className="
-              flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white
-              hover:opacity-90 active:scale-[0.98]
-              disabled:opacity-50 disabled:cursor-not-allowed
-              transition-all duration-150
-            "
-            style={{ backgroundColor: "#2E4151", fontFamily: "var(--font-app)" }}
-          >
-            {status === "saving" ? (
-              <Loader2 size={14} strokeWidth={2} className="animate-spin" />
-            ) : (
-              <Save size={14} strokeWidth={2} />
+        <div className="flex flex-col gap-3 border-t border-gray-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-h-5">
+            {status === "success" && (
+              <p className="flex items-center gap-2 text-sm font-semibold text-emerald-600">
+                <CheckCircle2 aria-hidden="true" size={17} />
+                Banner updated successfully.
+              </p>
             )}
-            {status === "saving" ? "Saving…" : "Save Banner"}
+            {(status === "save-error" || status === "load-error") && (
+              <p className="flex items-center gap-2 text-sm font-semibold text-red-500">
+                <AlertCircle aria-hidden="true" size={17} />
+                {status === "load-error" ? "Could not load the current banner." : "Could not save the banner. Please try again."}
+              </p>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isLoading || isSaving || !text.trim() || !hasChanges}
+            className="flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-(--color-btn-bg) px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-(--color-btn-hover) hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none sm:w-auto"
+          >
+            {isSaving ? (
+              <Spinner size={17} variant="neon" label="Banner saving" />
+            ) : (
+              <Save aria-hidden="true" size={17} />
+            )}
+            {isSaving ? "Saving..." : "Save Banner"}
           </button>
-
-          {status === "ok" && (
-            <span
-              className="text-sm font-medium text-green-500"
-              style={{ fontFamily: "var(--font-app)" }}
-            >
-              ✓ Saved — users see the new text within 30 s
-            </span>
-          )}
-          {status === "err" && (
-            <span
-              className="text-sm font-medium text-red-400"
-              style={{ fontFamily: "var(--font-app)" }}
-            >
-              ✗ Failed to save. Try again.
-            </span>
-          )}
         </div>
-
       </div>
-    </div>
+    </section>
   );
 }
