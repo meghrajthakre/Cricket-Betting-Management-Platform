@@ -4,6 +4,18 @@ import { MdAccessTime } from "react-icons/md";
 import { IoTrophyOutline } from "react-icons/io5";
 import { getSavedMatches } from "../../api/userService";
 
+function isToday(dateStr) {
+  const matchDate = new Date(dateStr);
+  if (Number.isNaN(matchDate.getTime())) return false;
+
+  const today = new Date();
+  return (
+    matchDate.getFullYear() === today.getFullYear() &&
+    matchDate.getMonth() === today.getMonth() &&
+    matchDate.getDate() === today.getDate()
+  );
+}
+
 // ─── Helper: Check if date is today ───────────────────────────────────────
 // ─── Helper: Parse date/time ──────────────────────────────────────────────
 function parseDateTime(dateStr) {
@@ -280,9 +292,10 @@ const Live = () => {
         throw new Error("Unexpected response format.");
       }
 
-      // This endpoint already returns only matches selected by the superadmin.
-      // Do not hide a selected match just because it is scheduled after today.
-      const normalizedMatches = savedMatches.map(normalizeSavedMatch);
+      // The Live Matches page intentionally shows only today's saved matches.
+      const normalizedMatches = savedMatches
+        .filter((match) => isToday(match.commenceTime))
+        .map(normalizeSavedMatch);
       normalizedMatches.sort((a, b) => 
         new Date(a.raw.commenceTime) - new Date(b.raw.commenceTime)
       );
@@ -405,7 +418,7 @@ const Live = () => {
               color: "var(--color-text-dark)", 
               opacity: 0.4 
             }}>
-              No matches available
+              No matches today
             </p>
             <p style={{ 
               margin: 0, 
@@ -413,7 +426,7 @@ const Live = () => {
               color: "var(--color-text-dark)", 
               opacity: 0.3 
             }}>
-              Matches added by the superadmin will appear here.
+              Today&apos;s matches added by the superadmin will appear here.
             </p>
           </div>
         )}
