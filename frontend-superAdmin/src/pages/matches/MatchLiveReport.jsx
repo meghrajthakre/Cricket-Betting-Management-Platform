@@ -6,6 +6,7 @@ import {
   BetsTable,
   DeclaredSessionsTable,
   LiveReportLoader,
+  LiveTvPanel,
   OddsTable,
   RecentLiveMatches,
   ScorePanel,
@@ -45,6 +46,8 @@ export default function MatchLiveReport() {
     <div className="min-h-full bg-(--color-bg-main) p-2 text-(--color-text-dark) md:px-6">
       <Toaster position="top-center" />
       <div className="w-full space-y-4">
+        <LiveTvPanel />
+
         {error && (
           <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
