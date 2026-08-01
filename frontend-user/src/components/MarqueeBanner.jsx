@@ -2,17 +2,20 @@ import { useEffect, useState, useRef } from "react";
 import { getBanner } from "../api/userService";
 
 const POLL_MS = 30000;
-const MARQUEE_DURATION = "15s"; // ← adjust speed here
+const SPEED_DURATION = { slow: "30s", normal: "15s", fast: "6s" };
 
 export default function MarqueeBanner() {
   const [text, setText] = useState("");
+  const [speed, setSpeed] = useState("normal");
   const [status, setStatus] = useState("loading");
   const timerRef = useRef(null);
 
   const fetchBanner = async () => {
     try {
       const result = await getBanner();
-      if (result?.data?.text) setText(result.data.text);
+      const banner = result?.data ?? result;
+      if (banner?.text) setText(banner.text);
+      setSpeed(SPEED_DURATION[banner?.speed] ? banner.speed : "normal");
       setStatus("done");
     } catch (err) {
       console.error("Banner error:", err);
@@ -52,8 +55,15 @@ export default function MarqueeBanner() {
       <div className="relative w-full overflow-hidden">
         {/* Two exact copies — animation slides by -50% so copy 1 ends exactly where copy 2 begins */}
         <div
+          key={`${speed}-${text}`}
           className="flex w-max"
-          style={{ animation: `marquee ${MARQUEE_DURATION} linear infinite` }}
+          style={{
+            animationName: "marquee",
+            animationDuration: SPEED_DURATION[speed],
+            animationTimingFunction: "linear",
+            animationIterationCount: "infinite",
+            willChange: "transform",
+          }}
         >
           {item}
           {item}

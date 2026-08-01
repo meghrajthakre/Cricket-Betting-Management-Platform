@@ -1,21 +1,33 @@
 import { useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2, Eye, Megaphone, Save } from "lucide-react";
+import { AlertCircle, CheckCircle2, Eye, Gauge, Megaphone, Save } from "lucide-react";
 import Spinner from "../../components/common/Spinner";
 import { getBanner, updateBanner } from "../../services/marqueeBannerService";
 
 const MAX_CHARS = 500;
+const SPEED_OPTIONS = [
+  { value: "slow", label: "Slow", duration: "25s" },
+  { value: "normal", label: "Normal", duration: "15s" },
+  { value: "fast", label: "Fast", duration: "8s" },
+];
 
 export default function MarqueeBannerManager() {
   const [text, setText] = useState("");
   const [savedText, setSavedText] = useState("");
+  const [speed, setSpeed] = useState("normal");
+  const [savedSpeed, setSavedSpeed] = useState("normal");
   const [status, setStatus] = useState("loading");
 
   useEffect(() => {
     getBanner()
       .then(({ data }) => {
         const bannerText = data?.text || "";
+        const bannerSpeed = SPEED_OPTIONS.some((option) => option.value === data?.speed)
+          ? data.speed
+          : "normal";
         setText(bannerText);
         setSavedText(bannerText);
+        setSpeed(bannerSpeed);
+        setSavedSpeed(bannerSpeed);
         setStatus("idle");
       })
       .catch(() => setStatus("load-error"));
@@ -32,9 +44,10 @@ export default function MarqueeBannerManager() {
 
     setStatus("saving");
     try {
-      await updateBanner(nextText);
+      await updateBanner(nextText, speed);
       setText(nextText);
       setSavedText(nextText);
+      setSavedSpeed(speed);
       setStatus("success");
     } catch {
       setStatus("save-error");
@@ -43,7 +56,8 @@ export default function MarqueeBannerManager() {
 
   const isLoading = status === "loading";
   const isSaving = status === "saving";
-  const hasChanges = text.trim() !== savedText;
+  const hasChanges = text.trim() !== savedText || speed !== savedSpeed;
+  const selectedSpeed = SPEED_OPTIONS.find((option) => option.value === speed);
 
   return (
     <section className="animate-fade-up overflow-hidden rounded-2xl border border-(--color-border) bg-white shadow-sm">
@@ -82,13 +96,47 @@ export default function MarqueeBannerManager() {
                 Loading preview...
               </div>
             ) : text.trim() ? (
-              <span className="inline-block whitespace-nowrap animate-marquee px-4 text-sm font-bold tracking-wide text-amber-300">
+              <span
+                key={speed}
+                className="inline-block whitespace-nowrap animate-marquee px-4 text-sm font-bold tracking-wide text-amber-300"
+                style={{ animationDuration: selectedSpeed.duration }}
+              >
                 {text}
               </span>
             ) : (
               <span className="px-4 text-xs font-medium text-white/35">Your banner preview will appear here</span>
             )}
           </div>
+        </div>
+
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <Gauge aria-hidden="true" size={16} className="text-(--color-banner)" />
+            <span className="text-sm font-semibold text-(--color-text-dark)">Scroll speed</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2 rounded-xl bg-slate-100 p-1.5">
+            {SPEED_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  setSpeed(option.value);
+                  if (status === "success" || status === "save-error") setStatus("idle");
+                }}
+                disabled={isLoading || isSaving}
+                className={`rounded-lg px-3 py-2.5 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                  speed === option.value
+                    ? "bg-(--color-primary) text-white shadow-sm"
+                    : "text-gray-500 hover:bg-white hover:text-(--color-primary)"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-gray-400">
+            Preview updates instantly. Save the banner to apply this speed for all users.
+          </p>
         </div>
 
         <div>

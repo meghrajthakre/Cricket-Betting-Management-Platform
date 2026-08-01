@@ -9,6 +9,11 @@ const bannerSchema = new mongoose.Schema(
       trim: true,
       maxlength: [500, "Banner text cannot exceed 500 characters"],
     },
+    speed: {
+      type: String,
+      enum: ["slow", "normal", "fast"],
+      default: "normal",
+    },
     isActive: {
       type: Boolean,
       default: true,
