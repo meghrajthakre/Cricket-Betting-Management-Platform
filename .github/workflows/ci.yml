@@ -36,6 +36,9 @@ jobs:
 
       - name: Run safe automated tests
         run: npm test
+        env:
+          TEST_MONGODB_URI: ${{ secrets.TEST_MONGODB_URI }}
+          TEST_ALLOW_DB_WRITES: ${{ secrets.TEST_ALLOW_DB_WRITES }}
 
   frontend-builds:
     name: Build ${{ matrix.project }}
