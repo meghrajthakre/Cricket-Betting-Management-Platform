@@ -36,7 +36,7 @@ const UserDashboard = () => {
       <main className="flex justify-center px-3 pb-8 pt-10 sm:px-5 sm:pb-12 sm:pt-12">
         <div className="mx-auto max-w-[740px]">
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-7">
-            {MENU_ITEMS.map(({ label, icon: Icon, key }, i) => (
+            {MENU_ITEMS.map(({ label, icon, key }, i) => (
               <button
                 key={key}
                 onClick={() => go(key)}
@@ -60,10 +60,10 @@ const UserDashboard = () => {
                   opacity-0 animate-fade-up
                 "
               >
-                <Icon
-                  className="shrink-0 text-[22px] sm:text-[26px]"
-                  aria-hidden="true"
-                />
+                {React.createElement(icon, {
+                  className: "shrink-0 text-[22px] sm:text-[26px]",
+                  "aria-hidden": true,
+                })}
                 <span className="leading-none">{label}</span>
               </button>
             ))}

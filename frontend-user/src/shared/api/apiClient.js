@@ -1,6 +1,6 @@
 import axios from "axios";
-import { useAuthStore } from "../store/authStore";
-import { useCoinStore } from "../store/coinStore";
+import { useAuthStore } from "../../store/authStore";
+import { useCoinStore } from "../../store/coinStore";
 
 export const USER_ACCESS_TOKEN_KEY = "userAccessToken";
 

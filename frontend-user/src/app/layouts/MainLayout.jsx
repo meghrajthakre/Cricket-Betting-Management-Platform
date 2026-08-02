@@ -1,8 +1,8 @@
 import React from "react";
 import { Outlet, useLocation } from "react-router-dom";
-import MarqueeBanner from '../components/MarqueeBanner';
-import Footer from "../pages/Footer";
-import Navbar from "../components/Navbar";
+import MarqueeBanner from '../../shared/components/MarqueeBanner';
+import Footer from "../../shared/components/Footer";
+import Navbar from "../../shared/components/Navbar";
 
 const MainLayout = () => {
   const { pathname } = useLocation();

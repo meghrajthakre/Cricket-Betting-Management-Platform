@@ -6,7 +6,7 @@ import {
     getSessions,
     getManualOptions,
     getSSEUrl,
-} from "../../../../api/userService";
+} from "../../../shared/api/userService";
 import useHighlightedOdds from "./useHighlightedOdds";
 import {
     nextScoreDataFromFetch,

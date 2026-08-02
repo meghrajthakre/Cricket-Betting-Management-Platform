@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAuthStore } from "../store/authStore";
-import { useCoinStore } from "../store/coinStore";
-import { logoutUser , getWalletBalance} from "../api/userService";
+import { useAuthStore } from "../../store/authStore";
+import { useCoinStore } from "../../store/coinStore";
+import { logoutUser, getWalletBalance } from "../api/userService";
 import { MdSportsCricket } from "react-icons/md";
 
 const NAV_ITEMS = [

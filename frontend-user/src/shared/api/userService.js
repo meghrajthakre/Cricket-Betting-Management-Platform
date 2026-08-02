@@ -1,4 +1,4 @@
-import API, { USER_ACCESS_TOKEN_KEY } from "./axios";
+import API, { USER_ACCESS_TOKEN_KEY } from "./apiClient";
 
 // ========== Auth ==========
 export const loginUser = async (data) => {

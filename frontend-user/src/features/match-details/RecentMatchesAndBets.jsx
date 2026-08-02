@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getSavedMatches } from "../../../api/userService.js";
+import { getSavedMatches } from "../../shared/api/userService.js";
 import LoadingState from "./LoadingState.jsx";
 
 const money = (value) =>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getSavedMatchById } from "../../../../api/userService";
+import { getSavedMatchById } from "../../../shared/api/userService";
 
 // Fetches the saved match (home/away team names) once per matchId.
 export default function useSavedMatch(matchId) {

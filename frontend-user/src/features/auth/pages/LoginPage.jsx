@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { loginUser } from "../api/userService";
-import { useAuthStore } from "../store/authStore";
-import { useCoinStore } from "../store/coinStore";
+import { loginUser } from "../../../shared/api/userService";
+import { useAuthStore } from "../../../store/authStore";
+import { useCoinStore } from "../../../store/coinStore";
 // ── Captcha helpers ──────────────────────────────────────────────────────────
 
 function generateCaptcha() {

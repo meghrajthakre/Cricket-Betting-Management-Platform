@@ -11,9 +11,9 @@ import { MOCK_DATA } from "./mockData.js";
 import MatchMessages from "./MatchMessages.jsx";
 import BetSlip from "./BetSlip.jsx";
 import BetResultModal from "./BetResultModal.jsx";
-import { getMyBets, getWalletBalance, placeBet } from "../../../api/userService.js";
-import { useAuthStore } from "../../../store/authStore.js";
-import { useCoinStore } from "../../../store/coinStore.js";
+import { getMyBets, getWalletBalance, placeBet } from "../../shared/api/userService.js";
+import { useAuthStore } from "../../store/authStore.js";
+import { useCoinStore } from "../../store/coinStore.js";
 import RecentMatchesAndBets from "./RecentMatchesAndBets.jsx";
 import LiveTvPanel from "./LiveTvPanel.jsx";
 
