@@ -43,13 +43,13 @@ function MatchCard({ match }) {
       </div>
 
       <div className="relative mx-auto mt-7 grid max-w-3xl grid-cols-3 gap-3 sm:gap-8">
-        <button type="button" onClick={() => navigate(`/support/matches/${match.matchId}/play`)} className="cursor-pointer rounded-xl border border-white/10 bg-(--color-banner) px-2 py-3 text-xs font-bold uppercase tracking-wide text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#5a84c7] hover:shadow-lg active:translate-y-0 sm:py-3.5 sm:text-sm">
+        <button type="button" onClick={() => navigate(`/support/matches/${match.matchId}/play`)} className="rounded-xl border border-white/10 bg-(--color-banner) px-2 py-3 text-xs font-bold uppercase tracking-wide text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#5a84c7] hover:shadow-lg active:translate-y-0 sm:py-3.5 sm:text-sm">
           Play
         </button>
-        <button type="button" onClick={() => navigate(`/support/matches/${match.matchId}/score`)} className="cursor-pointer rounded-xl border border-white/10 bg-(--color-banner) px-2 py-3 text-xs font-bold uppercase tracking-wide text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#5a84c7] hover:shadow-lg active:translate-y-0 sm:py-3.5 sm:text-sm">
+        <button type="button" onClick={() => navigate(`/support/matches/${match.matchId}/score`)} className="rounded-xl border border-white/10 bg-(--color-banner) px-2 py-3 text-xs font-bold uppercase tracking-wide text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#5a84c7] hover:shadow-lg active:translate-y-0 sm:py-3.5 sm:text-sm">
           Score
         </button>
-        <button type="button" onClick={() => navigate(`/support/matches/${match.matchId}/manual`)} className="cursor-pointer rounded-xl border border-white/10 bg-(--color-banner) px-2 py-3 text-xs font-bold uppercase tracking-wide text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#5a84c7] hover:shadow-lg active:translate-y-0 sm:py-3.5 sm:text-sm">
+        <button type="button" onClick={() => navigate(`/support/matches/${match.matchId}/manual`)} className="rounded-xl border border-white/10 bg-(--color-banner) px-2 py-3 text-xs font-bold uppercase tracking-wide text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#5a84c7] hover:shadow-lg active:translate-y-0 sm:py-3.5 sm:text-sm">
           Session
         </button>
       </div>
@@ -89,17 +89,11 @@ export default function SupportMatchesPage() {
     <main className="mx-auto min-h-[calc(100vh-64px)] max-w-7xl px-4 py-7 sm:px-6 sm:py-10 lg:px-8">
       <header className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <span className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.18em] text-(--color-banner)">
-            <Radio size={15} /> Live control
-          </span>
-          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-(--color-primary) sm:text-3xl">In Play Matches</h1>
-          <p className="mt-1 text-sm text-slate-500">Select a match to manage play, score or manual controls.</p>
+         
+          <h1 className="mt-2 text-center text-2xl font-extrabold tracking-tight text-(--color-primary) sm:text-3xl">In Play Matches</h1>
         </div>
 
-        <button type="button" onClick={() => fetchMatches(true)} disabled={refreshing || loading} className="inline-flex self-start items-center gap-2 rounded-xl border border-(--color-border) bg-white px-4 py-2.5 text-sm font-bold text-(--color-primary) shadow-sm transition hover:border-(--color-accent) hover:bg-(--color-bg-main) disabled:cursor-not-allowed disabled:opacity-50 sm:self-auto">
-          <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-          {refreshing ? "Refreshing..." : "Refresh"}
-        </button>
+       
       </header>
 
       {loading && (
