@@ -43,13 +43,13 @@ function MatchCard({ match }) {
       </div>
 
       <div className="relative mx-auto mt-7 grid max-w-3xl grid-cols-3 gap-3 sm:gap-8">
-        <button type="button" onClick={() => navigate(`/support/matches/${match.matchId}/play`)} className="rounded-xl border border-white/10 bg-(--color-banner) px-2 py-3 text-xs font-bold uppercase tracking-wide text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#5a84c7] hover:shadow-lg active:translate-y-0 sm:py-3.5 sm:text-sm">
+        <button type="button" onClick={() => navigate(`/support/matches/${match.matchId}/play`)} className="cursor-pointer rounded-xl border border-white/10 bg-(--color-banner) px-2 py-3 text-xs font-bold uppercase tracking-wide text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#5a84c7] hover:shadow-lg active:translate-y-0 sm:py-3.5 sm:text-sm">
           Play
         </button>
-        <button type="button" onClick={() => navigate(`/support/matches/${match.matchId}/score`)} className="rounded-xl border border-white/10 bg-(--color-banner) px-2 py-3 text-xs font-bold uppercase tracking-wide text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#5a84c7] hover:shadow-lg active:translate-y-0 sm:py-3.5 sm:text-sm">
+        <button type="button" onClick={() => navigate(`/support/matches/${match.matchId}/score`)} className="cursor-pointer rounded-xl border border-white/10 bg-(--color-banner) px-2 py-3 text-xs font-bold uppercase tracking-wide text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#5a84c7] hover:shadow-lg active:translate-y-0 sm:py-3.5 sm:text-sm">
           Score
         </button>
-        <button type="button" onClick={() => navigate(`/support/matches/${match.matchId}/manual`)} className="rounded-xl border border-white/10 bg-(--color-banner) px-2 py-3 text-xs font-bold uppercase tracking-wide text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#5a84c7] hover:shadow-lg active:translate-y-0 sm:py-3.5 sm:text-sm">
+        <button type="button" onClick={() => navigate(`/support/matches/${match.matchId}/manual`)} className="cursor-pointer rounded-xl border border-white/10 bg-(--color-banner) px-2 py-3 text-xs font-bold uppercase tracking-wide text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#5a84c7] hover:shadow-lg active:translate-y-0 sm:py-3.5 sm:text-sm">
           Session
         </button>
       </div>
