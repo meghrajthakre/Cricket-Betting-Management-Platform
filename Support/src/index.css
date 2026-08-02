@@ -1,12 +1,21 @@
 @import 'tailwindcss';
 
 :root {
-    color-scheme: dark;
+    color-scheme: light;
     font-family: Inter, 'Segoe UI', sans-serif;
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    --color-primary: #1E3A5F;
+    --color-primary-light: #2E5080;
+    --color-banner: #4B75B8;
+    --color-bg-main: #E8EDF3;
+    --color-input-bg: #FFFFFF;
+    --color-text-dark: #1A2B3C;
+    --color-border: #CDD9E5;
+    --color-accent: #90B4D4;
+    --color-error: #D23131;
 }
 
 html,
@@ -18,7 +27,8 @@ body,
 body {
     margin: 0;
     min-height: 100vh;
-    background-color: #020617;
+    background-color: var(--color-bg-main);
+    color: var(--color-text-dark);
 }
 
 * {
