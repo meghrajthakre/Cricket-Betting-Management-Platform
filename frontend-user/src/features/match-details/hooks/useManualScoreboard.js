@@ -203,6 +203,10 @@ export default function useManualScoreboard(matchId) {
                     setSessionSettlementVersion((current) => current + 1);
                 }
 
+                if (parsed.type === "BET_DELETED") {
+                    setSessionSettlementVersion((current) => current + 1);
+                }
+
                 if (parsed.type === "OPTIONS_UPDATED" && parsed.payload) {
                     setOptions((prev) => ({ ...prev, ...parsed.payload }));
                 }

@@ -500,11 +500,107 @@ const getAllMatchBets = async (matchId) => {
     }));
 };
 
+/** Deletes a bet and safely releases any pending wallet exposure. */
+const deleteBetSlip = async (betId, deletedBy) => {
+    const dbSession = await mongoose.startSession();
+    let deletedBet;
+    let balance;
+
+    try {
+        await dbSession.withTransaction(async () => {
+            const bet = await Bet.findById(betId).session(dbSession);
+            if (!bet) {
+                const error = new Error("Bet slip not found");
+                error.statusCode = 404;
+                throw error;
+            }
+
+            deletedBet = bet.toObject();
+            if (bet.status !== BET_STATUS.PENDING) {
+                await bet.deleteOne({ session: dbSession });
+                return;
+            }
+
+            const user = await User.findById(bet.userId).session(dbSession);
+            if (!user) throw new Error("Bet user not found");
+
+            let walletRelease;
+            if (bet.marketType === "session") {
+                walletRelease = Number(
+                    bet.walletAdjustment == null ? bet.loss : bet.walletAdjustment
+                );
+            } else {
+                const [runnerDocs, pendingBets] = await Promise.all([
+                    ManualRunner.find({ matchId: bet.matchId })
+                        .select("runnerId")
+                        .session(dbSession)
+                        .lean(),
+                    Bet.find({
+                        userId: bet.userId,
+                        matchId: bet.matchId,
+                        marketType: "match",
+                        status: BET_STATUS.PENDING,
+                    })
+                        .session(dbSession)
+                        .lean(),
+                ]);
+
+                const runnerIds = runnerDocs.map((runner) => runner.runnerId);
+                const currentlyReserved = Number(
+                    pendingBets.reduce((total, pendingBet) => {
+                        const movement = pendingBet.walletAdjustment == null
+                            ? Number(pendingBet.loss)
+                            : Number(pendingBet.walletAdjustment);
+                        return total + movement;
+                    }, 0).toFixed(2)
+                );
+                const positions = Object.fromEntries(runnerIds.map((runnerId) => [runnerId, 0]));
+                pendingBets
+                    .filter((pendingBet) => String(pendingBet._id) !== String(bet._id))
+                    .forEach((pendingBet) => addBetToPositions(positions, runnerIds, pendingBet));
+                walletRelease = Number((currentlyReserved - requiredExposure(positions)).toFixed(2));
+            }
+
+            const balanceBefore = Number(user.coins);
+            const balanceAfter = Number((balanceBefore + walletRelease).toFixed(2));
+            if (balanceAfter < 0) {
+                const error = new Error("Insufficient wallet balance to remove this hedging bet");
+                error.statusCode = 409;
+                throw error;
+            }
+
+            if (walletRelease !== 0) {
+                await Ledger.create([{
+                    userId: bet.userId,
+                    amount: Math.abs(walletRelease),
+                    type: walletRelease > 0 ? "credit" : "debit",
+                    reason: walletRelease > 0
+                        ? `Pending ${bet.marketType} bet deleted; exposure released`
+                        : "Pending hedge bet deleted; exposure increased",
+                    createdBy: deletedBy,
+                    balanceBefore,
+                    balanceAfter,
+                }], { session: dbSession });
+                user.coins = balanceAfter;
+                await user.save({ session: dbSession });
+            }
+
+            balance = balanceAfter;
+            await bet.deleteOne({ session: dbSession });
+        });
+    } finally {
+        await dbSession.endSession();
+    }
+
+    return { bet: deletedBet, balance };
+};
+
 module.exports = {
     placeBet,
     settleBet,
     getUserMatchBets,
     getAllMatchBets,
+    deleteBetSlip,
     acceptCurrentMarketRate,
     waitForBetDelay,
     calculateBetFinancials,

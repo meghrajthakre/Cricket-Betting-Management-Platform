@@ -1,6 +1,6 @@
 "use strict";
 
-const { placeBet, settleBet, getUserMatchBets, getAllMatchBets } = require("./bet.service");
+const { placeBet, settleBet, getUserMatchBets, getAllMatchBets, deleteBetSlip } = require("./bet.service");
 const { z } = require("zod");
 const mongoose = require("mongoose");
 const sse = require("../manual/manual.events");
@@ -165,9 +165,37 @@ const getAllMatchBetsController = async (req, res) => {
     }
 };
 
+/** DELETE /bet/:betId — superadmin can remove resolved slip records. */
+const deleteBetController = async (req, res) => {
+    try {
+        const betId = z
+            .string()
+            .refine((value) => mongoose.Types.ObjectId.isValid(value), "Invalid betId format")
+            .parse(req.params.betId);
+        const result = await deleteBetSlip(betId, req.user._id);
+        sse.broadcast(result.bet.matchId, {
+            type: "BET_DELETED",
+            payload: {
+                matchId: result.bet.matchId,
+                betId: result.bet._id,
+                userId: result.bet.userId,
+            },
+        });
+        return res.status(200).json({
+            success: true,
+            message: "Bet slip deleted successfully",
+            data: result.bet,
+            balance: result.balance,
+        });
+    } catch (error) {
+        return res.status(error.statusCode || 400).json({ success: false, error: error.message });
+    }
+};
+
 module.exports = {
     placeBetController,
     settleBetController,
     getMyBetsController,
     getAllMatchBetsController,
+    deleteBetController,
 };

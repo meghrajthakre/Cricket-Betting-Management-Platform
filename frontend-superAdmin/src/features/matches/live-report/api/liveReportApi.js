@@ -72,3 +72,8 @@ export async function fetchMatchBets(matchId) {
   const response = await api.get("/bet/match", { params: { matchId } });
   return Array.isArray(response.data?.data) ? response.data.data : [];
 }
+
+export async function deleteBetSlip(betId) {
+  const response = await api.delete(`/bet/${encodeURIComponent(betId)}`);
+  return response.data?.data;
+}

@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import api from "../../shared/api/apiClient";
 import Spinner from "../../shared/components/Spinner";
+import BetSlipsPanel from "./match-dashboard/components/BetSlipsPanel";
+import SessionBetSlipsPanel from "./match-dashboard/components/SessionBetSlipsPanel";
+import { deleteBetSlip, fetchMatchBets } from "./live-report/api/liveReportApi";
 
 const reportButtons = [
-  { label: "Bet Slips" },
-  { label: "Bet Slips2" },
-  { label: "Session Bet Slip" },
+  { label: "Bet Slips", panel: "match" },
+  { label: "Session Bet Slips", panel: "session" },
   { label: "Live Report", path: "live-report" },
   { label: "Company Report" },
   { label: "Client Report" },
@@ -24,6 +26,11 @@ export default function MatchDashboard() {
   const [match, setMatch] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [activePanel, setActivePanel] = useState(null);
+  const [bets, setBets] = useState([]);
+  const [betsLoading, setBetsLoading] = useState(false);
+  const [betsError, setBetsError] = useState("");
+  const [deletingBetId, setDeletingBetId] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -54,6 +61,42 @@ export default function MatchDashboard() {
   }, [id]);
 
   const title = getTitle(match);
+
+  const openBetPanel = async (panel) => {
+    setActivePanel(panel);
+    setBetsLoading(true);
+    setBetsError("");
+    try {
+      setBets(await fetchMatchBets(id));
+    } catch (requestError) {
+      setBetsError(
+        requestError.response?.data?.error ||
+          requestError.message ||
+          "Bet slips load nahi ho paaye."
+      );
+    } finally {
+      setBetsLoading(false);
+    }
+  };
+
+  const handleDeleteBet = async (bet) => {
+    const confirmed = window.confirm("Kya aap is bet slip ko delete karna chahte hain? Pending slip ki reserved amount user wallet me adjust ho jayegi.");
+    if (!confirmed) return;
+    setDeletingBetId(bet._id);
+    setBetsError("");
+    try {
+      await deleteBetSlip(bet._id);
+      setBets((current) => current.filter((item) => item._id !== bet._id));
+    } catch (requestError) {
+      setBetsError(
+        requestError.response?.data?.error ||
+          requestError.message ||
+          "Bet slip delete nahi ho paayi."
+      );
+    } finally {
+      setDeletingBetId("");
+    }
+  };
   const marketRows = match
     ? [
         {
@@ -121,6 +164,15 @@ export default function MatchDashboard() {
                   >
                     {button.label}
                   </Link>
+                ) : button.panel ? (
+                  <button
+                    key={button.label}
+                    type="button"
+                    onClick={() => openBetPanel(button.panel)}
+                    className="cursor-pointer rounded-lg bg-(--color-btn-bg) px-5 py-3 text-base font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-(--color-btn-hover) hover:shadow-md"
+                  >
+                    {button.label}
+                  </button>
                 ) : (
                   <button
                     key={button.label}
@@ -176,6 +228,13 @@ export default function MatchDashboard() {
             </div>
           </div>
         </>
+      )}
+
+      {activePanel === "match" && (
+        <BetSlipsPanel bets={bets} loading={betsLoading} error={betsError} deletingId={deletingBetId} onClose={() => setActivePanel(null)} onDelete={handleDeleteBet} />
+      )}
+      {activePanel === "session" && (
+        <SessionBetSlipsPanel bets={bets} loading={betsLoading} error={betsError} deletingId={deletingBetId} onClose={() => setActivePanel(null)} onDelete={handleDeleteBet} />
       )}
     </section>
   );
