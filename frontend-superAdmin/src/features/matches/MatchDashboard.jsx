@@ -125,20 +125,20 @@ export default function MatchDashboard() {
   }
 
   return (
-    <section className="min-h-full text-[#555]">
+    <section className="min-h-full text-(--color-text-dark)">
       <header className="mb-7">
-        <h1 className="text-[30px] font-normal leading-tight">Matches</h1>
+        <h1 className="text-[30px] font-normal leading-tight text-(--color-text-dark)">Matches</h1>
         <nav className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-          <span className="text-[#8a6755]">Dashboard</span>
+          <span className="text-(--color-banner)">Dashboard</span>
           <span className="text-gray-300">/</span>
           <Link
             to="/superadmin/matches"
-            className="text-[#8a6755] hover:text-[#4aabb3] hover:underline"
+            className="text-(--color-banner) hover:text-(--color-primary) hover:underline"
           >
             Matches
           </Link>
           <span className="text-gray-300">/</span>
-          <span className="max-w-[75vw] truncate font-bold" title={title}>
+          <span className="max-w-[75vw] truncate font-bold text-(--color-text-dark)" title={title}>
             {title}
           </span>
         </nav>
@@ -150,8 +150,8 @@ export default function MatchDashboard() {
         </div>
       ) : (
         <>
-          <div className="border-t-[3px] border-[#e2e5e7] bg-white">
-            <h2 className="border-b border-[#e1e1e1] px-5 py-5 text-3xl font-normal">
+          <div className="border-t-[3px] border-(--color-border) bg-white">
+            <h2 className="border-b border-(--color-border) px-5 py-5 text-3xl font-normal text-(--color-primary)">
               Superadmin Match Dashboard
             </h2>
             <div className="flex flex-wrap justify-center gap-1 px-5 py-5">
@@ -160,7 +160,7 @@ export default function MatchDashboard() {
                   <Link
                     key={button.label}
                     to={`/superadmin/matches/${encodeURIComponent(id)}/${button.path}`}
-                    className="rounded-sm bg-[#4aabb3] px-5 py-3 text-base font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-[#388f96] hover:shadow-md"
+                    className="rounded-sm bg-(--color-banner) px-5 py-3 text-base font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-(--color-primary-light) hover:shadow-md"
                   >
                     {button.label}
                   </Link>
@@ -169,7 +169,7 @@ export default function MatchDashboard() {
                     key={button.label}
                     type="button"
                     onClick={() => openBetPanel(button.panel)}
-                    className="cursor-pointer rounded-lg bg-(--color-btn-bg) px-5 py-3 text-base font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-(--color-btn-hover) hover:shadow-md"
+                    className="cursor-pointer rounded-sm bg-(--color-banner) px-5 py-3 text-base font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-(--color-primary-light) hover:shadow-md"
                   >
                     {button.label}
                   </button>
@@ -177,7 +177,7 @@ export default function MatchDashboard() {
                   <button
                     key={button.label}
                     type="button"
-                    className="rounded-sm bg-[#4aabb3] px-5 py-3 text-base font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-[#388f96] hover:shadow-md"
+                    className="cursor-pointer rounded-sm bg-(--color-banner) px-5 py-3 text-base font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-(--color-primary-light) hover:shadow-md"
                   >
                     {button.label}
                   </button>
@@ -186,39 +186,39 @@ export default function MatchDashboard() {
             </div>
           </div>
 
-          <div className="mt-24 border-t-[3px] border-[#e2e5e7] bg-white">
-            <h3 className="border-b border-[#e1e1e1] px-5 py-4 font-bold">
+          <div className="mt-24 border-t-[3px] border-(--color-border) bg-white">
+            <h3 className="border-b border-(--color-border) px-5 py-4 font-bold text-(--color-primary)">
               Match Markets
             </h3>
             <div className="overflow-x-auto p-5">
               <table className="w-full min-w-[650px] border-collapse text-left text-sm">
                 <thead>
                   <tr>
-                    <th className="border-b border-[#d8d8d8] px-3 py-3">ID</th>
-                    <th className="border-b border-[#d8d8d8] px-3 py-3">
+                    <th className="border-b border-(--color-border) px-3 py-3">ID</th>
+                    <th className="border-b border-(--color-border) px-3 py-3">
                       Betfair Market Id
                     </th>
-                    <th className="border-b border-[#d8d8d8] px-3 py-3">
+                    <th className="border-b border-(--color-border) px-3 py-3">
                       Betfair Market Type
                     </th>
-                    <th className="border-b border-[#d8d8d8] px-3 py-3">
+                    <th className="border-b border-(--color-border) px-3 py-3">
                       RUNNER
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {marketRows.map((market) => (
-                      <tr key={market.marketId} className="hover:bg-[#f6fbfb]">
-                        <td className="border-b border-[#e5e5e5] px-3 py-3">
+                      <tr key={market.marketId} className="hover:bg-(--color-bg-main)">
+                        <td className="border-b border-(--color-border) px-3 py-3">
                           {market.id}
                         </td>
-                        <td className="border-b border-[#e5e5e5] px-3 py-3">
+                        <td className="border-b border-(--color-border) px-3 py-3">
                           {market.marketId}
                         </td>
-                        <td className="border-b border-[#e5e5e5] px-3 py-3">
+                        <td className="border-b border-(--color-border) px-3 py-3">
                           {market.marketType}
                         </td>
-                        <td className="border-b border-[#e5e5e5] px-3 py-3">
+                        <td className="border-b border-(--color-border) px-3 py-3">
                           {market.runners || "—"}
                         </td>
                       </tr>
