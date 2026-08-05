@@ -4,6 +4,7 @@ import LoginPage from "../../features/auth/LoginPage";
 import DashboardPage from "../../features/dashboard/DashboardPage";
 import CollectionReportPage from "../../features/collection-report/CollectionReportPage";
 import MyLedgerPage from "../../features/ledger/MyLedgerPage";
+import MatchesPage from "../../features/matches/MatchesPage";
 import ProtectedRoute from "./ProtectedRoute";
 
 export default function AppRoutes() {
@@ -14,6 +15,7 @@ export default function AppRoutes() {
         <Route path="/sub-company" element={<Layout />}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="matches" element={<MatchesPage />} />
           <Route path="collection-report" element={<CollectionReportPage />} />
           <Route path="my-ledger" element={<MyLedgerPage />} />
         </Route>

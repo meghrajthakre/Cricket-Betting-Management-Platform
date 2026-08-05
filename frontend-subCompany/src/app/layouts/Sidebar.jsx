@@ -3,12 +3,14 @@ import {
   LayoutDashboard,
   LogOut,
   NotebookTabs,
+  Swords,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { logout } from "../../shared/api/authApi";
 
 const links = [
   { label: "Dashboard", to: "/sub-company/dashboard", icon: LayoutDashboard },
+  { label: "Matches", to: "/sub-company/matches", icon: Swords },
   {
     label: "Collection Report",
     to: "/sub-company/collection-report",
