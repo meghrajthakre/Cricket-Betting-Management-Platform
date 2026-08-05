@@ -25,9 +25,11 @@ Invoke-ProjectCommand -Project "Backend" -Arguments @("test")
 Invoke-ProjectCommand -Project "frontend-user" -Arguments @("run", "lint")
 Invoke-ProjectCommand -Project "frontend-superAdmin" -Arguments @("run", "lint")
 Invoke-ProjectCommand -Project "Support" -Arguments @("run", "lint")
+Invoke-ProjectCommand -Project "frontend-subCompany" -Arguments @("run", "lint")
 Invoke-ProjectCommand -Project "frontend-user" -Arguments @("run", "build")
 Invoke-ProjectCommand -Project "frontend-superAdmin" -Arguments @("run", "build")
 Invoke-ProjectCommand -Project "Support" -Arguments @("run", "build")
+Invoke-ProjectCommand -Project "frontend-subCompany" -Arguments @("run", "build")
 Invoke-ProjectCommand -Project "frontend-user" -Arguments @("run", "test:e2e")
 
 Write-Host ""

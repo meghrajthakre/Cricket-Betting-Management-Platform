@@ -2,3 +2,31 @@
 .runlogs/
 frontend-user/playwright-report/
 frontend-user/test-results/
+
+# Dependencies and generated builds
+**/node_modules/
+**/dist/
+**/.vite/
+
+# Local environment files (keep templates tracked)
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Logs and local tooling
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.DS_Store
+Thumbs.db
+*.local
+
+# Test output
+**/coverage/
+**/playwright-report/
+**/test-results/
