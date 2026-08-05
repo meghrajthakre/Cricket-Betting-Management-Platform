@@ -9,7 +9,7 @@ const ManualRunner = require("../manual/manual-runner.model");
 const Session = require("../session/session.model");
 const { sessionTemplate } = require("../session/session.catalog");
 const { DEFAULT_OPTIONS } = require("../manual/manual-options.service");
-const { User } = require("../user/user.model");
+const { User, ROLES } = require("../user/user.model");
 const { Ledger } = require("../ledger/ledger.model");
 
 // ---------------------------------------------------------------------------
@@ -500,6 +500,28 @@ const getAllMatchBets = async (matchId) => {
     }));
 };
 
+/** Returns bets belonging only to users directly owned by one Sub Company. */
+const getCompanyMatchBets = async (companyId, matchId) => {
+    if (!matchId) throw new Error("matchId is required");
+    const userIds = await User.find({ role: ROLES.USER, createdBy: companyId }).distinct("_id");
+    const [bets, runners, sessions] = await Promise.all([
+        Bet.find({ matchId, userId: { $in: userIds } })
+            .populate("userId", "username firstName role")
+            .sort({ createdAt: -1 })
+            .lean(),
+        ManualRunner.find({ matchId }).select("runnerId runnerName").lean(),
+        Session.find({ matchId }).select("id sessionName").lean(),
+    ]);
+    const runnerNames = new Map(runners.map((runner) => [runner.runnerId, runner.runnerName]));
+    const sessionNames = new Map(sessions.map((session) => [session.id, session.sessionName]));
+    return bets.map((bet) => ({
+        ...bet,
+        selectionName: bet.marketType === "session"
+            ? sessionNames.get(bet.marketId) || bet.marketId
+            : runnerNames.get(bet.marketId) || bet.marketId,
+    }));
+};
+
 /** Deletes a bet and safely releases any pending wallet exposure. */
 const deleteBetSlip = async (betId, deletedBy) => {
     const dbSession = await mongoose.startSession();
@@ -600,6 +622,7 @@ module.exports = {
     settleBet,
     getUserMatchBets,
     getAllMatchBets,
+    getCompanyMatchBets,
     deleteBetSlip,
     acceptCurrentMarketRate,
     waitForBetDelay,

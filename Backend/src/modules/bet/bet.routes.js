@@ -6,6 +6,7 @@ const {
     settleBetController,
     getMyBetsController,
     getAllMatchBetsController,
+    getCompanyMatchBetsController,
     deleteBetController,
 } = require("./bet.controller");
 const { protect, allowRoles } = require("../../middleware/authMiddleware");
@@ -21,6 +22,7 @@ router.get("/mine", protect, allowRoles("user"), getMyBetsController);
 
 // GET /bet/match?matchId=...
 router.get("/match", protect, allowRoles("superadmin"), getAllMatchBetsController);
+router.get("/company-match", protect, allowRoles("sub_company"), getCompanyMatchBetsController);
 
 // DELETE /bet/:betId — pending exposure is safely reversed.
 router.delete("/:betId", protect, allowRoles("superadmin"), deleteBetController);

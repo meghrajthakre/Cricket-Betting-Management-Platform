@@ -1,6 +1,6 @@
 "use strict";
 
-const { placeBet, settleBet, getUserMatchBets, getAllMatchBets, deleteBetSlip } = require("./bet.service");
+const { placeBet, settleBet, getUserMatchBets, getAllMatchBets, getCompanyMatchBets, deleteBetSlip } = require("./bet.service");
 const { z } = require("zod");
 const mongoose = require("mongoose");
 const sse = require("../manual/manual.events");
@@ -165,6 +165,16 @@ const getAllMatchBetsController = async (req, res) => {
     }
 };
 
+const getCompanyMatchBetsController = async (req, res) => {
+    try {
+        const matchId = z.string().min(1, "matchId is required").parse(req.query.matchId);
+        const bets = await getCompanyMatchBets(req.user._id, matchId);
+        return res.status(200).json({ success: true, count: bets.length, data: bets });
+    } catch (error) {
+        return res.status(400).json({ success: false, error: error.message });
+    }
+};
+
 /** DELETE /bet/:betId — superadmin can remove resolved slip records. */
 const deleteBetController = async (req, res) => {
     try {
@@ -197,5 +207,6 @@ module.exports = {
     settleBetController,
     getMyBetsController,
     getAllMatchBetsController,
+    getCompanyMatchBetsController,
     deleteBetController,
 };

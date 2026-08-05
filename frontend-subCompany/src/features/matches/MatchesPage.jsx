@@ -1,5 +1,6 @@
 import { Clock, Search, Swords, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import api from "../../shared/api/apiClient";
 import Spinner from "../../shared/components/Spinner";
 
@@ -191,7 +192,12 @@ export default function MatchesPage() {
                         {match.matchId || "-"}
                       </td>
                       <td className="border border-gray-200 px-3 py-3 font-bold text-(--color-primary)">
-                        {getTitle(match)}
+                        <Link
+                          to={`/sub-company/matches/${encodeURIComponent(match.matchId)}`}
+                          className="underline-offset-4 hover:text-(--color-banner) hover:underline"
+                        >
+                          {getTitle(match)}
+                        </Link>
                       </td>
                       <td className="border border-gray-200 px-3 py-3">
                         Cricket
