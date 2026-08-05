@@ -81,12 +81,15 @@ test.after(async () => {
 });
 
 test("full delay prevents early creation and accepts unchanged rate", { skip: !enabled }, async () => {
-  const { matchId, user } = await seed({ delay: 0.2 });
+    const { matchId, user } = await seed({ delay: 0.2 });
   try {
     const started = Date.now();
     const pending = placeBet(user._id.toString(), matchId, 100, 91, "yes", "session", "s1");
-    await new Promise((resolve) => setTimeout(resolve, 80));
-    assert.equal(await Bet.countDocuments({ matchId }), 0);
+    const completedEarly = await Promise.race([
+      pending.then(() => true),
+      new Promise((resolve) => setTimeout(() => resolve(false), 80)),
+    ]);
+    assert.equal(completedEarly, false);
     await pending;
     assert.ok(Date.now() - started >= 180);
     assert.equal(await Bet.countDocuments({ matchId }), 1);

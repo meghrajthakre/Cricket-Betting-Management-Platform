@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Radio, RefreshCw, Trophy } from "lucide-react";
+import { RefreshCw, Trophy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import apiClient from "../../shared/api/apiClient";
 
@@ -61,12 +61,10 @@ export default function SupportMatchesPage() {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [refreshing, setRefreshing] = useState(false);
   const navigate = useNavigate();
 
-  const fetchMatches = useCallback(async (refresh = false) => {
-    if (refresh) setRefreshing(true);
-    else setLoading(true);
+  const fetchMatches = useCallback(async () => {
+    setLoading(true);
     setError("");
 
     try {
@@ -76,7 +74,6 @@ export default function SupportMatchesPage() {
       setError(requestError.response?.data?.message || requestError.message || "Failed to fetch matches");
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, []);
 

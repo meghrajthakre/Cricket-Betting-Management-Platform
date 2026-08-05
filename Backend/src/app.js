@@ -18,6 +18,7 @@ const walletRoutes = require("./modules/wallet/wallet.routes");
 const cricketRoutes = require("./modules/cricket/cricket.routes");
 const manualRoutes = require("./modules/manual/manual.routes");
 const sessionRoutes = require("./modules/session/session.routes");
+const subCompanyRoutes = require("./modules/sub-company/sub-company.routes");
 
 const app = express();
 app.set("trust proxy", 1);
@@ -66,6 +67,7 @@ app.use("/api/bet", betRoutes);
 app.use("/api/cricket", cricketRoutes);
 app.use("/api/manual", manualRoutes);
 app.use("/api/session", sessionRoutes);
+app.use("/api/sub-companies", subCompanyRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

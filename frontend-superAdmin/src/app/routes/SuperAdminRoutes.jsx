@@ -7,6 +7,7 @@ import CollectionReportPage from "../../features/collection-report/pages/Collect
 import SuperAdminProfilePage from "../../features/profile/SuperAdminProfilePage";
 import SettingsPage from "../../features/settings/SettingsPage";
 import CreateUserPage from "../../features/users/CreateUserPage";
+import SubCompaniesPage from "../../features/sub-companies/SubCompaniesPage";
 
 import MatchRoutes from "./MatchRoutes";
 import ProtectedRoute from "./ProtectedRoute";
@@ -19,6 +20,7 @@ export default function SuperAdminRoutes() {
 
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="admins" element={<AdminsPage />} />
+        <Route path="sub-companies" element={<SubCompaniesPage />} />
         <Route path="create-user" element={<CreateUserPage />} />
         <Route path="collection-report" element={<CollectionReportPage />} />
         <Route path="profile" element={<SuperAdminProfilePage />} />

@@ -10,12 +10,14 @@ import {
   LogOut,
   UserPlus,
   ChevronRight,
+  Building2,
 } from "lucide-react";
 import { logoutUser } from "../../shared/api/userApi";
 
 const NAV_ITEMS = [
   { label: "Dashboard",         to: "/superadmin/dashboard",         icon: LayoutDashboard },
   { label: "Admins",            to: "/superadmin/admins",            icon: Users },
+  { label: "Sub Companies",     to: "/superadmin/sub-companies",     icon: Building2 },
   { label: "Create User",       to: "/superadmin/create-user",       icon: UserPlus },
   { label: "Collection Report", to: "/superadmin/collection-report", icon: FileBarChart2 },
   { label: "Matches",           to: "/superadmin/matches",           icon: Swords },

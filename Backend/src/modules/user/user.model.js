@@ -7,6 +7,7 @@ const ROLES = Object.freeze({
   SUPERADMIN: "superadmin",
   SUPPORT: "support",
   MASTER: "master",
+  SUB_COMPANY: "sub_company",
   ADMIN: "admin",
   USER: "user",
 });
@@ -26,6 +27,13 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: "",
+    },
+
+    mobile: {
+      type: String,
+      trim: true,
+      unique: true,
+      sparse: true,
     },
 
     password: {
@@ -56,6 +64,28 @@ const userSchema = new mongoose.Schema(
     /* ── Hierarchy ─────────────────────────────────────────── */
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     parentId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+
+    allocatedShareBps: {
+      type: Number,
+      default: 0,
+      min: [0, "allocatedShareBps cannot be negative"],
+      max: [10000, "allocatedShareBps cannot exceed 10000"],
+      validate: {
+        validator: Number.isInteger,
+        message: "allocatedShareBps must be a whole number",
+      },
+    },
+
+    allocatedShare: {
+      type: Number,
+      default: 0,
+      min: [0, "allocatedShare cannot be negative"],
+      max: [10000, "allocatedShare cannot exceed 10000"],
+      validate: {
+        validator: Number.isInteger,
+        message: "allocatedShare must be a whole number",
+      },
+    },
 
     /* ── Share system ──────────────────────────────────────── */
     // myShare + downlineShare = 100 always
