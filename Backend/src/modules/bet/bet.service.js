@@ -517,9 +517,7 @@ const getAllMatchBets = async (superAdminId, matchId) => {
         }
         const parentId = bet.userId?.parentId || bet.userId?.createdBy;
         const currentCompanyShare = companyShareById.get(String(parentId));
-        const allocatedShareBps = Number.isInteger(bet.companyShareBps)
-            ? bet.companyShareBps
-            : currentCompanyShare == null ? 0 : currentCompanyShare;
+        const allocatedShareBps = currentCompanyShare == null ? 0 : currentCompanyShare;
         return scaleBetForRemainder({
             ...bet,
             selectionName: bet.marketType === "session"
@@ -555,9 +553,7 @@ const getCompanyMatchBets = async (companyId, matchId) => {
         };
         const snapshotShare = getViewerShareBps(bet, companyId);
         return snapshotShare === undefined
-            ? scaleBetForShare(decoratedBet, Number.isInteger(bet.companyShareBps)
-                ? bet.companyShareBps
-                : getCompanyShareBps(company))
+            ? scaleBetForShare(decoratedBet, getCompanyShareBps(company))
             : scaleBetForViewer(decoratedBet, companyId);
     });
 };

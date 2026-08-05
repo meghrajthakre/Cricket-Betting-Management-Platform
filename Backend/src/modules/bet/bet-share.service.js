@@ -88,11 +88,7 @@ const resolveShareSnapshot = async (user, session) => {
   if (!parentId) return {
     ownerPath: [],
     shareSnapshot: [],
-    companyId: undefined,
-    superAdminId: undefined,
     rootSuperAdminId: user.rootSuperAdminId,
-    companyShareBps: 0,
-    superAdminShareBps: 10000,
   };
 
   const bottomUp = [];
@@ -115,18 +111,11 @@ const resolveShareSnapshot = async (user, session) => {
   const hierarchy = bottomUp.reverse();
   const shareSnapshot = buildShareSnapshot(hierarchy);
 
-  const company = hierarchy.find((account) => account.role === ROLES.SUB_COMPANY);
   const root = hierarchy.find((account) => account.role === ROLES.SUPERADMIN) || hierarchy[0];
-  const companyShareBps = company ? getAllocatedShareBps(company) : 0;
-  const superAdminAllocation = shareSnapshot.find((item) => String(item.userId) === String(root?._id));
   return {
     ownerPath: hierarchy.map((account) => account._id),
     shareSnapshot,
     rootSuperAdminId: root?._id || user.rootSuperAdminId,
-    companyId: company?._id,
-    superAdminId: root?._id,
-    companyShareBps,
-    superAdminShareBps: superAdminAllocation?.shareBps ?? 10000,
   };
 };
 

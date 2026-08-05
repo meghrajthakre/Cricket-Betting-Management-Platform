@@ -23,10 +23,6 @@ const betSchema = new mongoose.Schema(
             required: [true, "userId is required"],
             index: true,
         },
-        companyId: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
-        superAdminId: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
-        companyShareBps: { type: Number, min: 0, max: 10000 },
-        superAdminShareBps: { type: Number, min: 0, max: 10000 },
         rootSuperAdminId: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
         ownerPath: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
         shareSnapshot: [{

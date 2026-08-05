@@ -130,13 +130,11 @@ const getSubCompanyReport = asyncHandler(async (req, res) => {
   if (!company) throw new AppError("Sub Company not found.", 404);
   const userIds = await User.find({ role: ROLES.USER, createdBy: company._id }).distinct("_id");
   const bets = await Bet.find({ $or: [{ ownerPath: company._id }, { userId: { $in: userIds } }], status: { $in: ["won", "lost"] } })
-    .select("status profit loss companyShareBps shareSnapshot")
+    .select("status profit loss shareSnapshot")
     .lean();
   const currentCompanyShareBps = getCompanyShareBps(company);
   const totals = bets.reduce((result, bet) => {
-    const allocatedBps = Number.isInteger(bet.companyShareBps)
-      ? bet.companyShareBps
-      : currentCompanyShareBps;
+    const allocatedBps = currentCompanyShareBps;
     const companySnapshotShare = getViewerShareBps(bet, company._id);
     const ownerSnapshotShare = getViewerShareBps(bet, req.user._id);
     const companyBet = companySnapshotShare === undefined
