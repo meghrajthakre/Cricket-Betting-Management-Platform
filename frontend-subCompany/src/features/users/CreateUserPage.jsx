@@ -8,6 +8,7 @@ export default function CreateUserPage() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const handleCreated = () => {
+    setCreateOpen(false);
     setRefreshKey((value) => value + 1);
   };
 

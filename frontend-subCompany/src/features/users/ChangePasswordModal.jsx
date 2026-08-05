@@ -24,8 +24,8 @@ export default function ChangePasswordModal({
       setError("Passwords do not match");
       return;
     }
-    if (form.password.length < 6) {
-      setError("Password must be at least 6 characters");
+    if (form.password.length < 4) {
+      setError("Password must be at least 4 characters");
       return;
     }
 
@@ -87,7 +87,7 @@ export default function ChangePasswordModal({
               type="password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
-              placeholder="Min 6 characters"
+              placeholder="Min 4 characters"
               className={inputCls}
             />
           </div>

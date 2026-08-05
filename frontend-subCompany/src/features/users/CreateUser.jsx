@@ -43,8 +43,8 @@ export default function CreateUser({ onCancel, onSuccess }) {
     event.preventDefault();
     const coins = Number(form.coins);
     if (!form.firstName.trim()) return setError("Full name is required.");
-    if (form.password.length < 6)
-      return setError("Password must be at least 6 characters.");
+    if (form.password.length < 4)
+      return setError("Password must be at least 4 characters.");
     if (form.password !== form.confirmPassword)
       return setError("Passwords do not match.");
     if (!Number.isFinite(coins) || coins < 0)
@@ -150,10 +150,11 @@ export default function CreateUser({ onCancel, onSuccess }) {
               id="user-password"
               name="password"
               type={showPassword ? "text" : "password"}
+              minLength={4}
               value={form.password}
               onChange={change}
               className={`${inputClassName} pr-11`}
-              placeholder="Minimum 6 characters"
+              placeholder="Minimum 4 characters"
             />
             <button
               type="button"
@@ -176,6 +177,7 @@ export default function CreateUser({ onCancel, onSuccess }) {
             id="confirm-user-password"
             name="confirmPassword"
             type={showPassword ? "text" : "password"}
+            minLength={4}
             value={form.confirmPassword}
             onChange={change}
             className={inputClassName}
