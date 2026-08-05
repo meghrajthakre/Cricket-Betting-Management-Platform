@@ -8,7 +8,7 @@ import { createSubCompany, getNextSubCompanyUsername, getSubCompanies, toggleSub
 
 const inputClass = "w-full rounded-xl border border-(--color-border) bg-slate-50 px-3.5 py-2.5 text-sm text-(--color-text-dark) outline-none transition focus:border-(--color-banner) focus:bg-white focus:ring-3 focus:ring-blue-100";
 const readOnlyClass = `${inputClass} cursor-not-allowed bg-gray-100 text-gray-500`;
-const emptyForm = { username: "Generating...", mobile: "", firstName: "", myShare: "20", companyShare: "80", fixLimit: "", password: "", confirmPassword: "" };
+const emptyForm = { username: "Generating...", firstName: "", myShare: "20", companyShare: "80", fixLimit: "", password: "", confirmPassword: "" };
 
 export default function SubCompaniesPage() {
   const [companies, setCompanies] = useState([]);
@@ -59,7 +59,7 @@ export default function SubCompaniesPage() {
     if (form.password !== form.confirmPassword) return toast.error("Passwords match nahi hain");
     setSaving(true);
     try {
-      const response = await createSubCompany({ username: form.username, mobile: form.mobile.trim(), firstName: form.firstName.trim(), allocatedShare: Number(form.companyShare) * 100, fixLimit: Number(form.fixLimit || 0), password: form.password, confirmPassword: form.confirmPassword });
+      const response = await createSubCompany({ username: form.username, firstName: form.firstName.trim(), allocatedShare: Number(form.companyShare) * 100, fixLimit: Number(form.fixLimit || 0), password: form.password, confirmPassword: form.confirmPassword });
       toast.success(response.message);
       setCreateOpen(false);
       setForm(emptyForm);
@@ -93,7 +93,6 @@ export default function SubCompaniesPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="User Name"><div className="relative"><input className={readOnlyClass} value={form.username} readOnly />{form.username === "Generating..." && <span className="absolute top-1/2 right-3 -translate-y-1/2"><Spinner size={15} variant="ocean" /></span>}</div></Field>
             <Field label="Owner / First Name"><input className={inputClass} value={form.firstName} onChange={setField("firstName")} placeholder="Enter owner name" /></Field>
-            <Field label="Mobile"><input className={inputClass} value={form.mobile} onChange={setField("mobile")} placeholder="Enter mobile number" /></Field>
             <Field label="Fix Limit"><input className={inputClass} type="number" min="0" value={form.fixLimit} onChange={setField("fixLimit")} placeholder="0" /></Field>
             <Field label="My Share (%)"><input className={inputClass} type="number" min="0" max="100" value={form.myShare} onChange={setField("myShare")} /></Field>
             <Field label="Sub Company Share (%)"><input className={inputClass} type="number" min="0" max="100" value={form.companyShare} onChange={setField("companyShare")} /></Field>

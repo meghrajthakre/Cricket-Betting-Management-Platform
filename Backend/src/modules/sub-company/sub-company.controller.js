@@ -45,7 +45,6 @@ const normalizeCompanyUsername = (value) => {
 const createSubCompany = asyncHandler(async (req, res) => {
   const { username: requestedUsername, mobile, firstName, allocatedShare, password, confirmPassword, fixLimit } = req.body;
   const username = normalizeCompanyUsername(requestedUsername);
-  if (!mobile?.trim()) throw new AppError("Mobile is required.", 400);
   if (!firstName?.trim()) throw new AppError("Company/owner name is required.", 400);
   validatePassword(password, confirmPassword);
 
@@ -54,13 +53,15 @@ const createSubCompany = asyncHandler(async (req, res) => {
   if (allocatedShare === undefined || !Number.isInteger(share) || share < 0 || share > 10000)
     throw new AppError("Allocated share must be a whole number between 0 and 10000.", 400);
   if (!Number.isFinite(limit) || limit < 0) throw new AppError("Fix limit cannot be negative.", 400);
-  const normalizedMobile = mobile.trim();
-  if (await User.exists({ $or: [{ username }, { mobile: normalizedMobile }] }))
+  const normalizedMobile = mobile?.trim() || undefined;
+  const duplicateFilters = [{ username }];
+  if (normalizedMobile) duplicateFilters.push({ mobile: normalizedMobile });
+  if (await User.exists({ $or: duplicateFilters }))
     throw new AppError("Username or mobile already exists.", 409);
   const sharePercent = share / 100;
   const company = await User.create({
     username,
-    mobile: normalizedMobile,
+    ...(normalizedMobile ? { mobile: normalizedMobile } : {}),
     firstName: firstName.trim(),
     password,
     role: ROLES.SUB_COMPANY,

@@ -66,7 +66,7 @@ test("Successful creation persists secure and correct data", { skip: !enabled },
   assert.equal("password" in body.data, false); assert.equal("__v" in body.data, false); assert.notEqual(record.role, ROLES.USER);
 });
 
-for (const [label, field] of [["Username", "username"], ["Password", "password"], ["Mobile", "mobile"], ["First name", "firstName"], ["Allocated share", "allocatedShare"]]) {
+for (const [label, field] of [["Username", "username"], ["Password", "password"], ["First name", "firstName"], ["Allocated share", "allocatedShare"]]) {
   test(`Missing ${label} is rejected`, { skip: !enabled }, async () => { const body = validBody(); delete body[field]; assert.equal((await create(superAdmin, body)).status, 400); });
 }
 
