@@ -5,6 +5,7 @@ const { Bet } = require("../bet/bet.model");
 const asyncHandler = require("../../utils/asyncHandler");
 const AppError = require("../../utils/AppError");
 const { setUserCoins } = require("../ledger/ledger.service");
+const { getCompanyShareBps, scaleBetForShare, scaleBetForRemainder } = require("../bet/bet-share.service");
 
 const generateUsername = async (prefix) => {
   const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -126,23 +127,31 @@ const getSubCompanyReport = asyncHandler(async (req, res) => {
   const company = await User.findOne({ _id: req.params.id, role: ROLES.SUB_COMPANY, createdBy: req.user._id });
   if (!company) throw new AppError("Sub Company not found.", 404);
   const userIds = await User.find({ role: ROLES.USER, createdBy: company._id }).distinct("_id");
-  const totals = await Bet.aggregate([
-    { $match: { userId: { $in: userIds }, status: { $in: ["won", "lost"] } } },
-    { $group: {
-      _id: null,
-      grossProfitLoss: { $sum: { $cond: [{ $eq: ["$status", "lost"] }, "$loss", { $multiply: ["$profit", -1] }] } },
-      settledBets: { $sum: 1 },
-    } },
-  ]);
-  const gross = Number((totals[0]?.grossProfitLoss || 0).toFixed(2));
+  const bets = await Bet.find({ userId: { $in: userIds }, status: { $in: ["won", "lost"] } })
+    .select("status profit loss companyShareBps")
+    .lean();
+  const currentCompanyShareBps = getCompanyShareBps(company);
+  const totals = bets.reduce((result, bet) => {
+    const allocatedBps = Number.isInteger(bet.companyShareBps)
+      ? bet.companyShareBps
+      : currentCompanyShareBps;
+    const companyBet = scaleBetForShare(bet, allocatedBps);
+    const ownerBet = scaleBetForRemainder(bet, allocatedBps);
+    const direction = bet.status === "lost" ? 1 : -1;
+    result.gross += direction * Number(bet.status === "lost" ? bet.loss : bet.profit);
+    result.company += direction * Number(bet.status === "lost" ? companyBet.loss : companyBet.profit);
+    result.owner += direction * Number(bet.status === "lost" ? ownerBet.loss : ownerBet.profit);
+    return result;
+  }, { gross: 0, company: 0, owner: 0 });
+  const gross = Number(totals.gross.toFixed(2));
   res.json({ success: true, data: {
     companyId: company._id,
     grossProfitLoss: gross,
     superAdminSharePercent: company.myShare,
     companySharePercent: company.downlineShare,
-    superAdminProfitLoss: Number((gross * company.myShare / 100).toFixed(2)),
-    companyProfitLoss: Number((gross * company.downlineShare / 100).toFixed(2)),
-    settledBets: totals[0]?.settledBets || 0,
+    superAdminProfitLoss: Number(totals.owner.toFixed(2)),
+    companyProfitLoss: Number(totals.company.toFixed(2)),
+    settledBets: bets.length,
   } });
 });
 

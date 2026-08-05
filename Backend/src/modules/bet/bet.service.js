@@ -11,6 +11,7 @@ const { sessionTemplate } = require("../session/session.catalog");
 const { DEFAULT_OPTIONS } = require("../manual/manual-options.service");
 const { User, ROLES } = require("../user/user.model");
 const { Ledger } = require("../ledger/ledger.model");
+const { getCompanyShareBps, scaleBetForShare, scaleBetForRemainder, resolveShareSnapshot } = require("./bet-share.service");
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -259,6 +260,7 @@ const placeBet = async (
             await dbSession.withTransaction(async () => {
                 const user = await User.findById(userId).session(dbSession);
                 if (!user) throw new Error("User not found");
+                const shareSnapshot = await resolveShareSnapshot(user, dbSession);
 
                 const balanceBefore = Number(user.coins);
                 const balanceAfter = Number((balanceBefore - liability).toFixed(2));
@@ -283,6 +285,7 @@ const placeBet = async (
 
                 [sessionBet] = await Bet.create([{
                     userId,
+                    ...shareSnapshot,
                     matchId,
                     marketType,
                     marketId,
@@ -323,6 +326,7 @@ const placeBet = async (
             ]);
 
             if (!user) throw new Error("User not found");
+            const shareSnapshot = await resolveShareSnapshot(user, dbSession);
 
             const runnerIds = runnerDocs.map((item) => item.runnerId);
             if (runnerIds.length < 2 || !runnerIds.includes(marketId)) {
@@ -371,7 +375,7 @@ const placeBet = async (
             }
 
             [bet] = await Bet.create([{
-                userId, matchId, marketType, marketId, amount, rate: acceptedRate, type, profit,
+                userId, ...shareSnapshot, matchId, marketType, marketId, amount, rate: acceptedRate, type, profit,
                 loss: liability,
                 walletAdjustment,
                 status: BET_STATUS.PENDING,
@@ -476,50 +480,71 @@ const getUserMatchBets = async (userId, matchId) => {
         .lean();
 };
 
-/** Returns every user's bets for one match (superadmin report). */
-const getAllMatchBets = async (matchId) => {
+/** Returns only this Super Admin's downline bets, scaled to their retained share. */
+const getAllMatchBets = async (superAdminId, matchId) => {
     if (!matchId) throw new Error("matchId is required");
-
+    const companies = await User.find({ role: ROLES.SUB_COMPANY, createdBy: superAdminId })
+        .select("_id allocatedShareBps allocatedShare downlineShare").lean();
+    const companyIds = companies.map((company) => company._id);
+    const ownedUserIds = await User.find({
+        role: ROLES.USER,
+        $or: [
+            { createdBy: superAdminId }, { parentId: superAdminId },
+            { createdBy: { $in: companyIds } }, { parentId: { $in: companyIds } },
+        ],
+    }).distinct("_id");
+    const companyShareById = new Map(companies.map((company) => [
+        String(company._id), getCompanyShareBps(company),
+    ]));
     const [bets, runners, sessions] = await Promise.all([
-        Bet.find({ matchId })
-            .populate("userId", "username firstName role")
-            .sort({ createdAt: -1 })
-            .lean(),
+        Bet.find({ matchId, userId: { $in: ownedUserIds } })
+            .populate("userId", "username firstName role parentId createdBy")
+            .sort({ createdAt: -1 }).lean(),
         ManualRunner.find({ matchId }).select("runnerId runnerName").lean(),
         Session.find({ matchId }).select("id sessionName").lean(),
     ]);
-
     const runnerNames = new Map(runners.map((runner) => [runner.runnerId, runner.runnerName]));
     const sessionNames = new Map(sessions.map((session) => [session.id, session.sessionName]));
-
-    return bets.map((bet) => ({
-        ...bet,
-        selectionName: bet.marketType === "session"
-            ? sessionNames.get(bet.marketId) || bet.marketId
-            : runnerNames.get(bet.marketId) || bet.marketId,
-    }));
+    return bets.map((bet) => {
+        const parentId = bet.userId?.parentId || bet.userId?.createdBy;
+        const currentCompanyShare = companyShareById.get(String(parentId));
+        const allocatedShareBps = Number.isInteger(bet.companyShareBps)
+            ? bet.companyShareBps
+            : currentCompanyShare == null ? 0 : currentCompanyShare;
+        return scaleBetForRemainder({
+            ...bet,
+            selectionName: bet.marketType === "session"
+                ? sessionNames.get(bet.marketId) || bet.marketId
+                : runnerNames.get(bet.marketId) || bet.marketId,
+        }, allocatedShareBps);
+    });
 };
 
-/** Returns bets belonging only to users directly owned by one Sub Company. */
+/** Returns this Sub Company's users' bets, scaled to its allocated share. */
 const getCompanyMatchBets = async (companyId, matchId) => {
     if (!matchId) throw new Error("matchId is required");
-    const userIds = await User.find({ role: ROLES.USER, createdBy: companyId }).distinct("_id");
+    const [company, userIds] = await Promise.all([
+        User.findOne({ _id: companyId, role: ROLES.SUB_COMPANY }).select("allocatedShareBps allocatedShare downlineShare").lean(),
+        User.find({ role: ROLES.USER, $or: [{ createdBy: companyId }, { parentId: companyId }] }).distinct("_id"),
+    ]);
+    if (!company) throw new Error("Sub Company not found");
     const [bets, runners, sessions] = await Promise.all([
         Bet.find({ matchId, userId: { $in: userIds } })
             .populate("userId", "username firstName role")
-            .sort({ createdAt: -1 })
-            .lean(),
+            .sort({ createdAt: -1 }).lean(),
         ManualRunner.find({ matchId }).select("runnerId runnerName").lean(),
         Session.find({ matchId }).select("id sessionName").lean(),
     ]);
     const runnerNames = new Map(runners.map((runner) => [runner.runnerId, runner.runnerName]));
     const sessionNames = new Map(sessions.map((session) => [session.id, session.sessionName]));
-    return bets.map((bet) => ({
+    return bets.map((bet) => scaleBetForShare({
         ...bet,
         selectionName: bet.marketType === "session"
             ? sessionNames.get(bet.marketId) || bet.marketId
             : runnerNames.get(bet.marketId) || bet.marketId,
-    }));
+    }, Number.isInteger(bet.companyShareBps)
+        ? bet.companyShareBps
+        : getCompanyShareBps(company)));
 };
 
 /** Deletes a bet and safely releases any pending wallet exposure. */

@@ -157,7 +157,7 @@ const getMyBetsController = async (req, res) => {
 const getAllMatchBetsController = async (req, res) => {
     try {
         const matchId = z.string().min(1, "matchId is required").parse(req.query.matchId);
-        const bets = await getAllMatchBets(matchId);
+        const bets = await getAllMatchBets(req.user._id, matchId);
 
         return res.status(200).json({ success: true, count: bets.length, data: bets });
     } catch (error) {
