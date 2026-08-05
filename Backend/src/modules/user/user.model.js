@@ -8,6 +8,10 @@ const ROLES = Object.freeze({
   SUPPORT: "support",
   MASTER: "master",
   SUB_COMPANY: "sub_company",
+  SUB_MASTER: "sub_master",
+  SST: "sst",
+  SS: "ss",
+  SA: "sa",
   ADMIN: "admin",
   USER: "user",
 });
@@ -64,6 +68,8 @@ const userSchema = new mongoose.Schema(
     /* ── Hierarchy ─────────────────────────────────────────── */
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     parentId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    rootSuperAdminId: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
+    ancestorIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
     allocatedShareBps: {
       type: Number,
@@ -124,6 +130,8 @@ const userSchema = new mongoose.Schema(
 userSchema.index({ role: 1 });
 userSchema.index({ parentId: 1 });
 userSchema.index({ createdBy: 1 });
+userSchema.index({ rootSuperAdminId: 1, role: 1 });
+userSchema.index({ ancestorIds: 1, role: 1 });
 
 /* ── Pre-save: hash password ───────────────────────────────── */
 userSchema.pre("save", async function () {

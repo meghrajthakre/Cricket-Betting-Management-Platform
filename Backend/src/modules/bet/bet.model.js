@@ -1,6 +1,7 @@
 "use strict";
 
 const mongoose = require("mongoose");
+const { ROLES } = require("../user/user.model");
 
 const BET_STATUS = Object.freeze({
     PENDING: "pending",
@@ -26,6 +27,14 @@ const betSchema = new mongoose.Schema(
         superAdminId: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
         companyShareBps: { type: Number, min: 0, max: 10000 },
         superAdminShareBps: { type: Number, min: 0, max: 10000 },
+        rootSuperAdminId: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
+        ownerPath: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+        shareSnapshot: [{
+            _id: false,
+            userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+            role: { type: String, enum: Object.values(ROLES), required: true },
+            shareBps: { type: Number, min: 0, max: 10000, required: true },
+        }],
         matchId: {
             type: String,
             required: [true, "matchId is required"],
@@ -120,6 +129,8 @@ const betSchema = new mongoose.Schema(
 betSchema.index({ userId: 1, createdAt: -1 });
 betSchema.index({ matchId: 1, status: 1 });
 betSchema.index({ userId: 1, matchId: 1, marketType: 1, marketId: 1, status: 1 });
+betSchema.index({ rootSuperAdminId: 1, matchId: 1, createdAt: -1 });
+betSchema.index({ ownerPath: 1, matchId: 1, createdAt: -1 });
 
 const Bet = mongoose.model("Bet", betSchema);
 

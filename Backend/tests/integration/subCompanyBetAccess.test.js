@@ -29,7 +29,17 @@ test.before(async () => {
     { username: `ownera${stamp}`, password: "pass1234", role: ROLES.USER, createdBy: companyA._id, parentId: companyA._id },
     { username: `ownerb${stamp}`, password: "pass1234", role: ROLES.USER, createdBy: companyB._id, parentId: companyB._id },
   ]);
-  await Bet.create([userA, userB].map((user, index) => ({ userId: user._id, matchId, marketId: `runner-${index}`, amount: 100, rate: 90, type: "yes", profit: 90, loss: 100 })));
+  await Bet.create([userA, userB].map((user, index) => ({
+    userId: user._id, matchId, marketId: `runner-${index}`, amount: 100, rate: 90, type: "yes", profit: 90, loss: 100,
+    ...(index === 0 ? {
+      rootSuperAdminId: superAdmin._id,
+      ownerPath: [superAdmin._id, companyA._id],
+      shareSnapshot: [
+        { userId: superAdmin._id, role: ROLES.SUPERADMIN, shareBps: 500 },
+        { userId: companyA._id, role: ROLES.SUB_COMPANY, shareBps: 9500 },
+      ],
+    } : {}),
+  })));
   server = app.listen(0, "127.0.0.1"); await new Promise((resolve) => server.once("listening", resolve)); baseUrl = `http://127.0.0.1:${server.address().port}`;
 });
 

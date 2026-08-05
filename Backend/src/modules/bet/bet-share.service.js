@@ -22,6 +22,8 @@ const getCompanyShareBps = (company) => {
   return current;
 };
 
+const getAllocatedShareBps = (account) => getCompanyShareBps(account);
+
 const scaleBetForShare = (bet, shareBps) => {
   const safeShareBps = normalizeBps(shareBps);
   const result = {
@@ -52,25 +54,80 @@ const scaleBetForRemainder = (bet, allocatedShareBps) => {
   return result;
 };
 
+const getViewerShareBps = (bet, viewerId) => {
+  const allocation = Array.isArray(bet.shareSnapshot)
+    ? bet.shareSnapshot.find((item) => String(item.userId) === String(viewerId))
+    : undefined;
+  return allocation ? normalizeBps(allocation.shareBps) : undefined;
+};
+
+const scaleBetForViewer = (bet, viewerId, fallbackShareBps = 0) => {
+  const snapshotShare = getViewerShareBps(bet, viewerId);
+  return scaleBetForShare(
+    bet,
+    snapshotShare === undefined ? fallbackShareBps : snapshotShare,
+  );
+};
+
+const buildShareSnapshot = (hierarchy) => {
+  const shareSnapshot = hierarchy.map((account, index) => {
+    const incomingShare = index === 0 ? 10000 : getAllocatedShareBps(account);
+    const child = hierarchy[index + 1];
+    const childShare = child ? getAllocatedShareBps(child) : 0;
+    if (childShare > incomingShare)
+      throw new Error(`Invalid hierarchy share for ${account.role}`);
+    return { userId: account._id, role: account.role, shareBps: incomingShare - childShare };
+  });
+  if (shareSnapshot.reduce((total, item) => total + item.shareBps, 0) !== 10000)
+    throw new Error("Hierarchy shares must total 100%");
+  return shareSnapshot;
+};
+
 const resolveShareSnapshot = async (user, session) => {
   const parentId = user.parentId || user.createdBy;
-  if (!parentId) return { companyId: undefined, superAdminId: undefined, companyShareBps: 0, superAdminShareBps: 10000 };
+  if (!parentId) return {
+    ownerPath: [],
+    shareSnapshot: [],
+    companyId: undefined,
+    superAdminId: undefined,
+    rootSuperAdminId: user.rootSuperAdminId,
+    companyShareBps: 0,
+    superAdminShareBps: 10000,
+  };
 
-  const parent = await User.findById(parentId)
-    .select("role allocatedShareBps allocatedShare downlineShare createdBy parentId")
-    .session(session || null)
-    .lean();
-  if (parent?.role !== ROLES.SUB_COMPANY) {
-    return { companyId: undefined, superAdminId: parentId, companyShareBps: 0, superAdminShareBps: 10000 };
+  const bottomUp = [];
+  const visited = new Set();
+  let currentId = parentId;
+  for (let depth = 0; currentId && depth < 20; depth += 1) {
+    const key = String(currentId);
+    if (visited.has(key)) throw new Error("Invalid account hierarchy cycle");
+    visited.add(key);
+    const account = await User.findById(currentId)
+      .select("role allocatedShareBps allocatedShare downlineShare createdBy parentId rootSuperAdminId")
+      .session(session || null)
+      .lean();
+    if (!account) throw new Error("Bet owner hierarchy is incomplete");
+    bottomUp.push(account);
+    currentId = account.parentId || account.createdBy;
   }
+  if (currentId) throw new Error("Account hierarchy exceeds 20 levels");
 
-  const companyShareBps = getCompanyShareBps(parent);
+  const hierarchy = bottomUp.reverse();
+  const shareSnapshot = buildShareSnapshot(hierarchy);
+
+  const company = hierarchy.find((account) => account.role === ROLES.SUB_COMPANY);
+  const root = hierarchy.find((account) => account.role === ROLES.SUPERADMIN) || hierarchy[0];
+  const companyShareBps = company ? getAllocatedShareBps(company) : 0;
+  const superAdminAllocation = shareSnapshot.find((item) => String(item.userId) === String(root?._id));
   return {
-    companyId: parent._id,
-    superAdminId: parent.parentId || parent.createdBy,
+    ownerPath: hierarchy.map((account) => account._id),
+    shareSnapshot,
+    rootSuperAdminId: root?._id || user.rootSuperAdminId,
+    companyId: company?._id,
+    superAdminId: root?._id,
     companyShareBps,
-    superAdminShareBps: 10000 - companyShareBps,
+    superAdminShareBps: superAdminAllocation?.shareBps ?? 10000,
   };
 };
 
-module.exports = { normalizeBps, getCompanyShareBps, scaleBetForShare, scaleBetForRemainder, resolveShareSnapshot };
+module.exports = { normalizeBps, getCompanyShareBps, getAllocatedShareBps, getViewerShareBps, scaleBetForShare, scaleBetForRemainder, scaleBetForViewer, buildShareSnapshot, resolveShareSnapshot };

@@ -11,7 +11,7 @@ const { sessionTemplate } = require("../session/session.catalog");
 const { DEFAULT_OPTIONS } = require("../manual/manual-options.service");
 const { User, ROLES } = require("../user/user.model");
 const { Ledger } = require("../ledger/ledger.model");
-const { getCompanyShareBps, scaleBetForShare, scaleBetForRemainder, resolveShareSnapshot } = require("./bet-share.service");
+const { getCompanyShareBps, getViewerShareBps, scaleBetForShare, scaleBetForRemainder, scaleBetForViewer, resolveShareSnapshot } = require("./bet-share.service");
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -497,7 +497,7 @@ const getAllMatchBets = async (superAdminId, matchId) => {
         String(company._id), getCompanyShareBps(company),
     ]));
     const [bets, runners, sessions] = await Promise.all([
-        Bet.find({ matchId, userId: { $in: ownedUserIds } })
+        Bet.find({ matchId, $or: [{ rootSuperAdminId: superAdminId }, { userId: { $in: ownedUserIds } }] })
             .populate("userId", "username firstName role parentId createdBy")
             .sort({ createdAt: -1 }).lean(),
         ManualRunner.find({ matchId }).select("runnerId runnerName").lean(),
@@ -506,6 +506,15 @@ const getAllMatchBets = async (superAdminId, matchId) => {
     const runnerNames = new Map(runners.map((runner) => [runner.runnerId, runner.runnerName]));
     const sessionNames = new Map(sessions.map((session) => [session.id, session.sessionName]));
     return bets.map((bet) => {
+        const snapshotShare = getViewerShareBps(bet, superAdminId);
+        if (snapshotShare !== undefined) {
+            return scaleBetForViewer({
+                ...bet,
+                selectionName: bet.marketType === "session"
+                    ? sessionNames.get(bet.marketId) || bet.marketId
+                    : runnerNames.get(bet.marketId) || bet.marketId,
+            }, superAdminId);
+        }
         const parentId = bet.userId?.parentId || bet.userId?.createdBy;
         const currentCompanyShare = companyShareById.get(String(parentId));
         const allocatedShareBps = Number.isInteger(bet.companyShareBps)
@@ -529,7 +538,7 @@ const getCompanyMatchBets = async (companyId, matchId) => {
     ]);
     if (!company) throw new Error("Sub Company not found");
     const [bets, runners, sessions] = await Promise.all([
-        Bet.find({ matchId, userId: { $in: userIds } })
+        Bet.find({ matchId, $or: [{ ownerPath: companyId }, { userId: { $in: userIds } }] })
             .populate("userId", "username firstName role")
             .sort({ createdAt: -1 }).lean(),
         ManualRunner.find({ matchId }).select("runnerId runnerName").lean(),
@@ -537,14 +546,20 @@ const getCompanyMatchBets = async (companyId, matchId) => {
     ]);
     const runnerNames = new Map(runners.map((runner) => [runner.runnerId, runner.runnerName]));
     const sessionNames = new Map(sessions.map((session) => [session.id, session.sessionName]));
-    return bets.map((bet) => scaleBetForShare({
-        ...bet,
-        selectionName: bet.marketType === "session"
-            ? sessionNames.get(bet.marketId) || bet.marketId
-            : runnerNames.get(bet.marketId) || bet.marketId,
-    }, Number.isInteger(bet.companyShareBps)
-        ? bet.companyShareBps
-        : getCompanyShareBps(company)));
+    return bets.map((bet) => {
+        const decoratedBet = {
+            ...bet,
+            selectionName: bet.marketType === "session"
+                ? sessionNames.get(bet.marketId) || bet.marketId
+                : runnerNames.get(bet.marketId) || bet.marketId,
+        };
+        const snapshotShare = getViewerShareBps(bet, companyId);
+        return snapshotShare === undefined
+            ? scaleBetForShare(decoratedBet, Number.isInteger(bet.companyShareBps)
+                ? bet.companyShareBps
+                : getCompanyShareBps(company))
+            : scaleBetForViewer(decoratedBet, companyId);
+    });
 };
 
 /** Deletes a bet and safely releases any pending wallet exposure. */

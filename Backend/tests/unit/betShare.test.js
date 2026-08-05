@@ -2,7 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { normalizeBps, getCompanyShareBps, scaleBetForShare, scaleBetForRemainder } = require("../../src/modules/bet/bet-share.service");
+const { normalizeBps, getCompanyShareBps, getViewerShareBps, scaleBetForShare, scaleBetForRemainder, scaleBetForViewer, buildShareSnapshot } = require("../../src/modules/bet/bet-share.service");
 
 const bet = { amount: 100, profit: 90, loss: 100, walletAdjustment: 25 };
 
@@ -49,4 +49,34 @@ test("legacy Sub Companies use old downlineShare when basis points are absent", 
   assert.equal(getCompanyShareBps({ allocatedShareBps: 0, allocatedShare: 0, downlineShare: 95 }), 9500);
   assert.equal(getCompanyShareBps({ allocatedShareBps: 0, allocatedShare: 8750, downlineShare: 0 }), 8750);
   assert.equal(getCompanyShareBps({ allocatedShareBps: 0, allocatedShare: 0, downlineShare: 0 }), 0);
+});
+
+test("multi-level hierarchy produces retained shares totaling exactly 100%", () => {
+  const snapshot = buildShareSnapshot([
+    { _id: "super", role: "superadmin" },
+    { _id: "company", role: "sub_company", allocatedShareBps: 9500 },
+    { _id: "master", role: "sub_master", allocatedShareBps: 8000 },
+    { _id: "sst", role: "sst", allocatedShareBps: 6000 },
+  ]);
+  assert.deepEqual(snapshot.map(({ role, shareBps }) => ({ role, shareBps })), [
+    { role: "superadmin", shareBps: 500 },
+    { role: "sub_company", shareBps: 1500 },
+    { role: "sub_master", shareBps: 2000 },
+    { role: "sst", shareBps: 6000 },
+  ]);
+  assert.equal(snapshot.reduce((total, item) => total + item.shareBps, 0), 10000);
+});
+
+test("viewer receives only their snapshotted retained share", () => {
+  const sharedBet = { ...bet, shareSnapshot: [{ userId: "company", role: "sub_company", shareBps: 1500 }] };
+  assert.equal(getViewerShareBps(sharedBet, "company"), 1500);
+  assert.equal(scaleBetForViewer(sharedBet, "company").amount, 15);
+});
+
+test("child cannot receive more share than its parent", () => {
+  assert.throws(() => buildShareSnapshot([
+    { _id: "super", role: "superadmin" },
+    { _id: "company", role: "sub_company", allocatedShareBps: 8000 },
+    { _id: "master", role: "sub_master", allocatedShareBps: 9000 },
+  ]), /Invalid hierarchy share/);
 });

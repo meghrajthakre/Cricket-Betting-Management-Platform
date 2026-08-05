@@ -5,7 +5,7 @@ const { Bet } = require("../bet/bet.model");
 const asyncHandler = require("../../utils/asyncHandler");
 const AppError = require("../../utils/AppError");
 const { setUserCoins } = require("../ledger/ledger.service");
-const { getCompanyShareBps, scaleBetForShare, scaleBetForRemainder } = require("../bet/bet-share.service");
+const { getCompanyShareBps, getViewerShareBps, scaleBetForShare, scaleBetForRemainder, scaleBetForViewer } = require("../bet/bet-share.service");
 
 const generateUsername = async (prefix) => {
   const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -87,6 +87,8 @@ const createSubCompany = asyncHandler(async (req, res) => {
     coins: 0,
     createdBy: req.user._id,
     parentId: req.user._id,
+    rootSuperAdminId: req.user._id,
+    ancestorIds: [req.user._id],
   });
 
   const data = company.toObject();
@@ -127,16 +129,22 @@ const getSubCompanyReport = asyncHandler(async (req, res) => {
   const company = await User.findOne({ _id: req.params.id, role: ROLES.SUB_COMPANY, createdBy: req.user._id });
   if (!company) throw new AppError("Sub Company not found.", 404);
   const userIds = await User.find({ role: ROLES.USER, createdBy: company._id }).distinct("_id");
-  const bets = await Bet.find({ userId: { $in: userIds }, status: { $in: ["won", "lost"] } })
-    .select("status profit loss companyShareBps")
+  const bets = await Bet.find({ $or: [{ ownerPath: company._id }, { userId: { $in: userIds } }], status: { $in: ["won", "lost"] } })
+    .select("status profit loss companyShareBps shareSnapshot")
     .lean();
   const currentCompanyShareBps = getCompanyShareBps(company);
   const totals = bets.reduce((result, bet) => {
     const allocatedBps = Number.isInteger(bet.companyShareBps)
       ? bet.companyShareBps
       : currentCompanyShareBps;
-    const companyBet = scaleBetForShare(bet, allocatedBps);
-    const ownerBet = scaleBetForRemainder(bet, allocatedBps);
+    const companySnapshotShare = getViewerShareBps(bet, company._id);
+    const ownerSnapshotShare = getViewerShareBps(bet, req.user._id);
+    const companyBet = companySnapshotShare === undefined
+      ? scaleBetForShare(bet, allocatedBps)
+      : scaleBetForViewer(bet, company._id);
+    const ownerBet = ownerSnapshotShare === undefined
+      ? scaleBetForRemainder(bet, allocatedBps)
+      : scaleBetForViewer(bet, req.user._id);
     const direction = bet.status === "lost" ? 1 : -1;
     result.gross += direction * Number(bet.status === "lost" ? bet.loss : bet.profit);
     result.company += direction * Number(bet.status === "lost" ? companyBet.loss : companyBet.profit);
@@ -161,11 +169,15 @@ const createCompanyUser = asyncHandler(async (req, res) => {
   validatePassword(password, confirmPassword);
   const balance = Number(coins ?? 0);
   if (!Number.isFinite(balance) || balance < 0) throw new AppError("Coins must be a non-negative number.", 400);
+  const rootSuperAdminId = req.user.rootSuperAdminId || req.user.parentId || req.user.createdBy;
+  const ancestorIds = req.user.ancestorIds?.length
+    ? [...req.user.ancestorIds, req.user._id]
+    : [rootSuperAdminId, req.user._id].filter(Boolean);
   let user;
   for (let attempt = 0; attempt < 30 && !user; attempt += 1) {
     const username = await generateUsername("sm");
     try {
-      user = await User.create({ username, firstName: firstName.trim(), password, role: ROLES.USER, coins: balance, createdBy: req.user._id, parentId: req.user._id });
+      user = await User.create({ username, firstName: firstName.trim(), password, role: ROLES.USER, coins: balance, createdBy: req.user._id, parentId: req.user._id, rootSuperAdminId, ancestorIds });
     } catch (error) {
       const usernameCollision = error?.code === 11000 && error?.keyPattern?.username;
       if (!usernameCollision) throw error;
