@@ -4,6 +4,7 @@ import {
   LogOut,
   NotebookTabs,
   Swords,
+  UserPlus,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { logout } from "../../shared/api/authApi";
@@ -11,6 +12,7 @@ import { logout } from "../../shared/api/authApi";
 const links = [
   { label: "Dashboard", to: "/sub-company/dashboard", icon: LayoutDashboard },
   { label: "Matches", to: "/sub-company/matches", icon: Swords },
+  { label: "Create User", to: "/sub-company/create-user", icon: UserPlus },
   {
     label: "Collection Report",
     to: "/sub-company/collection-report",

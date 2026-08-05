@@ -4,13 +4,22 @@ const { User, ROLES } = require("../user/user.model");
 const { Bet } = require("../bet/bet.model");
 const asyncHandler = require("../../utils/asyncHandler");
 const AppError = require("../../utils/AppError");
+const { setUserCoins } = require("../ledger/ledger.service");
 
 const generateUsername = async (prefix) => {
-  for (let attempt = 0; attempt < 30; attempt += 1) {
-    const username = `${prefix}${Math.floor(10000 + Math.random() * 90000)}`;
-    if (!(await User.exists({ username }))) return username;
-  }
-  throw new AppError("Could not generate a username. Please try again.", 503);
+  const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const latestUser = await User.findOne({
+    username: new RegExp(`^${escapedPrefix}\\d{4}$`, "i"),
+  })
+    .select("username")
+    .sort({ username: -1 })
+    .lean();
+  const latestNumber = latestUser
+    ? Number(latestUser.username.slice(prefix.length))
+    : 999;
+  if (latestNumber >= 9999)
+    throw new AppError("Username limit reached.", 503);
+  return `${prefix}${latestNumber + 1}`;
 };
 
 const generateCompanyUsername = async () => {
@@ -24,6 +33,10 @@ const generateCompanyUsername = async () => {
 
 const getNextCompanyUsername = asyncHandler(async (_req, res) => {
   res.json({ success: true, data: { username: await generateCompanyUsername() } });
+});
+
+const getNextCompanyUserUsername = asyncHandler(async (_req, res) => {
+  res.json({ success: true, data: { username: await generateUsername("sm") } });
 });
 
 const validatePassword = (password, confirmPassword) => {
@@ -139,16 +152,56 @@ const createCompanyUser = asyncHandler(async (req, res) => {
   validatePassword(password, confirmPassword);
   const balance = Number(coins ?? 0);
   if (!Number.isFinite(balance) || balance < 0) throw new AppError("Coins must be a non-negative number.", 400);
-  const username = await generateUsername("sm");
-  const user = await User.create({ username, firstName: firstName.trim(), password, role: ROLES.USER, coins: balance, createdBy: req.user._id, parentId: req.user._id });
+  let user;
+  for (let attempt = 0; attempt < 30 && !user; attempt += 1) {
+    const username = await generateUsername("sm");
+    try {
+      user = await User.create({ username, firstName: firstName.trim(), password, role: ROLES.USER, coins: balance, createdBy: req.user._id, parentId: req.user._id });
+    } catch (error) {
+      const usernameCollision = error?.code === 11000 && error?.keyPattern?.username;
+      if (!usernameCollision) throw error;
+    }
+  }
+  if (!user) throw new AppError("Could not generate a unique username. Please try again.", 503);
+  const { username } = user;
   const data = user.toObject();
   delete data.password;
   res.status(201).json({ success: true, message: `User ${username.toUpperCase()} created successfully.`, data });
 });
 
 const getCompanyUsers = asyncHandler(async (req, res) => {
-  const users = await User.find({ role: ROLES.USER, createdBy: req.user._id }).select("-password").sort({ createdAt: -1 });
+  const filter = { role: ROLES.USER, createdBy: req.user._id };
+  if (req.query.search?.trim()) filter.$or = [{ firstName: { $regex: req.query.search.trim(), $options: "i" } }, { username: { $regex: req.query.search.trim(), $options: "i" } }];
+  const users = await User.find(filter).select("-password").sort({ createdAt: -1 });
   res.json({ success: true, data: users });
 });
 
-module.exports = { getNextCompanyUsername, createSubCompany, getSubCompanies, toggleSubCompanyStatus, getSubCompanyReport, createCompanyUser, getCompanyUsers };
+const findOwnedCompanyUser = async (req) => {
+  const user = await User.findOne({ _id: req.params.id, role: ROLES.USER, createdBy: req.user._id });
+  if (!user) throw new AppError("User not found.", 404);
+  return user;
+};
+
+const toggleCompanyUserStatus = asyncHandler(async (req, res) => {
+  const user = await findOwnedCompanyUser(req); user.isActive = !user.isActive; await user.save({ validateModifiedOnly: true });
+  res.json({ success: true, message: `User ${user.isActive ? "activated" : "blocked"}.`, data: { isActive: user.isActive } });
+});
+
+const changeCompanyUserPassword = asyncHandler(async (req, res) => {
+  validatePassword(req.body.password, req.body.confirmPassword);
+  const user = await findOwnedCompanyUser(req); user.password = req.body.password; await user.save({ validateModifiedOnly: true });
+  res.json({ success: true, message: "Password changed successfully." });
+});
+
+const setCompanyUserBalance = asyncHandler(async (req, res) => {
+  const coins = Number(req.body.coins); if (!Number.isFinite(coins) || coins < 0) throw new AppError("Coins must be a non-negative number.", 400);
+  const user = await findOwnedCompanyUser(req); const result = await setUserCoins(user._id, coins, "Sub Company updated balance", req.user._id);
+  res.json({ success: true, message: "Balance updated successfully.", data: { coins: result.balanceAfter } });
+});
+
+const deleteCompanyUser = asyncHandler(async (req, res) => {
+  const user = await findOwnedCompanyUser(req); await user.deleteOne();
+  res.json({ success: true, message: `User ${user.username} deleted successfully.` });
+});
+
+module.exports = { getNextCompanyUsername, getNextCompanyUserUsername, createSubCompany, getSubCompanies, toggleSubCompanyStatus, getSubCompanyReport, createCompanyUser, getCompanyUsers, toggleCompanyUserStatus, changeCompanyUserPassword, setCompanyUserBalance, deleteCompanyUser };
