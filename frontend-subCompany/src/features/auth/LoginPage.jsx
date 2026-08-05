@@ -39,7 +39,7 @@ export default function LoginPage() {
           <Building2 size={28} />
         </div>
         <h1 className="mt-4 text-center text-2xl font-extrabold">
-          Sub Company Login
+          Sonu 7777
         </h1>
         <p className="mt-1 text-center text-sm text-white/55">
           Sign in to manage your company panel
