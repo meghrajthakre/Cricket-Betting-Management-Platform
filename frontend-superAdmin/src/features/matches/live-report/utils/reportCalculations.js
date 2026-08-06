@@ -3,6 +3,9 @@ export const formatNumber = (value) =>
     maximumFractionDigits: 0,
   });
 
+const viewerProfit = (bet) => Number(bet.shareProfit ?? bet.profit ?? 0);
+const viewerLoss = (bet) => Number(bet.shareLoss ?? bet.loss ?? 0);
+
 export function calculateMatchPositions(runners, bets) {
   const positions = Object.fromEntries(
     runners.map((runner) => [runner.runnerId, 0])
@@ -17,11 +20,11 @@ export function calculateMatchPositions(runners, bets) {
       const userPosition =
         bet.type === "yes"
           ? selected
-            ? Number(bet.profit)
-            : -Number(bet.loss)
+            ? viewerProfit(bet)
+            : -viewerLoss(bet)
           : selected
-            ? -Number(bet.loss)
-            : Number(bet.profit);
+            ? -viewerLoss(bet)
+            : viewerProfit(bet);
       positions[runner.runnerId] -= userPosition;
     }
   }
@@ -73,7 +76,7 @@ export function buildSessionLadder(session, bets) {
       const userWon = bet.type === "yes" ? run >= line : run < line;
       return (
         total +
-        (userWon ? -Number(bet.profit || 0) : Number(bet.loss || 0))
+        (userWon ? -viewerProfit(bet) : viewerLoss(bet))
       );
     }, 0);
     return { run, position: Number(position.toFixed(2)) };
@@ -88,8 +91,8 @@ export function calculateDeclaredSessions(sessions, bets) {
           bet.marketType === "session" && bet.marketId === session.id
       );
       const plusMinus = sessionBets.reduce((total, bet) => {
-        if (bet.status === "won") return total - Number(bet.profit || 0);
-        if (bet.status === "lost") return total + Number(bet.loss || 0);
+        if (bet.status === "won") return total - viewerProfit(bet);
+        if (bet.status === "lost") return total + viewerLoss(bet);
         return total;
       }, 0);
       return { ...session, plusMinus: Number(plusMinus.toFixed(2)) };

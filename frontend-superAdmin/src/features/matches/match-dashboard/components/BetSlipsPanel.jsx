@@ -20,6 +20,15 @@ const getUser = (bet) => {
   };
 };
 
+const formatMoney = (value) =>
+  Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
+
+const getNetResult = (bet) => {
+  if (bet.status === "won") return Number(bet.profit || 0);
+  if (bet.status === "lost") return -Number(bet.loss || 0);
+  return null;
+};
+
 export function BetSlipPanel({ title, subtitle, bets, loading, error, deletingId, onClose, onDelete }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-3 backdrop-blur-sm sm:p-6" role="dialog" aria-modal="true" aria-label={title}>
@@ -44,6 +53,7 @@ export function BetSlipPanel({ title, subtitle, bets, loading, error, deletingId
               {bets.map((bet) => {
                 const user = getUser(bet);
                 const pending = bet.status === "pending";
+                const netResult = getNetResult(bet);
                 return (
                   <article key={bet._id} className="grid gap-4 rounded-xl border border-(--color-border) bg-white p-4 transition hover:border-(--color-accent) sm:grid-cols-[1.2fr_1fr_auto] sm:items-center">
                     <div className="min-w-0">
@@ -55,9 +65,23 @@ export function BetSlipPanel({ title, subtitle, bets, loading, error, deletingId
                       <p className="text-sm font-bold text-(--color-text-dark)">{bet.selectionName || bet.marketId || "Selection"}</p>
                       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
                         <span className="flex items-center gap-1"><Clock3 size={13} />{formatDateTime(bet.createdAt)}</span>
-                        <span>Stake: {Number(bet.amount || 0).toLocaleString("en-IN")}</span>
+                        <span>Stake: {formatMoney(bet.amount)}</span>
                         <span className="uppercase">{bet.type}</span>
                       </div>
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold tabular-nums">
+                        <span className="rounded-md bg-emerald-50 px-2 py-1 text-emerald-700">Win +{formatMoney(bet.profit)}</span>
+                        <span className="rounded-md bg-red-50 px-2 py-1 text-red-600">Loss -{formatMoney(bet.loss)}</span>
+                        {netResult !== null && (
+                          <span className={`rounded-md px-2 py-1 ${netResult >= 0 ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700"}`}>
+                            Result {netResult >= 0 ? "+" : "-"}{formatMoney(Math.abs(netResult))}
+                          </span>
+                        )}
+                      </div>
+                      {bet.visibleSharePercent !== undefined && (
+                        <p className="mt-2 text-[11px] font-semibold text-slate-500">
+                          My share ({formatMoney(bet.visibleSharePercent)}%): Stake {formatMoney(bet.shareAmount)}, Win +{formatMoney(bet.shareProfit)}, Loss -{formatMoney(bet.shareLoss)}
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex items-center justify-between gap-3 sm:justify-end">

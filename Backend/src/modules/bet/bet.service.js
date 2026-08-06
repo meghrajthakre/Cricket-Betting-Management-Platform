@@ -507,23 +507,37 @@ const getAllMatchBets = async (superAdminId, matchId) => {
     const sessionNames = new Map(sessions.map((session) => [session.id, session.sessionName]));
     return bets.map((bet) => {
         const snapshotShare = getViewerShareBps(bet, superAdminId);
+        let sharedBet;
         if (snapshotShare !== undefined) {
-            return scaleBetForViewer({
+            sharedBet = scaleBetForViewer({
                 ...bet,
                 selectionName: bet.marketType === "session"
                     ? sessionNames.get(bet.marketId) || bet.marketId
                     : runnerNames.get(bet.marketId) || bet.marketId,
             }, superAdminId);
+        } else {
+            const parentId = bet.userId?.parentId || bet.userId?.createdBy;
+            const currentCompanyShare = companyShareById.get(String(parentId));
+            const allocatedShareBps = currentCompanyShare == null ? 0 : currentCompanyShare;
+            sharedBet = scaleBetForRemainder({
+                ...bet,
+                selectionName: bet.marketType === "session"
+                    ? sessionNames.get(bet.marketId) || bet.marketId
+                    : runnerNames.get(bet.marketId) || bet.marketId,
+            }, allocatedShareBps);
         }
-        const parentId = bet.userId?.parentId || bet.userId?.createdBy;
-        const currentCompanyShare = companyShareById.get(String(parentId));
-        const allocatedShareBps = currentCompanyShare == null ? 0 : currentCompanyShare;
-        return scaleBetForRemainder({
+
+        // Super Admin's bet list must show the user's real face-value bet.
+        // Keep the Super Admin share alongside it for accounting/reporting.
+        return {
             ...bet,
-            selectionName: bet.marketType === "session"
-                ? sessionNames.get(bet.marketId) || bet.marketId
-                : runnerNames.get(bet.marketId) || bet.marketId,
-        }, allocatedShareBps);
+            selectionName: sharedBet.selectionName,
+            visibleShareBps: sharedBet.visibleShareBps,
+            visibleSharePercent: sharedBet.visibleSharePercent,
+            shareAmount: sharedBet.amount,
+            shareProfit: sharedBet.profit,
+            shareLoss: sharedBet.loss,
+        };
     });
 };
 
