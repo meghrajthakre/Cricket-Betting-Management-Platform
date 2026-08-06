@@ -35,11 +35,11 @@ export default function InPlayMatchesPage() {
       setError("");
       try {
         const [liveResponse, savedResponse] = await Promise.all([
-          api.get("/matches", { signal: controller.signal }),
+          api.get("/cricket/live", { signal: controller.signal }),
           api.get("/matches/saved", { signal: controller.signal }),
         ]);
         if (controller.signal.aborted) return;
-        const liveMatches = Array.isArray(liveResponse.data?.data) ? liveResponse.data.data : [];
+        const liveMatches = Array.isArray(liveResponse.data?.matches) ? liveResponse.data.matches : [];
         const savedMatches = Array.isArray(savedResponse.data?.data) ? savedResponse.data.data : [];
         setMatches(liveMatches.map(formatMatch));
         setSavedIds(new Set(savedMatches.map((match) => match.matchId)));

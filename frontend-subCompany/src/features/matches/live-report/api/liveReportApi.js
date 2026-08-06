@@ -48,24 +48,11 @@ export async function fetchLiveReport(matchId, signal) {
 }
 
 export async function fetchRecentMatches(signal) {
-  const [liveResult, savedResult] = await Promise.allSettled([
-    api.get("/cricket/live", { signal }),
-    api.get("/matches/saved", { signal }),
-  ]);
-
-  const liveData = fulfilledData(liveResult);
-  const savedData = fulfilledData(savedResult);
-  const live = Array.isArray(liveData?.matches)
-    ? liveData.matches.map((item) => ({ ...item, isLive: true }))
+  const response = await api.get("/matches/saved", { signal });
+  const saved = Array.isArray(response.data?.data)
+    ? response.data.data.map((item) => ({ ...item, isLive: false }))
     : [];
-  const saved = Array.isArray(savedData?.data)
-    ? savedData.data.map((item) => ({ ...item, isLive: false }))
-    : [];
-
-  const matchesById = new Map(saved.map((item) => [item.matchId, item]));
-  live.forEach((item) => matchesById.set(item.matchId, item));
-
-  return [...matchesById.values()].sort(
+  return saved.sort(
     (a, b) =>
       new Date(b.commenceTime || 0).getTime() -
       new Date(a.commenceTime || 0).getTime(),

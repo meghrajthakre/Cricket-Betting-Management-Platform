@@ -4,6 +4,7 @@ const express = require("express");
 const {
     placeBetController,
     settleBetController,
+    settleMatchBetsController,
     getMyBetsController,
     getAllMatchBetsController,
     getCompanyMatchBetsController,
@@ -29,5 +30,6 @@ router.delete("/:betId", protect, allowRoles("superadmin"), deleteBetController)
 
 // POST /bet/settle
 router.post("/settle", protect, allowRoles("support", "superadmin"), settleBetController);
+router.post("/settle-match", protect, allowRoles("support", "superadmin"), settleMatchBetsController);
 
 module.exports = router;

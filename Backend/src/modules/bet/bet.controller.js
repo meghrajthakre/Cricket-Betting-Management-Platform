@@ -1,6 +1,6 @@
 "use strict";
 
-const { placeBet, settleBet, getUserMatchBets, getAllMatchBets, getCompanyMatchBets, deleteBetSlip } = require("./bet.service");
+const { placeBet, settleBet, settleMatchBets, getUserMatchBets, getAllMatchBets, getCompanyMatchBets, deleteBetSlip } = require("./bet.service");
 const { z } = require("zod");
 const mongoose = require("mongoose");
 const sse = require("../manual/manual.events");
@@ -36,7 +36,8 @@ const placeBetSchema = z.object({
             invalid_type_error: "rate must be a number",
         })
         .min(1, "rate must be at least 1")
-        .finite("rate must be a finite number"),
+        .finite("rate must be a finite number")
+        .multipleOf(0.01, "rate supports up to 2 decimal places"),
     /**
      * "yes" → Lagai (back the outcome)
      * "no"  → Khai  (lay the outcome)
@@ -45,9 +46,14 @@ const placeBetSchema = z.object({
         required_error: "type is required",
         invalid_type_error: 'type must be either "yes" or "no"',
     }),
-    marketType: z.enum(["match", "session"]).default("match"),
-    marketId: z.string().trim().optional().default(""),
-    sessionRate: z.number().positive().finite().optional(),
+    marketType: z.enum(["match", "session"]),
+    marketId: z.string().trim().min(1, "marketId is required"),
+    sessionRate: z.number().positive().finite().multipleOf(0.01).optional(),
+    clientBetId: z.string().trim().min(1).max(100).optional(),
+}).strict().superRefine((payload, context) => {
+    if (payload.marketType === "session" && payload.sessionRate === undefined) {
+        context.addIssue({ code: z.ZodIssueCode.custom, path: ["sessionRate"], message: "sessionRate is required for session bets" });
+    }
 });
 
 const settleBetSchema = z.object({
@@ -86,7 +92,8 @@ const placeBetController = async (req, res) => {
             parsed.type,
             parsed.marketType,
             parsed.marketId,
-            parsed.sessionRate
+            parsed.sessionRate,
+            parsed.clientBetId
         );
         if (bet.marketType === "session") {
             sse.broadcast(bet.matchId, {
@@ -134,9 +141,10 @@ const settleBetController = async (req, res) => {
         });
     } catch (error) {
         console.error("[settleBetController] Error:", error.message);
-        return res.status(400).json({
+        return res.status(error.statusCode || 400).json({
             success: false,
             error: error.message,
+            ...(error.code ? { code: error.code } : {}),
         });
     }
 };
@@ -162,6 +170,19 @@ const getAllMatchBetsController = async (req, res) => {
         return res.status(200).json({ success: true, count: bets.length, data: bets });
     } catch (error) {
         return res.status(400).json({ success: false, error: error.message });
+    }
+};
+
+const settleMatchBetsController = async (req, res) => {
+    try {
+        const parsed = z.object({
+            matchId: z.string().trim().min(1),
+            winningRunnerId: z.string().trim().min(1),
+        }).strict().parse(req.body);
+        const data = await settleMatchBets({ ...parsed, settledBy: req.user._id });
+        return res.status(200).json({ success: true, message: "Match bets settled successfully", data });
+    } catch (error) {
+        return res.status(error.statusCode || 400).json({ success: false, error: error.message, ...(error.code ? { code: error.code } : {}) });
     }
 };
 
@@ -205,6 +226,7 @@ const deleteBetController = async (req, res) => {
 module.exports = {
     placeBetController,
     settleBetController,
+    settleMatchBetsController,
     getMyBetsController,
     getAllMatchBetsController,
     getCompanyMatchBetsController,

@@ -103,6 +103,12 @@ const betSchema = new mongoose.Schema(
             type: Number,
             default: undefined,
         },
+        clientBetId: {
+            type: String,
+            trim: true,
+            maxlength: 100,
+            default: undefined,
+        },
         status: {
             type: String,
             enum: Object.values(BET_STATUS),
@@ -127,6 +133,10 @@ betSchema.index({ matchId: 1, status: 1 });
 betSchema.index({ userId: 1, matchId: 1, marketType: 1, marketId: 1, status: 1 });
 betSchema.index({ rootSuperAdminId: 1, matchId: 1, createdAt: -1 });
 betSchema.index({ ownerPath: 1, matchId: 1, createdAt: -1 });
+betSchema.index(
+    { userId: 1, clientBetId: 1 },
+    { unique: true, partialFilterExpression: { clientBetId: { $type: "string" } } }
+);
 
 const Bet = mongoose.model("Bet", betSchema);
 

@@ -57,6 +57,7 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
       min: [0, "Coins cannot be negative"],
+      validate: { validator: Number.isFinite, message: "Coins must be finite" },
     },
 
     fixLimit: {

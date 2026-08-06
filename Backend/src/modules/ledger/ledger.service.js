@@ -4,6 +4,15 @@ const mongoose = require("mongoose");
 const { User } = require("../user/user.model");
 const { Ledger } = require("./ledger.model");
 
+const requireWalletNumber = (value, field, { allowZero = false } = {}) => {
+    if (typeof value !== "number" || !Number.isFinite(value)) throw new Error(`${field} must be a finite number`);
+    const normalized = Number(value.toFixed(2));
+    if (!Number.isSafeInteger(Math.round(normalized * 100)) || (allowZero ? normalized < 0 : normalized <= 0)) {
+        throw new Error(`${field} must be ${allowZero ? "non-negative" : "positive"} and safely representable`);
+    }
+    return normalized;
+};
+
 /**
  * Updates user coins with atomic transaction and ledger entry
  * @param {string} userId - User ID
@@ -14,6 +23,8 @@ const { Ledger } = require("./ledger.model");
  * @returns {Promise<{balanceBefore: number, balanceAfter: number}>}
  */
 const updateUserCoins = async (userId, amount, type, reason, createdBy) => {
+    amount = requireWalletNumber(amount, "amount");
+    if (!["credit", "debit"].includes(type)) throw new Error("Invalid transaction type");
     const session = await mongoose.startSession();
     session.startTransaction();
 
@@ -24,7 +35,7 @@ const updateUserCoins = async (userId, amount, type, reason, createdBy) => {
             throw new Error("User not found");
         }
 
-        const balanceBefore = user.coins;
+        const balanceBefore = requireWalletNumber(user.coins, "balance", { allowZero: true });
         let balanceAfter;
 
         if (type === "credit") {
@@ -81,6 +92,7 @@ const updateUserCoins = async (userId, amount, type, reason, createdBy) => {
  * The wallet update and ledger entry commit or roll back together.
  */
 const setUserCoins = async (userId, targetBalance, reason, createdBy) => {
+    targetBalance = requireWalletNumber(targetBalance, "targetBalance", { allowZero: true });
     const session = await mongoose.startSession();
 
     try {

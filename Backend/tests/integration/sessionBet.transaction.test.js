@@ -88,7 +88,8 @@ test("session bet commits wallet, ledger, and bet together", { skip: !enabled },
       91,
       "yes",
       "session",
-      "session-1"
+      "session-1",
+      1
     );
 
     const [freshUser, ledgers, bets] = await Promise.all([
@@ -125,7 +126,8 @@ test("session bet creation failure rolls wallet and ledger back", { skip: !enabl
         91,
         "yes",
         "session",
-        "session-1"
+        "session-1",
+        1
       ),
       /Forced bet creation failure/
     );

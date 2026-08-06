@@ -2,12 +2,10 @@
 
 const mongoose = require("mongoose");
 const { Bet, BET_STATUS, BET_TYPE } = require("./bet.model");
-const { updateUserCoins } = require("../ledger/ledger.service");
 const ManualOptions = require("../manual/manual-options.model");
 const ManualSettings = require("../manual/manual-settings.model");
 const ManualRunner = require("../manual/manual-runner.model");
 const Session = require("../session/session.model");
-const { sessionTemplate } = require("../session/session.catalog");
 const { DEFAULT_OPTIONS } = require("../manual/manual-options.service");
 const { User, ROLES } = require("../user/user.model");
 const { Ledger } = require("../ledger/ledger.model");
@@ -17,9 +15,33 @@ const { getCompanyShareBps, getViewerShareBps, scaleBetForShare, scaleBetForRema
 // Helpers
 // ---------------------------------------------------------------------------
 
+const serviceError = (message, statusCode = 400, code = "VALIDATION_ERROR", metadata = {}) =>
+    Object.assign(new Error(message), { statusCode, code, ...metadata });
+
 const normalizeRate = (value) => {
-    const rate = Number(value);
-    return Number.isFinite(rate) ? Number(rate.toFixed(2)) : NaN;
+    if (typeof value !== "number" || !Number.isFinite(value)) return NaN;
+    const normalized = Number(value.toFixed(2));
+    return Number.isSafeInteger(Math.round(normalized * 100)) ? normalized : NaN;
+};
+
+const requireMoney = (value, field) => {
+    const normalized = normalizeRate(value);
+    if (!Number.isFinite(normalized) || normalized <= 0 || Math.abs(value - normalized) > Number.EPSILON) {
+        throw serviceError(`${field} must be a positive finite number with at most two decimal places`);
+    }
+    return normalized;
+};
+
+const requireNonEmptyString = (value, field) => {
+    if (typeof value !== "string" || !value.trim()) throw serviceError(`${field} must be a non-empty string`);
+    return value.trim();
+};
+
+const validateBetUser = (user) => {
+    if (!user) throw serviceError("User not found", 404, "USER_NOT_FOUND");
+    if (user.role !== ROLES.USER) throw serviceError("Only betting users can place bets", 403, "USER_ROLE_FORBIDDEN");
+    if (!user.isActive) throw serviceError("User account is blocked", 403, "USER_BLOCKED");
+    if (!Number.isFinite(user.coins) || user.coins < 0) throw serviceError("User wallet is invalid", 409, "INVALID_WALLET");
 };
 
 const acceptCurrentMarketRate = (requestedRate, currentRate) => {
@@ -27,18 +49,11 @@ const acceptCurrentMarketRate = (requestedRate, currentRate) => {
     const current = normalizeRate(currentRate);
 
     if (!Number.isFinite(current) || current < 1) {
-        const error = new Error("Current market rate is unavailable");
-        error.statusCode = 409;
-        error.code = "MARKET_RATE_UNAVAILABLE";
-        throw error;
+        throw serviceError("Current market rate is unavailable", 409, "MARKET_RATE_UNAVAILABLE");
     }
 
     if (requested !== current) {
-        const error = new Error(`Rate changed from ${requested} to ${current}. Please review and try again.`);
-        error.statusCode = 409;
-        error.code = "PRICE_CHANGED";
-        error.currentRate = current;
-        throw error;
+        throw serviceError(`Rate changed from ${requested} to ${current}. Please review and try again.`, 409, "PRICE_CHANGED", { currentRate: current });
     }
 
     return current;
@@ -58,15 +73,16 @@ const loadBetMarketState = async ({
     requestedRate,
     requestedSessionRate,
     amount,
+    dbSession,
 }) => {
     const [storedOptions, settings] = await Promise.all([
-        ManualOptions.findOne({ matchId }).lean(),
-        ManualSettings.findOne({ matchId }).lean(),
+        ManualOptions.findOne({ matchId }).session(dbSession || null).lean(),
+        ManualSettings.findOne({ matchId }).session(dbSession || null).lean(),
     ]);
     const options = { ...DEFAULT_OPTIONS, ...(storedOptions || {}) };
 
     if (settings && (settings.betLock || settings.marketStatus !== "OPEN")) {
-        throw new Error("Match betting is currently closed");
+        throw serviceError("Match betting is currently closed", 409, "MARKET_CLOSED");
     }
 
     let maxBet;
@@ -75,14 +91,12 @@ const loadBetMarketState = async ({
     let currentSessionRate;
 
     if (marketType === "session") {
-        if (settings?.sessionLock) throw new Error("Session betting is currently locked");
+        if (settings?.sessionLock) throw serviceError("Session betting is currently locked", 409, "SESSION_LOCKED");
 
-        const session =
-            await Session.findOne({ matchId, id: marketId }).lean() ||
-            sessionTemplate(matchId, marketId);
-        if (!session) throw new Error("Session market not found");
+        const session = await Session.findOne({ matchId, id: marketId }).session(dbSession || null).lean();
+        if (!session) throw serviceError("Session market not found", 404, "SESSION_NOT_FOUND");
         if (!session.isVisible || session.status !== "open" || session.lockStatus === "lock") {
-            throw new Error("Session market is not open");
+            throw serviceError("Session market is not open", 409, "SESSION_NOT_OPEN");
         }
 
         maxBet = Math.min(
@@ -93,9 +107,9 @@ const loadBetMarketState = async ({
         currentRate = type === BET_TYPE.YES ? session.yesRun : session.noRun;
         currentSessionRate = type === BET_TYPE.YES ? session.yesRate : session.noRate;
     } else {
-        const runner = await ManualRunner.findOne({ matchId, runnerId: marketId }).lean();
-        if (!runner) throw new Error("Match runner not found");
-        if (runner.status !== "open") throw new Error("Match runner is suspended");
+        const runner = await ManualRunner.findOne({ matchId, runnerId: marketId }).session(dbSession || null).lean();
+        if (!runner) throw serviceError("Match runner not found", 404, "RUNNER_NOT_FOUND");
+        if (runner.status !== "open") throw serviceError("Match runner is suspended", 409, "RUNNER_SUSPENDED");
 
         maxBet = Number(options.matchMaxBet);
         delaySeconds = Number(options.matchDelay) || 0;
@@ -103,10 +117,10 @@ const loadBetMarketState = async ({
     }
 
     if (!Number.isFinite(maxBet) || maxBet <= 0) {
-        throw new Error(`${marketType === "session" ? "Session" : "Match"} betting is disabled`);
+        throw serviceError(`${marketType === "session" ? "Session" : "Match"} betting is disabled`, 409, "BETTING_DISABLED");
     }
     if (amount > maxBet) {
-        throw new Error(`Maximum ${marketType} bet allowed is ${maxBet}`);
+        throw serviceError(`Maximum ${marketType} bet allowed is ${maxBet}`, 409, "MAX_BET_EXCEEDED");
     }
     if (
         marketType === "session" &&
@@ -144,33 +158,37 @@ const loadBetMarketState = async ({
  * @returns {{ profit: number, liability: number }}
  */
 const calculateBetFinancials = (type, amount, rate) => {
+    const safeAmount = requireMoney(amount, "amount");
+    const safeRate = requireMoney(rate, "rate");
     if (type === BET_TYPE.YES) {
-        const profit    = parseFloat(((rate * amount) / 100).toFixed(2));
-        const liability = parseFloat(amount.toFixed(2));
+        const profit    = Number(((safeRate * safeAmount) / 100).toFixed(2));
+        const liability = safeAmount;
         return { profit, liability };
     }
-
-    // type === BET_TYPE.NO
-    const profit    = parseFloat(amount.toFixed(2));
-    const liability = parseFloat(((rate * amount) / 100).toFixed(2));
-    return { profit, liability };
+    if (type === BET_TYPE.NO) {
+        const profit    = safeAmount;
+        const liability = Number(((safeRate * safeAmount) / 100).toFixed(2));
+        return { profit, liability };
+    }
+    throw serviceError(`Bet type must be one of: ${Object.values(BET_TYPE).join(", ")}`);
 };
 
 const calculateSessionFinancials = (type, amount, sessionRate) => {
-    const multiplier = Number(sessionRate);
-    if (!Number.isFinite(multiplier) || multiplier <= 0) {
-        throw new Error("Session payout rate is unavailable");
-    }
+    const safeAmount = requireMoney(amount, "amount");
+    const multiplier = requireMoney(sessionRate, "sessionRate");
     if (type === BET_TYPE.YES) {
         return {
-            profit: Number((amount * multiplier).toFixed(2)),
-            liability: Number(amount.toFixed(2)),
+            profit: Number((safeAmount * multiplier).toFixed(2)),
+            liability: safeAmount,
         };
     }
-    return {
-        profit: Number(amount.toFixed(2)),
-        liability: Number((amount * multiplier).toFixed(2)),
-    };
+    if (type === BET_TYPE.NO) {
+        return {
+            profit: safeAmount,
+            liability: Number((safeAmount * multiplier).toFixed(2)),
+        };
+    }
+    throw serviceError(`Bet type must be one of: ${Object.values(BET_TYPE).join(", ")}`);
 };
 
 // ---------------------------------------------------------------------------
@@ -197,29 +215,24 @@ const placeBet = async (
     type,
     marketType = "match",
     marketId = "",
-    requestedSessionRate
+    requestedSessionRate,
+    clientBetId
 ) => {
     // --- Validate inputs -------------------------------------------------------
-    if (!amount || amount <= 0) {
-        throw new Error("Bet amount must be greater than 0");
-    }
-    if (!rate || rate <= 0) {
-        throw new Error("Rate must be greater than 0");
-    }
+    if (!mongoose.Types.ObjectId.isValid(userId)) throw serviceError("userId must be a valid ObjectId");
+    matchId = requireNonEmptyString(matchId, "matchId");
+    marketId = requireNonEmptyString(marketId, "marketId");
+    amount = requireMoney(amount, "amount");
+    rate = requireMoney(rate, "rate");
     if (!Object.values(BET_TYPE).includes(type)) {
-        throw new Error(`Bet type must be one of: ${Object.values(BET_TYPE).join(", ")}`);
+        throw serviceError(`Bet type must be one of: ${Object.values(BET_TYPE).join(", ")}`);
     }
 
     if (!["match", "session"].includes(marketType)) {
-        throw new Error("marketType must be match or session");
+        throw serviceError("marketType must be match or session");
     }
-
-    if (marketType === "match" && !marketId) {
-        throw new Error("marketId is required for match bets");
-    }
-    if (marketType === "session" && !marketId) {
-        throw new Error("marketId is required for session bets");
-    }
+    if (marketType === "session") requestedSessionRate = requireMoney(requestedSessionRate, "requestedSessionRate");
+    if (clientBetId !== undefined) clientBetId = requireNonEmptyString(clientBetId, "clientBetId");
 
     // Validate the user's displayed price immediately, wait for the configured
     // in-play delay, then load everything again. The second read is authoritative:
@@ -259,7 +272,12 @@ const placeBet = async (
         try {
             await dbSession.withTransaction(async () => {
                 const user = await User.findById(userId).session(dbSession);
-                if (!user) throw new Error("User not found");
+                validateBetUser(user);
+                await loadBetMarketState({ matchId, marketId, marketType, type, requestedRate: acceptedRate, requestedSessionRate: finalMarket.acceptedSessionRate, amount, dbSession });
+                if (clientBetId) {
+                    const existing = await Bet.findOne({ userId, clientBetId }).session(dbSession);
+                    if (existing) throw serviceError("Duplicate bet request", 409, "DUPLICATE_BET");
+                }
                 const shareSnapshot = await resolveShareSnapshot(user, dbSession);
 
                 const balanceBefore = Number(user.coins);
@@ -297,11 +315,15 @@ const placeBet = async (
                     profit,
                     loss: liability,
                     walletAdjustment: liability,
+                    clientBetId,
                     status: BET_STATUS.PENDING,
                 }], { session: dbSession });
 
                 updatedBalance = balanceAfter;
             });
+        } catch (error) {
+            if (error?.code === 11000 && error?.keyPattern?.clientBetId) throw serviceError("Duplicate bet request", 409, "DUPLICATE_BET");
+            throw error;
         } finally {
             await dbSession.endSession();
         }
@@ -325,7 +347,12 @@ const placeBet = async (
                 User.findById(userId).session(dbSession),
             ]);
 
-            if (!user) throw new Error("User not found");
+            validateBetUser(user);
+            await loadBetMarketState({ matchId, marketId, marketType, type, requestedRate: acceptedRate, amount, dbSession });
+            if (clientBetId) {
+                const existing = await Bet.findOne({ userId, clientBetId }).session(dbSession);
+                if (existing) throw serviceError("Duplicate bet request", 409, "DUPLICATE_BET");
+            }
             const shareSnapshot = await resolveShareSnapshot(user, dbSession);
 
             const runnerIds = runnerDocs.map((item) => item.runnerId);
@@ -378,6 +405,7 @@ const placeBet = async (
                 userId, ...shareSnapshot, matchId, marketType, marketId, amount, rate: acceptedRate, type, profit,
                 loss: liability,
                 walletAdjustment,
+                clientBetId,
                 status: BET_STATUS.PENDING,
             }], { session: dbSession });
 
@@ -386,6 +414,9 @@ const placeBet = async (
                 `WalletAdjustment=${walletAdjustment} | Balance=${balanceBefore}->${balanceAfter}`
             );
         });
+    } catch (error) {
+        if (error?.code === 11000 && error?.keyPattern?.clientBetId) throw serviceError("Duplicate bet request", 409, "DUPLICATE_BET");
+        throw error;
     } finally {
         await dbSession.endSession();
     }
@@ -405,7 +436,7 @@ const placeBet = async (
  * @param {string}  settledBy  - Admin / system user performing settlement
  * @returns {Promise<import("./bet.model").Bet>}
  */
-const settleBet = async (betId, won, settledBy) => {
+const unsafeSettleBetLegacy = async (betId, won, settledBy) => {
     // --- Fetch & guard ---------------------------------------------------------
     const bet = await Bet.findById(betId);
     if (!bet) {
@@ -454,28 +485,38 @@ const settleBet = async (betId, won, settledBy) => {
 };
 
 const addBetToPositions = (positions, runnerIds, bet) => {
-    const profit = Number(bet.profit) || 0;
-    const liability = Number(bet.loss) || 0;
+    if (!positions || typeof positions !== "object" || !Array.isArray(runnerIds)) throw serviceError("Invalid positions");
+    if (!runnerIds.includes(bet.marketId)) throw serviceError("Unknown runner ID");
+    if (!Object.values(BET_TYPE).includes(bet.type)) throw serviceError("Invalid bet type");
+    const profit = requireMoney(bet.profit, "profit");
+    const liability = requireMoney(bet.loss, "loss");
 
     for (const runnerId of runnerIds) {
         if (bet.type === BET_TYPE.YES) {
             positions[runnerId] += runnerId === bet.marketId ? profit : -liability;
-        } else {
+        } else if (bet.type === BET_TYPE.NO) {
             positions[runnerId] += runnerId === bet.marketId ? -liability : profit;
         }
         positions[runnerId] = Number(positions[runnerId].toFixed(2));
     }
 };
 
-const requiredExposure = (positions) => Number(
-    Math.max(0, ...Object.values(positions).map((value) => -Number(value))).toFixed(2)
-);
+const requiredExposure = (positions) => {
+    if (!positions || typeof positions !== "object" || Array.isArray(positions)) throw serviceError("Invalid positions");
+    const values = Object.values(positions);
+    if (values.some((value) => typeof value !== "number" || !Number.isFinite(value))) throw serviceError("Positions contain invalid values");
+    return Number(Math.max(0, ...values.map((value) => -value)).toFixed(2));
+};
 
 /** Returns the authenticated user's bets for one match, newest first. */
 const getUserMatchBets = async (userId, matchId) => {
     if (!matchId) throw new Error("matchId is required");
 
-    return Bet.find({ userId, matchId })
+    return Bet.find({
+        userId,
+        matchId,
+        status: { $in: [BET_STATUS.PENDING, BET_STATUS.WON, BET_STATUS.LOST] },
+    })
         .sort({ createdAt: -1 })
         .lean();
 };
@@ -497,7 +538,14 @@ const getAllMatchBets = async (superAdminId, matchId) => {
         String(company._id), getCompanyShareBps(company),
     ]));
     const [bets, runners, sessions] = await Promise.all([
-        Bet.find({ matchId, $or: [{ rootSuperAdminId: superAdminId }, { userId: { $in: ownedUserIds } }] })
+        Bet.find({
+            matchId,
+            status: { $ne: BET_STATUS.CANCELLED },
+            $or: [
+                { rootSuperAdminId: superAdminId },
+                { rootSuperAdminId: null, userId: { $in: ownedUserIds } },
+            ],
+        })
             .populate("userId", "username firstName role parentId createdBy")
             .sort({ createdAt: -1 }).lean(),
         ManualRunner.find({ matchId }).select("runnerId runnerName").lean(),
@@ -541,6 +589,108 @@ const getAllMatchBets = async (superAdminId, matchId) => {
     });
 };
 
+const settleBet = async (betId, won, settledBy) => {
+    if (!mongoose.Types.ObjectId.isValid(betId)) throw serviceError("Invalid betId", 400, "INVALID_BET_ID");
+    if (!mongoose.Types.ObjectId.isValid(settledBy)) throw serviceError("Invalid settledBy", 400, "INVALID_SETTLER");
+    if (typeof won !== "boolean") throw serviceError("won must be a boolean", 400, "INVALID_SETTLEMENT_RESULT");
+    const dbSession = await mongoose.startSession();
+    let settledBet;
+    try {
+        await dbSession.withTransaction(async () => {
+            const [existing, actor] = await Promise.all([
+                Bet.findById(betId).session(dbSession).lean(),
+                User.findById(settledBy).session(dbSession).lean(),
+            ]);
+            if (!existing) throw serviceError("Bet not found", 404, "BET_NOT_FOUND");
+            if (!actor || ![ROLES.SUPPORT, ROLES.SUPERADMIN].includes(actor.role)) throw serviceError("Settlement is not authorized", 403, "SETTLEMENT_FORBIDDEN");
+            if (actor.role === ROLES.SUPERADMIN && String(existing.rootSuperAdminId || "") !== String(actor._id)) throw serviceError("Bet belongs to another tenant", 403, "CROSS_TENANT_FORBIDDEN");
+            if (existing.marketType !== "session") throw serviceError("Match bets must be settled at match level", 409, "MATCH_LEVEL_SETTLEMENT_REQUIRED");
+            if (existing.status !== BET_STATUS.PENDING) throw serviceError("Bet has already been settled", 409, "BET_ALREADY_SETTLED");
+            settledBet = await Bet.findOneAndUpdate(
+                { _id: betId, status: BET_STATUS.PENDING },
+                { $set: { status: won ? BET_STATUS.WON : BET_STATUS.LOST, settledAt: new Date(), settledBy } },
+                { new: true, session: dbSession }
+            );
+            if (!settledBet) throw serviceError("Bet has already been settled", 409, "BET_ALREADY_SETTLED");
+            if (won) {
+                const creditAmount = Number((existing.profit + existing.loss).toFixed(2));
+                const user = await User.findById(existing.userId).session(dbSession);
+                if (!user) throw serviceError("Bet user not found", 404, "USER_NOT_FOUND");
+                const balanceBefore = Number(user.coins);
+                const balanceAfter = Number((balanceBefore + creditAmount).toFixed(2));
+                if (!Number.isFinite(balanceAfter)) throw serviceError("Invalid wallet result", 409, "INVALID_WALLET");
+                await Ledger.create([{ userId: existing.userId, amount: creditAmount, type: "credit", reason: `${existing.type.toUpperCase()} session bet won on match ${existing.matchId}`, createdBy: settledBy, balanceBefore, balanceAfter }], { session: dbSession });
+                user.coins = balanceAfter;
+                await user.save({ session: dbSession });
+            }
+        });
+    } catch (error) {
+        if (error?.code === 11000 && error?.keyPattern?.clientBetId) throw serviceError("Duplicate bet request", 409, "DUPLICATE_BET");
+        throw error;
+    } finally {
+        await dbSession.endSession();
+    }
+    return settledBet;
+};
+
+const settleMatchBets = async ({ matchId, winningRunnerId, settledBy }) => {
+    matchId = requireNonEmptyString(matchId, "matchId");
+    winningRunnerId = requireNonEmptyString(winningRunnerId, "winningRunnerId");
+    if (!mongoose.Types.ObjectId.isValid(settledBy)) throw serviceError("Invalid settledBy", 400, "INVALID_SETTLER");
+    const dbSession = await mongoose.startSession();
+    let result;
+    try {
+        await dbSession.withTransaction(async () => {
+            const actor = await User.findById(settledBy).session(dbSession).lean();
+            if (!actor || ![ROLES.SUPPORT, ROLES.SUPERADMIN].includes(actor.role)) throw serviceError("Settlement is not authorized", 403, "SETTLEMENT_FORBIDDEN");
+            const runner = await ManualRunner.exists({ matchId, runnerId: winningRunnerId }).session(dbSession);
+            if (!runner) throw serviceError("Winning runner does not belong to this match", 400, "INVALID_WINNING_RUNNER");
+            const betFilter = { matchId, marketType: "match", status: BET_STATUS.PENDING };
+            if (actor.role === ROLES.SUPERADMIN) betFilter.rootSuperAdminId = actor._id;
+            const bets = await Bet.find(betFilter).session(dbSession).lean();
+            if (!bets.length) throw serviceError("Match has already been settled or has no pending bets", 409, "MATCH_ALREADY_SETTLED");
+            const byUser = new Map();
+            for (const bet of bets) {
+                const key = String(bet.userId);
+                if (!byUser.has(key)) byUser.set(key, []);
+                byUser.get(key).push(bet);
+            }
+            const wallets = [];
+            for (const [userId, userBets] of byUser) {
+                const reserved = Number(userBets.reduce((sum, bet) => sum + Number(bet.walletAdjustment == null ? bet.loss : bet.walletAdjustment), 0).toFixed(2));
+                const netPnl = Number(userBets.reduce((sum, bet) => {
+                    const selectedWon = bet.marketId === winningRunnerId;
+                    const won = bet.type === BET_TYPE.YES ? selectedWon : !selectedWon;
+                    return sum + (won ? Number(bet.profit) : -Number(bet.loss));
+                }, 0).toFixed(2));
+                const adjustment = Number((reserved + netPnl).toFixed(2));
+                const user = await User.findById(userId).session(dbSession);
+                if (!user) throw serviceError("Bet user not found", 404, "USER_NOT_FOUND");
+                const balanceBefore = Number(user.coins);
+                const balanceAfter = Number((balanceBefore + adjustment).toFixed(2));
+                if (!Number.isFinite(balanceAfter) || balanceAfter < 0) throw serviceError("Settlement would create an invalid wallet balance", 409, "INVALID_WALLET");
+                if (adjustment !== 0) {
+                    await Ledger.create([{ userId, amount: Math.abs(adjustment), type: adjustment > 0 ? "credit" : "debit", reason: `Match ${matchId} settled; winner ${winningRunnerId}`, createdBy: settledBy, balanceBefore, balanceAfter }], { session: dbSession });
+                    user.coins = balanceAfter;
+                    await user.save({ session: dbSession });
+                }
+                wallets.push({ userId, reserved, netPnl, adjustment, balanceBefore, balanceAfter });
+            }
+            const now = new Date();
+            for (const bet of bets) {
+                const selectedWon = bet.marketId === winningRunnerId;
+                const won = bet.type === BET_TYPE.YES ? selectedWon : !selectedWon;
+                const update = await Bet.updateOne({ _id: bet._id, status: BET_STATUS.PENDING }, { $set: { status: won ? BET_STATUS.WON : BET_STATUS.LOST, settledAt: now, settledBy } }, { session: dbSession });
+                if (update.modifiedCount !== 1) throw serviceError("Concurrent match settlement detected", 409, "MATCH_ALREADY_SETTLED");
+            }
+            result = { matchId, winningRunnerId, settledCount: bets.length, wallets };
+        });
+    } finally {
+        await dbSession.endSession();
+    }
+    return result;
+};
+
 /** Returns this Sub Company's users' bets, scaled to its allocated share. */
 const getCompanyMatchBets = async (companyId, matchId) => {
     if (!matchId) throw new Error("matchId is required");
@@ -550,7 +700,13 @@ const getCompanyMatchBets = async (companyId, matchId) => {
     ]);
     if (!company) throw new Error("Sub Company not found");
     const [bets, runners, sessions] = await Promise.all([
-        Bet.find({ matchId, $or: [{ ownerPath: companyId }, { userId: { $in: userIds } }] })
+        Bet.find({
+            matchId,
+            $or: [
+                { ownerPath: companyId },
+                { ownerPath: { $size: 0 }, userId: { $in: userIds } },
+            ],
+        })
             .populate("userId", "username firstName role")
             .sort({ createdAt: -1 }).lean(),
         ManualRunner.find({ matchId }).select("runnerId runnerName").lean(),
@@ -573,7 +729,7 @@ const getCompanyMatchBets = async (companyId, matchId) => {
 };
 
 /** Deletes a bet and safely releases any pending wallet exposure. */
-const deleteBetSlip = async (betId, deletedBy) => {
+const unsafeDeleteBetSlipLegacy = async (betId, deletedBy) => {
     const dbSession = await mongoose.startSession();
     let deletedBet;
     let balance;
@@ -667,9 +823,62 @@ const deleteBetSlip = async (betId, deletedBy) => {
     return { bet: deletedBet, balance };
 };
 
+const deleteBetSlip = async (betId, deletedBy) => {
+    if (!mongoose.Types.ObjectId.isValid(betId)) throw serviceError("Invalid betId", 400, "INVALID_BET_ID");
+    if (!mongoose.Types.ObjectId.isValid(deletedBy)) throw serviceError("Invalid deletedBy", 400, "INVALID_DELETER");
+    const dbSession = await mongoose.startSession();
+    let cancelledBet;
+    let balance;
+    try {
+        await dbSession.withTransaction(async () => {
+            const [bet, actor] = await Promise.all([
+                Bet.findById(betId).session(dbSession),
+                User.findById(deletedBy).session(dbSession).lean(),
+            ]);
+            if (!bet) throw serviceError("Bet slip not found", 404, "BET_NOT_FOUND");
+            if (!actor || actor.role !== ROLES.SUPERADMIN) throw serviceError("Not authorized to delete this bet", 403, "DELETE_FORBIDDEN");
+            const ownsBet = String(bet.rootSuperAdminId || "") === String(actor._id) ||
+                (Array.isArray(bet.ownerPath) && bet.ownerPath.some((id) => String(id) === String(actor._id)));
+            if (!ownsBet) throw serviceError("Bet belongs to another tenant", 403, "CROSS_TENANT_FORBIDDEN");
+            if (bet.status !== BET_STATUS.PENDING) throw serviceError("Only pending bets can be cancelled", 409, "BET_NOT_PENDING");
+            const user = await User.findById(bet.userId).session(dbSession);
+            if (!user) throw serviceError("Bet user not found", 404, "USER_NOT_FOUND");
+            let walletRelease;
+            if (bet.marketType === "session") {
+                walletRelease = Number(bet.walletAdjustment == null ? bet.loss : bet.walletAdjustment);
+            } else {
+                const [runnerDocs, pendingBets] = await Promise.all([
+                    ManualRunner.find({ matchId: bet.matchId }).select("runnerId").session(dbSession).lean(),
+                    Bet.find({ userId: bet.userId, matchId: bet.matchId, marketType: "match", status: BET_STATUS.PENDING }).session(dbSession).lean(),
+                ]);
+                const runnerIds = runnerDocs.map((runner) => runner.runnerId);
+                const currentlyReserved = Number(pendingBets.reduce((sum, item) => sum + Number(item.walletAdjustment == null ? item.loss : item.walletAdjustment), 0).toFixed(2));
+                const positions = Object.fromEntries(runnerIds.map((runnerId) => [runnerId, 0]));
+                pendingBets.filter((item) => String(item._id) !== String(bet._id)).forEach((item) => addBetToPositions(positions, runnerIds, item));
+                walletRelease = Number((currentlyReserved - requiredExposure(positions)).toFixed(2));
+            }
+            const balanceBefore = Number(user.coins);
+            const balanceAfter = Number((balanceBefore + walletRelease).toFixed(2));
+            if (!Number.isFinite(balanceAfter) || balanceAfter < 0) throw serviceError("Insufficient wallet balance to remove this hedging bet", 409, "INSUFFICIENT_BALANCE");
+            cancelledBet = await Bet.findOneAndUpdate({ _id: bet._id, status: BET_STATUS.PENDING }, { $set: { status: BET_STATUS.CANCELLED, settledAt: new Date(), settledBy: deletedBy } }, { new: true, session: dbSession });
+            if (!cancelledBet) throw serviceError("Bet is no longer pending", 409, "BET_NOT_PENDING");
+            if (walletRelease !== 0) {
+                await Ledger.create([{ userId: bet.userId, amount: Math.abs(walletRelease), type: walletRelease > 0 ? "credit" : "debit", reason: walletRelease > 0 ? `Pending ${bet.marketType} bet cancelled; exposure released` : "Pending hedge bet cancelled; exposure increased", createdBy: deletedBy, balanceBefore, balanceAfter }], { session: dbSession });
+                user.coins = balanceAfter;
+                await user.save({ session: dbSession });
+            }
+            balance = balanceAfter;
+        });
+    } finally {
+        await dbSession.endSession();
+    }
+    return { bet: cancelledBet.toObject(), balance };
+};
+
 module.exports = {
     placeBet,
     settleBet,
+    settleMatchBets,
     getUserMatchBets,
     getAllMatchBets,
     getCompanyMatchBets,
@@ -680,4 +889,5 @@ module.exports = {
     calculateSessionFinancials,
     addBetToPositions,
     requiredExposure,
+    normalizeRate,
 };

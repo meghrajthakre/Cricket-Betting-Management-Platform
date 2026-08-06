@@ -60,6 +60,10 @@ const ledgerSchema = new mongoose.Schema(
     }
 );
 
+ledgerSchema.path("amount").validate(Number.isFinite, "Amount must be finite");
+ledgerSchema.path("balanceBefore").validate(Number.isFinite, "balanceBefore must be finite");
+ledgerSchema.path("balanceAfter").validate(Number.isFinite, "balanceAfter must be finite");
+
 // ── Indexes ───────────────────────────────────────────────────────────────────
 ledgerSchema.index({ userId: 1, createdAt: -1 });
 ledgerSchema.index({ createdBy: 1, createdAt: -1 });

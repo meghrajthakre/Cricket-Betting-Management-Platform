@@ -102,6 +102,8 @@ export function BetSlipPanel({ title, subtitle, bets, loading, error, deletingId
 }
 
 export default function BetSlipsPanel(props) {
-  const bets = props.bets.filter((bet) => bet.marketType !== "session");
-  return <BetSlipPanel {...props} bets={bets} title="Bet Slips" subtitle="Match market bets placed by users" />;
+  const bets = props.bets.filter(
+    (bet) => bet.marketType !== "session" && bet.status === "pending",
+  );
+  return <BetSlipPanel {...props} bets={bets} title="Pending Bet Slips" subtitle="Pending match market bets placed by users" />;
 }
