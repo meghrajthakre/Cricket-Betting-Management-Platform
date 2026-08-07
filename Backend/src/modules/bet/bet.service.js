@@ -279,6 +279,8 @@ const placeBet = async (
                     if (existing) throw serviceError("Duplicate bet request", 409, "DUPLICATE_BET");
                 }
                 const shareSnapshot = await resolveShareSnapshot(user, dbSession);
+                const betId = new mongoose.Types.ObjectId();
+                const correlationId = clientBetId || `bet:${betId}`;
 
                 const balanceBefore = Number(user.coins);
                 const balanceAfter = Number((balanceBefore - liability).toFixed(2));
@@ -296,12 +298,20 @@ const placeBet = async (
                     createdBy: userId,
                     balanceBefore,
                     balanceAfter,
+                    transactionCode: "SESSION_BET_LIABILITY_RESERVED",
+                    referenceType: "bet",
+                    referenceId: String(betId),
+                    correlationId,
+                    matchId,
+                    marketType,
+                    marketId,
                 }], { session: dbSession });
 
                 user.coins = balanceAfter;
                 await user.save({ session: dbSession });
 
                 [sessionBet] = await Bet.create([{
+                    _id: betId,
                     userId,
                     ...shareSnapshot,
                     matchId,
@@ -316,6 +326,7 @@ const placeBet = async (
                     loss: liability,
                     walletAdjustment: liability,
                     clientBetId,
+                    correlationId,
                     status: BET_STATUS.PENDING,
                 }], { session: dbSession });
 
@@ -354,6 +365,8 @@ const placeBet = async (
                 if (existing) throw serviceError("Duplicate bet request", 409, "DUPLICATE_BET");
             }
             const shareSnapshot = await resolveShareSnapshot(user, dbSession);
+            const betId = new mongoose.Types.ObjectId();
+            const correlationId = clientBetId || `bet:${betId}`;
 
             const runnerIds = runnerDocs.map((item) => item.runnerId);
             if (runnerIds.length < 2 || !runnerIds.includes(marketId)) {
@@ -395,6 +408,15 @@ const placeBet = async (
                     createdBy: userId,
                     balanceBefore,
                     balanceAfter,
+                    transactionCode: walletAdjustment > 0
+                        ? "MATCH_EXPOSURE_RESERVED"
+                        : "MATCH_HEDGE_EXPOSURE_RELEASED",
+                    referenceType: "bet",
+                    referenceId: String(betId),
+                    correlationId,
+                    matchId,
+                    marketType,
+                    marketId,
                 }], { session: dbSession });
 
                 user.coins = balanceAfter;
@@ -402,10 +424,11 @@ const placeBet = async (
             }
 
             [bet] = await Bet.create([{
-                userId, ...shareSnapshot, matchId, marketType, marketId, amount, rate: acceptedRate, type, profit,
+                _id: betId, userId, ...shareSnapshot, matchId, marketType, marketId, amount, rate: acceptedRate, type, profit,
                 loss: liability,
                 walletAdjustment,
                 clientBetId,
+                correlationId,
                 status: BET_STATUS.PENDING,
             }], { session: dbSession });
 
@@ -619,7 +642,11 @@ const settleBet = async (betId, won, settledBy) => {
                 const balanceBefore = Number(user.coins);
                 const balanceAfter = Number((balanceBefore + creditAmount).toFixed(2));
                 if (!Number.isFinite(balanceAfter)) throw serviceError("Invalid wallet result", 409, "INVALID_WALLET");
-                await Ledger.create([{ userId: existing.userId, amount: creditAmount, type: "credit", reason: `${existing.type.toUpperCase()} session bet won on match ${existing.matchId}`, createdBy: settledBy, balanceBefore, balanceAfter }], { session: dbSession });
+                await Ledger.create([{ userId: existing.userId, amount: creditAmount, type: "credit", reason: `${existing.type.toUpperCase()} session bet won on match ${existing.matchId}`, createdBy: settledBy, balanceBefore, balanceAfter,
+                    transactionCode: "SESSION_BET_WIN_PAID", referenceType: "bet", referenceId: String(existing._id),
+                    correlationId: existing.correlationId || `bet:${existing._id}`, matchId: existing.matchId,
+                    marketType: existing.marketType, marketId: existing.marketId,
+                }], { session: dbSession });
                 user.coins = balanceAfter;
                 await user.save({ session: dbSession });
             }
@@ -639,6 +666,7 @@ const settleMatchBets = async ({ matchId, winningRunnerId, settledBy }) => {
     if (!mongoose.Types.ObjectId.isValid(settledBy)) throw serviceError("Invalid settledBy", 400, "INVALID_SETTLER");
     const dbSession = await mongoose.startSession();
     let result;
+    const correlationId = `match-settlement:${matchId}:${new mongoose.Types.ObjectId()}`;
     try {
         await dbSession.withTransaction(async () => {
             const actor = await User.findById(settledBy).session(dbSession).lean();
@@ -670,7 +698,11 @@ const settleMatchBets = async ({ matchId, winningRunnerId, settledBy }) => {
                 const balanceAfter = Number((balanceBefore + adjustment).toFixed(2));
                 if (!Number.isFinite(balanceAfter) || balanceAfter < 0) throw serviceError("Settlement would create an invalid wallet balance", 409, "INVALID_WALLET");
                 if (adjustment !== 0) {
-                    await Ledger.create([{ userId, amount: Math.abs(adjustment), type: adjustment > 0 ? "credit" : "debit", reason: `Match ${matchId} settled; winner ${winningRunnerId}`, createdBy: settledBy, balanceBefore, balanceAfter }], { session: dbSession });
+                    await Ledger.create([{ userId, amount: Math.abs(adjustment), type: adjustment > 0 ? "credit" : "debit", reason: `Match ${matchId} settled; winner ${winningRunnerId}`, createdBy: settledBy, balanceBefore, balanceAfter,
+                        transactionCode: adjustment > 0 ? "MATCH_SETTLEMENT_CREDIT" : "MATCH_SETTLEMENT_DEBIT",
+                        referenceType: "match", referenceId: matchId, correlationId, matchId,
+                        marketType: "match", marketId: winningRunnerId,
+                    }], { session: dbSession });
                     user.coins = balanceAfter;
                     await user.save({ session: dbSession });
                 }
@@ -863,7 +895,11 @@ const deleteBetSlip = async (betId, deletedBy) => {
             cancelledBet = await Bet.findOneAndUpdate({ _id: bet._id, status: BET_STATUS.PENDING }, { $set: { status: BET_STATUS.CANCELLED, settledAt: new Date(), settledBy: deletedBy } }, { new: true, session: dbSession });
             if (!cancelledBet) throw serviceError("Bet is no longer pending", 409, "BET_NOT_PENDING");
             if (walletRelease !== 0) {
-                await Ledger.create([{ userId: bet.userId, amount: Math.abs(walletRelease), type: walletRelease > 0 ? "credit" : "debit", reason: walletRelease > 0 ? `Pending ${bet.marketType} bet cancelled; exposure released` : "Pending hedge bet cancelled; exposure increased", createdBy: deletedBy, balanceBefore, balanceAfter }], { session: dbSession });
+                await Ledger.create([{ userId: bet.userId, amount: Math.abs(walletRelease), type: walletRelease > 0 ? "credit" : "debit", reason: walletRelease > 0 ? `Pending ${bet.marketType} bet cancelled; exposure released` : "Pending hedge bet cancelled; exposure increased", createdBy: deletedBy, balanceBefore, balanceAfter,
+                    transactionCode: walletRelease > 0 ? "BET_CANCELLATION_EXPOSURE_RELEASED" : "BET_CANCELLATION_EXPOSURE_INCREASED",
+                    referenceType: "bet", referenceId: String(bet._id), correlationId: bet.correlationId || `bet:${bet._id}`,
+                    matchId: bet.matchId, marketType: bet.marketType, marketId: bet.marketId,
+                }], { session: dbSession });
                 user.coins = balanceAfter;
                 await user.save({ session: dbSession });
             }

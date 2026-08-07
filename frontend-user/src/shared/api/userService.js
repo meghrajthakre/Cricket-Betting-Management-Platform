@@ -34,8 +34,20 @@ export const getWalletHistory = (userId, limit = 10, skip = 0) =>
   API.get(`/wallet/${userId}/history`, { params: { limit, skip } });
 
 // ========== Betting ==========
-export const placeBet = (userId, matchId, stake, rate, extra = {}) =>
-  API.post("/bet/place", { userId, matchId, amount: stake, rate, ...extra }).then((r) => r.data);
+const createClientBetId = () => globalThis.crypto?.randomUUID?.() ||
+  `bet-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+export const placeBet = (userId, matchId, stake, rate, extra = {}) => {
+  const clientBetId = extra.clientBetId || createClientBetId();
+  return API.post("/bet/place", {
+    userId,
+    matchId,
+    amount: stake,
+    rate,
+    ...extra,
+    clientBetId,
+  }).then((r) => r.data);
+};
 
 export const getMyBets = (matchId) =>
   API.get("/bet/mine", { params: { matchId } }).then((r) => r.data);

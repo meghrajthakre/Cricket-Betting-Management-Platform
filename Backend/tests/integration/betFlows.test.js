@@ -137,6 +137,12 @@ test("opposite runner bets reduce reserved match exposure", { skip: !enabled }, 
       { type: "debit", amount: 100 },
       { type: "credit", amount: 90 },
     ]);
+    assert.equal(ledgers[0].transactionCode, "MATCH_EXPOSURE_RESERVED");
+    assert.equal(ledgers[0].referenceType, "bet");
+    assert.equal(ledgers[0].referenceId, String(first.bet._id));
+    assert.equal(ledgers[0].correlationId, first.bet.correlationId);
+    assert.equal(ledgers[1].transactionCode, "MATCH_HEDGE_EXPOSURE_RELEASED");
+    assert.equal(ledgers[1].referenceId, String(second.bet._id));
   } finally {
     await cleanup(matchId, user._id, superAdmin._id);
   }
@@ -169,6 +175,11 @@ test("cancelling a pending session bet refunds liability and records a ledger cr
       { type: "debit", amount: 100 },
       { type: "credit", amount: 100 },
     ]);
+    assert.equal(entries[0].transactionCode, "SESSION_BET_LIABILITY_RESERVED");
+    assert.equal(entries[0].referenceId, String(placed.bet._id));
+    assert.equal(entries[1].transactionCode, "BET_CANCELLATION_EXPOSURE_RELEASED");
+    assert.equal(entries[1].referenceId, String(placed.bet._id));
+    assert.equal(entries[1].correlationId, entries[0].correlationId);
   } finally {
     await cleanup(matchId, user._id, superAdmin._id);
   }

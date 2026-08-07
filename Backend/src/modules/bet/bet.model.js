@@ -109,6 +109,12 @@ const betSchema = new mongoose.Schema(
             maxlength: 100,
             default: undefined,
         },
+        correlationId: {
+            type: String,
+            trim: true,
+            maxlength: 120,
+            index: true,
+        },
         status: {
             type: String,
             enum: Object.values(BET_STATUS),

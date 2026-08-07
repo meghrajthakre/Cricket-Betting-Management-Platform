@@ -179,6 +179,13 @@ async function settleSession(matchId, sessionId, resultRun, settledBy) {
             createdBy: settledBy,
             balanceBefore,
             balanceAfter,
+            transactionCode: "SESSION_BET_WIN_PAID",
+            referenceType: "bet",
+            referenceId: String(bet._id),
+            correlationId: bet.correlationId || `bet:${bet._id}`,
+            matchId,
+            marketType: "session",
+            marketId: sessionId,
           }], { session: dbSession });
           user.coins = balanceAfter;
           await user.save({ session: dbSession });
@@ -262,6 +269,13 @@ async function reverseSessionSettlement(matchId, sessionId, reversedBy) {
             createdBy: reversedBy,
             balanceBefore,
             balanceAfter,
+            transactionCode: "SESSION_SETTLEMENT_REVERSED",
+            referenceType: "bet",
+            referenceId: String(bet._id),
+            correlationId: bet.correlationId || `bet:${bet._id}`,
+            matchId,
+            marketType: "session",
+            marketId: sessionId,
           }], { session: dbSession });
           user.coins = balanceAfter;
           await user.save({ session: dbSession });

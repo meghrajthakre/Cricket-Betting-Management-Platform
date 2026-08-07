@@ -38,6 +38,15 @@ const ledgerSchema = new mongoose.Schema(
             maxlength: [200, "reason cannot exceed 200 characters"],
         },
 
+        // Machine-readable audit linkage. Optional for legacy/manual wallet entries.
+        transactionCode: { type: String, trim: true, maxlength: 60, index: true },
+        referenceType: { type: String, trim: true, maxlength: 30 },
+        referenceId: { type: String, trim: true, maxlength: 120, index: true },
+        correlationId: { type: String, trim: true, maxlength: 120, index: true },
+        matchId: { type: String, trim: true, maxlength: 120, index: true },
+        marketType: { type: String, enum: ["match", "session"] },
+        marketId: { type: String, trim: true, maxlength: 120 },
+
         createdBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
