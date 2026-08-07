@@ -37,6 +37,12 @@ const sessionSchema = new mongoose.Schema(
     resultRun: { type: Number, default: null },
     settledAt: { type: Date, default: null },
     settledBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    preSettlementState: {
+      _id: false,
+      status: { type: String, enum: ["open", "suspend", "closed"] },
+      lockStatus: { type: String, enum: ["lock", "unlock"] },
+      isVisible: { type: Boolean },
+    },
   },
   { timestamps: true, versionKey: false, collection: "sessions" }
 );

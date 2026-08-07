@@ -8,6 +8,7 @@ export default function SessionManagement({
     pendingFields,
     onUpdateField,
     onToggleVisible,
+    onReverseSettlement,
 }) {
     const navigate = useNavigate();
     const { matchId } = useParams();
@@ -16,9 +17,12 @@ export default function SessionManagement({
 
     const rateDiffValues = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     const isPending = (sessionId, field) => pendingFields.has(`${sessionId}:${field}`);
-    const orderedSessions = [...sessions].sort(
-        (first, second) => Number(second.isVisible) - Number(first.isVisible)
-    );
+    const activeSessions = sessions
+        .filter((session) => session.resultStatus !== "settled")
+        .sort((first, second) => Number(second.isVisible) - Number(first.isVisible));
+    const settledSessions = sessions
+        .filter((session) => session.resultStatus === "settled")
+        .sort((first, second) => new Date(second.settledAt || 0) - new Date(first.settledAt || 0));
 
     return (
         <>
@@ -75,7 +79,7 @@ export default function SessionManagement({
                                 </td>
                             </tr>
                         )}
-                        {orderedSessions.map((s) => (
+                        {activeSessions.map((s) => (
                             <tr key={s.id} className="border-b text-[15px] border-gray-100 bg-white hover:bg-gray-50">
                                 <td className="px-3 py-2 text-gray-800 whitespace-nowrap">{s.sessionName}</td>
 
@@ -91,7 +95,7 @@ export default function SessionManagement({
                                 <td className="px-3 py-2">
                                     <select
                                         value={s.lockStatus}
-                                        disabled={isPending(s.id, "lockStatus")}
+                                        disabled={s.resultStatus === "settled" || isPending(s.id, "lockStatus")}
                                         onChange={(e) => onUpdateField(s.id, "lockStatus", e.target.value)}
                                         className={selectCls}
                                     >
@@ -103,7 +107,7 @@ export default function SessionManagement({
                                 <td className="px-3 py-2 text-center whitespace-nowrap font-medium text-gray-900">
                                     <select
                                         value={s.rateDiff}
-                                        disabled={isPending(s.id, "rateDiff")}
+                                        disabled={s.resultStatus === "settled" || isPending(s.id, "rateDiff")}
                                         onChange={(e) => onUpdateField(s.id, "rateDiff", Number(e.target.value))}
                                         className={selectCls}
                                         style={{ width: "55px" }}
@@ -117,7 +121,7 @@ export default function SessionManagement({
                                 <td className="px-3 py-2">
                                     <select
                                         value={s.group}
-                                        disabled={isPending(s.id, "group")}
+                                        disabled={s.resultStatus === "settled" || isPending(s.id, "group")}
                                         onChange={(e) => onUpdateField(s.id, "group", e.target.value)}
                                         className={selectCls}
                                     >
@@ -130,7 +134,7 @@ export default function SessionManagement({
                                 <td className="px-3 py-2">
                                     <select
                                         value={s.maxAmount}
-                                        disabled={isPending(s.id, "maxAmount")}
+                                        disabled={s.resultStatus === "settled" || isPending(s.id, "maxAmount")}
                                         onChange={(e) => onUpdateField(s.id, "maxAmount", Number(e.target.value))}
                                         className={selectCls}
                                     >
@@ -143,7 +147,7 @@ export default function SessionManagement({
                                 <td className="px-3 py-2">
                                     <select
                                         value={s.oddEven}
-                                        disabled={isPending(s.id, "oddEven")}
+                                        disabled={s.resultStatus === "settled" || isPending(s.id, "oddEven")}
                                         onChange={(e) => onUpdateField(s.id, "oddEven", e.target.value)}
                                         className={selectCls}
                                     >
@@ -164,6 +168,44 @@ export default function SessionManagement({
                                 </td>
                             </tr>
                         ))}
+                        {settledSessions.length > 0 && (
+                            <>
+                                <tr className="border-y border-amber-200 bg-amber-50">
+                                    <td colSpan={8} className="px-3 py-2.5 text-sm font-bold text-amber-800">
+                                        Settled Sessions ({settledSessions.length})
+                                    </td>
+                                </tr>
+                                <tr className="border-b border-gray-200 bg-gray-50 text-xs text-gray-600">
+                                    <th colSpan={2} className="px-3 py-2 text-left font-semibold">Session Name</th>
+                                    <th colSpan={2} className="px-3 py-2 text-left font-semibold">Settlement Time</th>
+                                    <th colSpan={2} className="px-3 py-2 text-left font-semibold">Settled Number</th>
+                                    <th colSpan={2} className="px-3 py-2 text-left font-semibold">Action</th>
+                                </tr>
+                                {settledSessions.map((s) => (
+                                    <tr key={s.id} className="border-b border-gray-100 bg-white text-sm hover:bg-gray-50">
+                                        <td colSpan={2} className="px-3 py-2 font-medium text-gray-800">{s.sessionName}</td>
+                                        <td colSpan={2} className="px-3 py-2 text-gray-600 whitespace-nowrap">
+                                            {s.settledAt ? new Date(s.settledAt).toLocaleString("en-IN") : "-"}
+                                        </td>
+                                        <td colSpan={2} className="px-3 py-2 font-bold text-emerald-700">{s.resultRun}</td>
+                                        <td colSpan={2} className="px-3 py-2">
+                                            <button
+                                                type="button"
+                                                disabled={isPending(s.id, "reverse")}
+                                                onClick={() => {
+                                                    if (window.confirm(`${s.sessionName} ka settlement reverse karna hai? Winner credits bhi reverse honge.`)) {
+                                                        onReverseSettlement(s.id);
+                                                    }
+                                                }}
+                                                className="rounded bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+                                            >
+                                                {isPending(s.id, "reverse") ? "Reversing..." : "Reverse"}
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </>
+                        )}
                     </tbody>
                 </table>
             </div>

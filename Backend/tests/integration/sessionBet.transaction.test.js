@@ -10,7 +10,7 @@ const Session = require("../../src/modules/session/session.model");
 const { Bet } = require("../../src/modules/bet/bet.model");
 const { Ledger } = require("../../src/modules/ledger/ledger.model");
 const { placeBet } = require("../../src/modules/bet/bet.service");
-const { settleSession } = require("../../src/modules/session/session.service");
+const { settleSession, reverseSessionSettlement } = require("../../src/modules/session/session.service");
 
 const enabled = (
   process.env.TEST_ALLOW_DB_WRITES === "true" &&
@@ -184,6 +184,47 @@ test("session settlement makes NO lose when result equals its line", { skip: !en
     assert.equal(result.lost, 1);
     assert.equal(freshUser.coins, 900);
     assert.equal(bet.status, "lost");
+  } finally {
+    await cleanupCase(matchId, user._id);
+  }
+});
+
+test("reversed session restores wallet and bet, then allows a corrected settlement", { skip: !enabled }, async () => {
+  const { matchId, user } = await seedSessionCase("reverse-resettle");
+  try {
+    await placeBet(user._id.toString(), matchId, 100, 91, "yes", "session", "session-1", 1);
+    await settleSession(matchId, "session-1", 91, user._id);
+    const reversed = await reverseSessionSettlement(matchId, "session-1", user._id);
+
+    let [freshUser, bet, session, ledgers] = await Promise.all([
+      User.findById(user._id).lean(),
+      Bet.findOne({ userId: user._id, matchId }).lean(),
+      Session.findOne({ matchId, id: "session-1" }).lean(),
+      Ledger.find({ userId: user._id }).sort({ createdAt: 1 }).lean(),
+    ]);
+
+    assert.equal(reversed.restoredBets, 1);
+    assert.equal(reversed.reversedCredit, 200);
+    assert.equal(freshUser.coins, 900);
+    assert.equal(bet.status, "pending");
+    assert.equal(session.resultStatus, "pending");
+    assert.equal(session.resultRun, null);
+    assert.equal(session.status, "open");
+    assert.equal(session.lockStatus, "unlock");
+    assert.equal(session.isVisible, true);
+    assert.equal(ledgers.at(-1).type, "debit");
+    assert.match(ledgers.at(-1).reason, /Reversed settlement/);
+
+    await settleSession(matchId, "session-1", 90, user._id);
+    [freshUser, bet, session] = await Promise.all([
+      User.findById(user._id).lean(),
+      Bet.findOne({ userId: user._id, matchId }).lean(),
+      Session.findOne({ matchId, id: "session-1" }).lean(),
+    ]);
+    assert.equal(freshUser.coins, 900);
+    assert.equal(bet.status, "lost");
+    assert.equal(session.resultStatus, "settled");
+    assert.equal(session.resultRun, 90);
   } finally {
     await cleanupCase(matchId, user._id);
   }

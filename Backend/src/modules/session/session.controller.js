@@ -143,6 +143,22 @@ const settleSession = asyncHandler(async (req, res) => {
   });
 });
 
+const reverseSessionSettlement = asyncHandler(async (req, res) => {
+  const matchId = requireText(req.params.matchId, "matchId");
+  const sessionId = requireText(req.params.sessionId, "sessionId");
+  const result = await sessionService.reverseSessionSettlement(matchId, sessionId, req.user._id);
+  sse.broadcast(matchId, {
+    type: "SESSION_SETTLEMENT_REVERSED",
+    payload: { matchId, ...result },
+  });
+  broadcastSession(matchId, result.session);
+  res.status(200).json({
+    success: true,
+    message: "Session settlement reversed successfully",
+    data: { matchId, ...result },
+  });
+});
+
 module.exports = {
   getSessions,
   getPendingBetSessions,
@@ -152,4 +168,5 @@ module.exports = {
   updateAllSessionStatuses,
   resetSessions,
   settleSession,
+  reverseSessionSettlement,
 };

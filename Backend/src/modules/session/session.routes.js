@@ -11,6 +11,7 @@ const {
   updateAllSessionStatuses,
   resetSessions,
   settleSession,
+  reverseSessionSettlement,
 } = require("./session.controller");
 
 const router = Router();
@@ -21,6 +22,7 @@ router.get("/:matchId/pending", ...staffOnly, getPendingBetSessions);
 router.patch("/:matchId/status", ...staffOnly, updateAllSessionStatuses);
 router.post("/:matchId/reset", ...staffOnly, resetSessions);
 router.post("/:matchId/:sessionId/settle", ...staffOnly, settleSession);
+router.post("/:matchId/:sessionId/reverse-settlement", ...staffOnly, reverseSessionSettlement);
 router.patch("/:matchId/:sessionId/status", ...staffOnly, updateSessionStatus);
 router.patch("/:matchId/:sessionId/visibility", ...staffOnly, updateSessionVisibility);
 router.patch("/:matchId/:sessionId", ...staffOnly, updateSession);

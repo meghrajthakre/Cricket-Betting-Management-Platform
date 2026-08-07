@@ -91,6 +91,7 @@ export default function ManualPage() {
                                 pendingFields={sessionData.pendingFields}
                                 onToggleVisible={sessionData.handleSessionVisibility}
                                 onUpdateField={sessionData.handleSessionField}
+                                onReverseSettlement={sessionData.handleReverseSettlement}
                             />
                         </>
                     )}

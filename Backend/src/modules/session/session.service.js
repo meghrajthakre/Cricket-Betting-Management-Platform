@@ -191,6 +191,11 @@ async function settleSession(matchId, sessionId, resultRun, settledBy) {
         await bet.save({ session: dbSession });
       }
 
+      session.preSettlementState = {
+        status: session.status,
+        lockStatus: session.lockStatus,
+        isVisible: session.isVisible,
+      };
       session.resultRun = numericResult;
       session.resultStatus = "settled";
       session.status = "closed";
@@ -215,6 +220,85 @@ async function settleSession(matchId, sessionId, resultRun, settledBy) {
   return summary;
 }
 
+async function reverseSessionSettlement(matchId, sessionId, reversedBy) {
+  const dbSession = await mongoose.startSession();
+  let summary;
+
+  try {
+    await dbSession.withTransaction(async () => {
+      const session = await Session.findOne({ matchId, id: sessionId }).session(dbSession);
+      if (!session) throw new AppError("Session not found", 404);
+      if (session.resultStatus !== "settled") {
+        throw new AppError("Only a settled session can be reversed", 409);
+      }
+
+      const bets = await Bet.find({
+        matchId,
+        marketType: "session",
+        marketId: sessionId,
+        status: { $in: [BET_STATUS.WON, BET_STATUS.LOST] },
+      }).session(dbSession);
+
+      let reversedCredit = 0;
+      for (const bet of bets) {
+        if (bet.status === BET_STATUS.WON) {
+          const creditAmount = Number((Number(bet.profit) + Number(bet.loss)).toFixed(2));
+          const user = await User.findById(bet.userId).session(dbSession);
+          if (!user) throw new AppError(`User not found for bet ${bet._id}`, 404);
+
+          const balanceBefore = Number(user.coins);
+          if (balanceBefore < creditAmount) {
+            throw new AppError(
+              `Cannot reverse: user ${user.username || bet.userId} has insufficient balance`,
+              409
+            );
+          }
+          const balanceAfter = Number((balanceBefore - creditAmount).toFixed(2));
+          await Ledger.create([{
+            userId: bet.userId,
+            amount: creditAmount,
+            type: "debit",
+            reason: `Reversed settlement of ${session.sessionName}`,
+            createdBy: reversedBy,
+            balanceBefore,
+            balanceAfter,
+          }], { session: dbSession });
+          user.coins = balanceAfter;
+          await user.save({ session: dbSession });
+          reversedCredit = Number((reversedCredit + creditAmount).toFixed(2));
+        }
+
+        bet.status = BET_STATUS.PENDING;
+        bet.resultRun = undefined;
+        bet.settledAt = undefined;
+        bet.settledBy = undefined;
+        await bet.save({ session: dbSession });
+      }
+
+      const previous = session.preSettlementState || {};
+      session.resultStatus = "pending";
+      session.resultRun = null;
+      session.status = previous.status || "suspend";
+      session.lockStatus = previous.lockStatus || "lock";
+      session.isVisible = previous.isVisible ?? false;
+      session.settledAt = null;
+      session.settledBy = null;
+      session.preSettlementState = undefined;
+      await session.save({ session: dbSession });
+
+      summary = {
+        session: session.toObject(),
+        restoredBets: bets.length,
+        reversedCredit,
+      };
+    });
+  } finally {
+    await dbSession.endSession();
+  }
+
+  return summary;
+}
+
 module.exports = {
   getSessions,
   getPendingBetSessions,
@@ -223,4 +307,5 @@ module.exports = {
   resetSessions,
   sessionBetWon,
   settleSession,
+  reverseSessionSettlement,
 };

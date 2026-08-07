@@ -40,10 +40,10 @@ export function advanceOverByOneBall(overs) {
 
 export function reverseOverByOneBall(overs) {
     const value = Number(overs) || 0;
+    if (value <= 0) return 0;
     const wholeOvers = Math.floor(value);
     const balls = Math.round((value - wholeOvers) * 10) - 1;
     return balls < 0
         ? Number(`${Math.max(0, wholeOvers - 1)}.5`)
         : Number(`${wholeOvers}.${balls}`);
 }
-

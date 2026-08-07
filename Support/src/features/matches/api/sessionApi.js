@@ -18,3 +18,5 @@ export const updateAllSessionStatuses = (matchId, status) =>
 export const resetSessions = (matchId) => apiClient.post(`${sessionPath(matchId)}/reset`);
 export const settleSession = (matchId, sessionId, resultRun) =>
   apiClient.post(`${sessionItemPath(matchId, sessionId)}/settle`, { resultRun: Number(resultRun) });
+export const reverseSessionSettlement = (matchId, sessionId) =>
+  apiClient.post(`${sessionItemPath(matchId, sessionId)}/reverse-settlement`);

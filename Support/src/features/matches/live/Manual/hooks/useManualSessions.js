@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
     getSessions,
+    reverseSessionSettlement,
     updateAllSessionStatuses,
     updateSession,
     updateSessionStatus,
@@ -122,6 +123,32 @@ export function useManualSessions(matchId) {
         }
     };
 
+    const handleReverseSettlement = async (sessionId) => {
+        const pendingKey = `${sessionId}:reverse`;
+        if (pendingFields.has(pendingKey)) return;
+        setPendingFields((current) => new Set(current).add(pendingKey));
+        setSessionsError("");
+        try {
+            const { data } = await reverseSessionSettlement(matchId, sessionId);
+            const restored = data?.data?.session;
+            if (restored) {
+                setSessions((current) => current.map((session) =>
+                    session.id === sessionId ? restored : session
+                ));
+            }
+        } catch (requestError) {
+            setSessionsError(
+                requestError.response?.data?.message || requestError.message || "Failed to reverse settlement"
+            );
+        } finally {
+            setPendingFields((current) => {
+                const next = new Set(current);
+                next.delete(pendingKey);
+                return next;
+            });
+        }
+    };
+
     return {
         sessions,
         setSessions,
@@ -133,5 +160,6 @@ export function useManualSessions(matchId) {
         handleSessionStatus,
         handleSessionVisibility,
         updateAllStatuses,
+        handleReverseSettlement,
     };
 }
