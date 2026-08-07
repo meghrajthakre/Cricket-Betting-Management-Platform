@@ -14,11 +14,20 @@ export default function SupportNavbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { logout } = useAuth();
 
   const handleLogout = async () => {
-    await logout();
-    navigate("/login", { replace: true });
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    try {
+      await logout();
+    } catch {
+      // Local auth is cleared even if the server logout request fails.
+    } finally {
+      navigate("/login", { replace: true });
+      setIsLoggingOut(false);
+    }
   };
 
   const handleNav = (path) => {
@@ -69,14 +78,21 @@ export default function SupportNavbar() {
 
             <button
               onClick={handleLogout}
+              disabled={isLoggingOut}
+              aria-busy={isLoggingOut}
               className="cursor-pointer text-sm font-medium px-4 py-2 rounded-lg
                          text-white/80 hover:text-white
                          border border-white/20 hover:border-white/50
                          hover:bg-white/15
                          transition-all duration-200
-                         active:scale-95"
+                         active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Logout
+              <span className="flex min-w-[62px] items-center justify-center gap-2">
+                {isLoggingOut && (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                )}
+                {isLoggingOut ? "Logging out..." : "Logout"}
+              </span>
             </button>
           </div>
 
@@ -122,15 +138,21 @@ export default function SupportNavbar() {
             <div className="pt-1 mt-1 border-t border-white/10">
               <button
                 onClick={handleLogout}
+                disabled={isLoggingOut}
+                aria-busy={isLoggingOut}
                 className="flex items-center gap-2 w-full text-left text-sm font-medium
                            px-3 py-2.5 rounded-lg text-white/80 hover:text-white
-                           hover:bg-white/15 transition-all duration-200"
+                           hover:bg-white/15 transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                Logout
+                {isLoggingOut ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                )}
+                {isLoggingOut ? "Logging out..." : "Logout"}
               </button>
             </div>
           </div>

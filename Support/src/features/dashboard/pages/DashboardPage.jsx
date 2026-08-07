@@ -1,4 +1,5 @@
-import { Bell, LogOut, ShieldCheck, Sparkles, Users } from 'lucide-react';
+import { useState } from 'react';
+import { Bell, LoaderCircle, LogOut, ShieldCheck, Sparkles, Users } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 import Button from '../../../shared/components/ui/Button';
@@ -8,10 +9,19 @@ import { DASHBOARD_STATS } from '../../../shared/constants/app';
 
 const DashboardPage = () => {
     const { user, logout } = useAuth();
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-    const handleLogout = () => {
-        logout();
-        toast.success('You have been signed out.');
+    const handleLogout = async () => {
+        if (isLoggingOut) return;
+        setIsLoggingOut(true);
+        try {
+            await logout();
+            toast.success('You have been signed out.');
+        } catch {
+            toast.success('You have been signed out locally.');
+        } finally {
+            setIsLoggingOut(false);
+        }
     };
 
     return (
@@ -24,9 +34,9 @@ const DashboardPage = () => {
                             <h2 className="mt-2 text-2xl font-semibold text-white">Good morning, {user?.name ?? 'Support lead'}.</h2>
                             <p className="mt-3 max-w-xl text-sm text-slate-200">Your support workspace is live with protected routes, reusable components, and a scalable layout ready for growth.</p>
                         </div>
-                        <Button variant="secondary" onClick={handleLogout} className="gap-2 rounded-full border-white/10 bg-white/10 text-slate-100 hover:bg-white/20">
-                            <LogOut className="h-4 w-4" />
-                            Logout
+                        <Button disabled={isLoggingOut} aria-busy={isLoggingOut} variant="secondary" onClick={handleLogout} className="gap-2 rounded-full border-white/10 bg-white/10 text-slate-100 hover:bg-white/20">
+                            {isLoggingOut ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+                            {isLoggingOut ? 'Logging out...' : 'Logout'}
                         </Button>
                     </div>
 

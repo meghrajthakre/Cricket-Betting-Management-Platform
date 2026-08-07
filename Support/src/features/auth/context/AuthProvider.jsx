@@ -28,8 +28,11 @@ export default function AuthProvider({ children }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    await logout();
-    setUser(null);
+    try {
+      await logout();
+    } finally {
+      setUser(null);
+    }
   }, []);
 
   const value = useMemo(
