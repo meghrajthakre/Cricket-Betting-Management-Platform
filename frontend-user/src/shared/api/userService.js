@@ -17,6 +17,9 @@ export const logoutUser = async () => {
   }
 };
 export const getMe = () => API.get("/auth/me").then((r) => r.data);
+export const changeOwnPassword = (currentPassword, newPassword, confirmPassword) =>
+  API.patch("/user/password", { currentPassword, newPassword, confirmPassword })
+    .then((response) => response.data);
 
 // ========== Banner ==========
 export const getBanner = () => API.get("/banner").then((r) => r.data);

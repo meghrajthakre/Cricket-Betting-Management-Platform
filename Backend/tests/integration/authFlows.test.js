@@ -93,3 +93,23 @@ test("successful login returns a usable token without leaking password data", { 
   assert.equal("password" in profileBody.data.user, false);
 });
 
+test("normal user can change own password only after current-password verification", { skip: !enabled }, async () => {
+  const loginResponse = await postLogin(activeUser.username, "correct-password-123");
+  const loginBody = await loginResponse.json();
+  const headers = { Authorization: `Bearer ${loginBody.data.accessToken}`, "Content-Type": "application/json" };
+
+  const wrongCurrent = await fetch(`${baseUrl}/api/user/password`, {
+    method: "PATCH", headers,
+    body: JSON.stringify({ currentPassword: "wrong-password", newPassword: "new-password-456", confirmPassword: "new-password-456" }),
+  });
+  assert.equal(wrongCurrent.status, 401);
+  assert.equal((await postLogin(activeUser.username, "correct-password-123")).status, 200);
+
+  const changed = await fetch(`${baseUrl}/api/user/password`, {
+    method: "PATCH", headers,
+    body: JSON.stringify({ currentPassword: "correct-password-123", newPassword: "new-password-456", confirmPassword: "new-password-456" }),
+  });
+  assert.equal(changed.status, 200);
+  assert.equal((await postLogin(activeUser.username, "correct-password-123")).status, 401);
+  assert.equal((await postLogin(activeUser.username, "new-password-456")).status, 200);
+});

@@ -1,7 +1,7 @@
 "use strict";
 
 const { Router } = require("express");
-const { getProfile, getCoins, getLedger } = require("./user.controller");
+const { getProfile, getCoins, getLedger, changeOwnPassword } = require("./user.controller");
 const { protect } = require("../../middleware/authMiddleware");
 const { userOnly } = require("../../middleware/roleMiddleware");
 const { validateQuery, paginationSchema } = require("../../utils/validators");
@@ -28,5 +28,6 @@ router.get("/coins", getCoins);
  * Returns paginated personal transaction history
  */
 router.get("/ledger", validateQuery(paginationSchema), getLedger);
+router.patch("/password", changeOwnPassword);
 
 module.exports = router;
