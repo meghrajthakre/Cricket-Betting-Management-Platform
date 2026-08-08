@@ -4,6 +4,10 @@ export const getNextUsername = (signal) =>
   api
     .get("/sub-companies/panel/users/next-username", { signal })
     .then((response) => response.data);
+export const getLimitSummary = (signal) =>
+  api
+    .get("/sub-companies/panel/limit-summary", { signal })
+    .then((response) => response.data);
 export const getUsers = (params, signal) =>
   api
     .get("/sub-companies/panel/users", { params, signal })

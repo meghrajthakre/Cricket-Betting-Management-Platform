@@ -1,8 +1,8 @@
-import { CircleDollarSign, UserCheck, UserRound, Users } from "lucide-react";
+import { CircleDollarSign, Gauge, UserCheck, UserRound, Users, WalletCards } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import Spinner from "../../shared/components/Spinner";
-import { getUsers, toggleUserStatus } from "../../shared/api/userApi";
+import { getLimitSummary, getUsers, toggleUserStatus } from "../../shared/api/userApi";
 import ChangePasswordModal from "./ChangePasswordModal";
 import DeleteConfirmModal from "./DeleteConfirmModal";
 import EditCoinsModal from "./EditCoinsModal";
@@ -20,6 +20,7 @@ export default function UsersList({ onGoCreate, refreshKey }) {
   const [deleteUser, setDeleteUser] = useState(null);
   const [balanceUser, setBalanceUser] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [limitSummary, setLimitSummary] = useState(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -27,12 +28,14 @@ export default function UsersList({ onGoCreate, refreshKey }) {
       setLoading(true);
       setError("");
       try {
-        const response = await getUsers(
-          { search: searchQuery },
-          controller.signal,
-        );
-        if (!controller.signal.aborted)
+        const [response, summaryResponse] = await Promise.all([
+          getUsers({ search: searchQuery }, controller.signal),
+          getLimitSummary(controller.signal),
+        ]);
+        if (!controller.signal.aborted) {
           setUsers(Array.isArray(response.data) ? response.data : []);
+          setLimitSummary(summaryResponse?.data || null);
+        }
       } catch (requestError) {
         if (requestError.code === "ERR_CANCELED" || controller.signal.aborted)
           return;
@@ -99,6 +102,16 @@ export default function UsersList({ onGoCreate, refreshKey }) {
   };
 
   const statCards = [
+    {
+      label: "Superadmin se mili limit",
+      value: Number(limitSummary?.fixLimit || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }),
+      icon: Gauge,
+    },
+    {
+      label: "Users ko diya balance",
+      value: Number(limitSummary?.usedLimit || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }),
+      icon: WalletCards,
+    },
     { label: "Users shown", value: stats.total, icon: Users },
     { label: "Active users", value: stats.active, icon: UserCheck },
     {
@@ -128,7 +141,7 @@ export default function UsersList({ onGoCreate, refreshKey }) {
           </div>
         </header>
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
           {statCards.map((card) => (
             <div
               key={card.label}
@@ -209,7 +222,15 @@ export default function UsersList({ onGoCreate, refreshKey }) {
         user={deleteUser}
         onClose={() => setDeleteUser(null)}
         onConfirm={(id) =>
-          setUsers((items) => items.filter((item) => item._id !== id))
+          setUsers((items) => {
+            const removed = items.find((item) => item._id === id);
+            if (removed) setLimitSummary((summary) => summary ? {
+              ...summary,
+              usedLimit: Math.max(0, Number(summary.usedLimit || 0) - Number(removed.coins || 0)),
+              remainingLimit: Math.max(0, Number(summary.fixLimit || 0) - (Number(summary.usedLimit || 0) - Number(removed.coins || 0))),
+            } : summary);
+            return items.filter((item) => item._id !== id);
+          })
         }
         showToast={showToast}
       />
@@ -218,11 +239,15 @@ export default function UsersList({ onGoCreate, refreshKey }) {
         isOpen={Boolean(balanceUser)}
         user={balanceUser}
         onClose={() => setBalanceUser(null)}
-        onSuccess={(id, coins) =>
-          setUsers((items) =>
-            items.map((item) => (item._id === id ? { ...item, coins } : item)),
-          )
-        }
+        onSuccess={(id, coins) => setUsers((items) => {
+          const previous = items.find((item) => item._id === id);
+          if (previous) setLimitSummary((summary) => summary ? {
+            ...summary,
+            usedLimit: Number(summary.usedLimit || 0) - Number(previous.coins || 0) + Number(coins || 0),
+            remainingLimit: Math.max(0, Number(summary.fixLimit || 0) - (Number(summary.usedLimit || 0) - Number(previous.coins || 0) + Number(coins || 0))),
+          } : summary);
+          return items.map((item) => (item._id === id ? { ...item, coins } : item));
+        })}
         showToast={showToast}
       />
       <Toaster position="bottom-right" />

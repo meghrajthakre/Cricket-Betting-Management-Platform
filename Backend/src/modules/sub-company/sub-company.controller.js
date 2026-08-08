@@ -4,17 +4,24 @@ const { User, ROLES } = require("../user/user.model");
 const { Bet } = require("../bet/bet.model");
 const asyncHandler = require("../../utils/asyncHandler");
 const AppError = require("../../utils/AppError");
-const { setUserCoins } = require("../ledger/ledger.service");
+const {
+  createUserWithinFixLimit,
+  setUserBalanceWithinFixLimit,
+  updateCompanyFixLimit,
+  deleteEmptySubCompany,
+  getCompanyLimitSummary,
+} = require("./sub-company-limit.service");
 const { getCompanyShareBps, getViewerShareBps, scaleBetForShare, scaleBetForRemainder, scaleBetForViewer } = require("../bet/bet-share.service");
 
-const generateUsername = async (prefix) => {
+const generateUsername = async (prefix, session) => {
   const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const latestUser = await User.findOne({
+  const query = User.findOne({
     username: new RegExp(`^${escapedPrefix}\\d{4}$`, "i"),
   })
     .select("username")
-    .sort({ username: -1 })
-    .lean();
+    .sort({ username: -1 });
+  if (session) query.session(session);
+  const latestUser = await query.lean();
   const latestNumber = latestUser
     ? Number(latestUser.username.slice(prefix.length))
     : 999;
@@ -165,27 +172,20 @@ const createCompanyUser = asyncHandler(async (req, res) => {
   const { firstName, password, confirmPassword, coins } = req.body;
   if (!firstName?.trim()) throw new AppError("First name is required.", 400);
   validatePassword(password, confirmPassword);
-  const balance = Number(coins ?? 0);
-  if (!Number.isFinite(balance) || balance < 0) throw new AppError("Coins must be a non-negative number.", 400);
   const rootSuperAdminId = req.user.rootSuperAdminId || req.user.parentId || req.user.createdBy;
   const ancestorIds = req.user.ancestorIds?.length
     ? [...req.user.ancestorIds, req.user._id]
     : [rootSuperAdminId, req.user._id].filter(Boolean);
-  let user;
-  for (let attempt = 0; attempt < 30 && !user; attempt += 1) {
-    const username = await generateUsername("sm");
-    try {
-      user = await User.create({ username, firstName: firstName.trim(), password, role: ROLES.USER, coins: balance, createdBy: req.user._id, parentId: req.user._id, rootSuperAdminId, ancestorIds });
-    } catch (error) {
-      const usernameCollision = error?.code === 11000 && error?.keyPattern?.username;
-      if (!usernameCollision) throw error;
-    }
-  }
-  if (!user) throw new AppError("Could not generate a unique username. Please try again.", 503);
+  const allocation = await createUserWithinFixLimit(
+    req.user._id,
+    { firstName: firstName.trim(), password, role: ROLES.USER, coins, createdBy: req.user._id, parentId: req.user._id, rootSuperAdminId, ancestorIds },
+    (session) => generateUsername("sm", session)
+  );
+  const user = allocation.user;
   const { username } = user;
   const data = user.toObject();
   delete data.password;
-  res.status(201).json({ success: true, message: `User ${username.toUpperCase()} created successfully.`, data });
+  res.status(201).json({ success: true, message: `User ${username.toUpperCase()} created successfully.`, data, allocation: { totalAllocated: allocation.totalAllocated, remainingLimit: allocation.remainingLimit } });
 });
 
 const getCompanyUsers = asyncHandler(async (req, res) => {
@@ -213,9 +213,23 @@ const changeCompanyUserPassword = asyncHandler(async (req, res) => {
 });
 
 const setCompanyUserBalance = asyncHandler(async (req, res) => {
-  const coins = Number(req.body.coins); if (!Number.isFinite(coins) || coins < 0) throw new AppError("Coins must be a non-negative number.", 400);
-  const user = await findOwnedCompanyUser(req); const result = await setUserCoins(user._id, coins, "Sub Company updated balance", req.user._id);
-  res.json({ success: true, message: "Balance updated successfully.", data: { coins: result.balanceAfter } });
+  const result = await setUserBalanceWithinFixLimit(req.user._id, req.params.id, req.body.coins, req.user._id);
+  res.json({ success: true, message: "Balance updated successfully.", data: { coins: result.balanceAfter, totalAllocated: result.totalAllocated, remainingLimit: result.remainingLimit } });
+});
+
+const getLimitSummary = asyncHandler(async (req, res) => {
+  const data = await getCompanyLimitSummary(req.user._id);
+  res.json({ success: true, data });
+});
+
+const editSubCompanyFixLimit = asyncHandler(async (req, res) => {
+  const result = await updateCompanyFixLimit(req.params.id, req.user._id, req.body.fixLimit);
+  res.json({ success: true, message: "Fix limit updated successfully.", data: result });
+});
+
+const deleteSubCompany = asyncHandler(async (req, res) => {
+  const deleted = await deleteEmptySubCompany(req.params.id, req.user._id);
+  res.json({ success: true, message: `Sub Company ${deleted.username} deleted successfully.`, data: deleted });
 });
 
 const deleteCompanyUser = asyncHandler(async (req, res) => {
@@ -223,4 +237,4 @@ const deleteCompanyUser = asyncHandler(async (req, res) => {
   res.json({ success: true, message: `User ${user.username} deleted successfully.` });
 });
 
-module.exports = { getNextCompanyUsername, getNextCompanyUserUsername, createSubCompany, getSubCompanies, toggleSubCompanyStatus, getSubCompanyReport, createCompanyUser, getCompanyUsers, toggleCompanyUserStatus, changeCompanyUserPassword, setCompanyUserBalance, deleteCompanyUser };
+module.exports = { getNextCompanyUsername, getNextCompanyUserUsername, getLimitSummary, createSubCompany, getSubCompanies, toggleSubCompanyStatus, editSubCompanyFixLimit, deleteSubCompany, getSubCompanyReport, createCompanyUser, getCompanyUsers, toggleCompanyUserStatus, changeCompanyUserPassword, setCompanyUserBalance, deleteCompanyUser };

@@ -98,6 +98,31 @@ test("Super Admin cannot suspend an unrelated Sub Company", { skip: !enabled }, 
 test("Super Admin can suspend their own Sub Company", { skip: !enabled }, async () => {
   const response = await fetch(`${baseUrl}/api/sub-companies/${created._id}/status`, { method: "PATCH", headers: auth(superAdmin) }); const body = await response.json(); assert.equal(response.status, 200); assert.equal(body.data.isActive, false);
 });
+test("Super Admin can edit their Sub Company fix limit", { skip: !enabled }, async () => {
+  const response = await fetch(`${baseUrl}/api/sub-companies/${created._id}/fix-limit`, { method: "PATCH", headers: auth(superAdmin), body: JSON.stringify({ fixLimit: 20000 }) });
+  const body = await response.json(); assert.equal(response.status, 200); assert.equal(body.data.fixLimit, 20000); assert.equal((await User.findById(created._id).lean()).fixLimit, 20000);
+});
+test("Super Admin cannot edit another owner's Sub Company fix limit", { skip: !enabled }, async () => {
+  const other = await (await create(otherSuperAdmin, validBody())).json();
+  assert.equal((await fetch(`${baseUrl}/api/sub-companies/${other.data._id}/fix-limit`, { method: "PATCH", headers: auth(superAdmin), body: JSON.stringify({ fixLimit: 5000 }) })).status, 404);
+});
+test("Super Admin can reduce fix limit below currently allocated user balances", { skip: !enabled }, async () => {
+  const child = await User.create({ username: `limituser${stamp}`, password: "pass1234", role: ROLES.USER, coins: 500, createdBy: created._id, parentId: created._id });
+  const response = await fetch(`${baseUrl}/api/sub-companies/${created._id}/fix-limit`, { method: "PATCH", headers: auth(superAdmin), body: JSON.stringify({ fixLimit: 499 }) });
+  const body = await response.json(); assert.equal(response.status, 200); assert.equal(body.data.fixLimit, 499); assert.equal(body.data.allocatedCoins, 500); assert.equal(body.data.remainingLimit, 0); assert.equal((await User.findById(created._id).lean()).fixLimit, 499); assert.equal((await User.findById(child._id).lean()).coins, 500);
+  await User.deleteOne({ _id: child._id });
+});
+test("Super Admin can delete an empty owned Sub Company", { skip: !enabled }, async () => {
+  const empty = await (await create(superAdmin, validBody())).json();
+  const response = await fetch(`${baseUrl}/api/sub-companies/${empty.data._id}`, { method: "DELETE", headers: auth(superAdmin) });
+  assert.equal(response.status, 200); assert.equal(await User.exists({ _id: empty.data._id }), null);
+});
+test("Sub Company with users cannot be deleted", { skip: !enabled }, async () => {
+  const child = await User.create({ username: `deleteuser${stamp}`, password: "pass1234", role: ROLES.USER, coins: 0, createdBy: created._id, parentId: created._id });
+  const response = await fetch(`${baseUrl}/api/sub-companies/${created._id}`, { method: "DELETE", headers: auth(superAdmin) }); const body = await response.json();
+  assert.equal(response.status, 409); assert.equal(body.code, "SUB_COMPANY_HAS_USERS"); assert.ok(await User.exists({ _id: created._id }));
+  await User.deleteOne({ _id: child._id });
+});
 test("Existing Client creation API still works", { skip: !enabled }, async () => {
   const response = await fetch(`${baseUrl}/api/superadmin/users`, { method: "POST", headers: auth(superAdmin), body: JSON.stringify({ firstName: "Regression Client", password: "pass1234", confirmPassword: "pass1234", coins: 0 }) }); assert.equal(response.status, 201);
 });

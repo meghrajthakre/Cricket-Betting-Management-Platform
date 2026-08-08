@@ -1,8 +1,8 @@
-import { Eye, EyeOff, UserPlus } from "lucide-react";
+import { CircleDollarSign, Eye, EyeOff, Gauge, UserPlus, WalletCards } from "lucide-react";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import Spinner from "../../shared/components/Spinner";
-import { createUser, getNextUsername } from "../../shared/api/userApi";
+import { createUser, getLimitSummary, getNextUsername } from "../../shared/api/userApi";
 
 const EMPTY_FORM = {
   firstName: "",
@@ -19,6 +19,7 @@ export default function CreateUser({ onCancel, onSuccess }) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [limitSummary, setLimitSummary] = useState(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -29,6 +30,13 @@ export default function CreateUser({ onCancel, onSuccess }) {
           setError(
             requestError?.response?.data?.message || "Could not generate username.",
           );
+        }
+      });
+    getLimitSummary(controller.signal)
+      .then((response) => setLimitSummary(response?.data || null))
+      .catch((requestError) => {
+        if (requestError?.code !== "ERR_CANCELED") {
+          setError(requestError?.response?.data?.message || "Could not load limit summary.");
         }
       });
     return () => controller.abort();
@@ -49,6 +57,8 @@ export default function CreateUser({ onCancel, onSuccess }) {
       return setError("Passwords do not match.");
     if (!Number.isFinite(coins) || coins < 0)
       return setError("Enter a valid non-negative balance.");
+    if (limitSummary && coins > Number(limitSummary.remainingLimit || 0))
+      return setError(`Only ${Number(limitSummary.remainingLimit || 0).toLocaleString()} limit is available.`);
 
     setLoading(true);
     try {
@@ -64,6 +74,13 @@ export default function CreateUser({ onCancel, onSuccess }) {
         username ? `User ${username.toUpperCase()} created successfully` : "User created successfully",
       );
       setForm(EMPTY_FORM);
+      if (response?.allocation) {
+        setLimitSummary((current) => ({
+          fixLimit: current?.fixLimit || 0,
+          usedLimit: response.allocation.totalAllocated,
+          remainingLimit: response.allocation.remainingLimit,
+        }));
+      }
       onSuccess(response?.data);
     } catch (requestError) {
       setError(
@@ -78,6 +95,21 @@ export default function CreateUser({ onCancel, onSuccess }) {
 
   return (
     <form onSubmit={submit} className="space-y-5">
+      {limitSummary && (
+        <div className="grid grid-cols-3 gap-2 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
+          {[
+            { label: "Fix Limit", value: limitSummary.fixLimit, icon: Gauge },
+            { label: "Used", value: limitSummary.usedLimit, icon: WalletCards },
+            { label: "Remaining", value: limitSummary.remainingLimit, icon: CircleDollarSign },
+          ].map((item) => (
+            <div key={item.label} className="min-w-0 rounded-lg bg-white p-2.5 text-center shadow-sm">
+              <item.icon size={16} className="mx-auto mb-1 text-blue-600" />
+              <p className="text-[10px] font-semibold uppercase text-gray-400">{item.label}</p>
+              <p className="truncate text-sm font-bold text-(--color-text-dark)">{Number(item.value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+            </div>
+          ))}
+        </div>
+      )}
       <div>
         <label
           htmlFor="generated-username"
@@ -127,6 +159,7 @@ export default function CreateUser({ onCancel, onSuccess }) {
           name="coins"
           type="number"
           min="0"
+          max={limitSummary?.remainingLimit}
           step="0.01"
           value={form.coins}
           onChange={change}
@@ -134,7 +167,9 @@ export default function CreateUser({ onCancel, onSuccess }) {
           placeholder="0.00"
         />
         <p className="mt-1.5 text-xs text-gray-400">
-          Enter 0 if no opening balance is required.
+          {limitSummary
+            ? `${Number(form.coins || 0).toLocaleString()} enter karne ke baad ${Math.max(0, Number(limitSummary.remainingLimit || 0) - Number(form.coins || 0)).toLocaleString()} remaining rahega.`
+            : "Enter 0 if no opening balance is required."}
         </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">

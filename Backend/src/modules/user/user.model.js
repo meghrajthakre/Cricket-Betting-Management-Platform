@@ -66,6 +66,14 @@ const userSchema = new mongoose.Schema(
       min: [0, "fixLimit cannot be negative"],
     },
 
+    // Used only to serialize concurrent Sub Company limit allocations.
+    allocationVersion: {
+      type: Number,
+      default: 0,
+      min: 0,
+      select: false,
+    },
+
     /* ── Hierarchy ─────────────────────────────────────────── */
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     parentId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },

@@ -91,14 +91,15 @@ const updateUserCoins = async (userId, amount, type, reason, createdBy) => {
  * Sets a user's balance to an exact value and records only the real difference.
  * The wallet update and ledger entry commit or roll back together.
  */
-const setUserCoins = async (userId, targetBalance, reason, createdBy) => {
+const setUserCoins = async (userId, targetBalance, reason, createdBy, options = {}) => {
     targetBalance = requireWalletNumber(targetBalance, "targetBalance", { allowZero: true });
-    const session = await mongoose.startSession();
+    const externalSession = options.session;
+    const session = externalSession || await mongoose.startSession();
 
     try {
         let result;
 
-        await session.withTransaction(async () => {
+        const update = async () => {
             const user = await User.findById(userId).session(session);
             if (!user) {
                 throw new Error("User not found");
@@ -129,11 +130,14 @@ const setUserCoins = async (userId, targetBalance, reason, createdBy) => {
             }
 
             result = { balanceBefore, balanceAfter };
-        });
+        };
+
+        if (externalSession) await update();
+        else await session.withTransaction(update);
 
         return result;
     } finally {
-        await session.endSession();
+        if (!externalSession) await session.endSession();
     }
 };
 
