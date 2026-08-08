@@ -11,8 +11,8 @@ export default function UserRow({
 }) {
   return (
     <tr className="border-b border-gray-100 transition hover:bg-blue-50/30">
-      <td className="px-5 py-3 text-gray-400">{index + 1}</td>
-      <td className="px-5 py-3">
+      <td className="border border-gray-200 px-5 py-3 text-gray-400">{index + 1}</td>
+      <td className="border border-gray-200 px-5 py-3">
         <div className="flex items-center gap-3">
           <div className="grid h-9 w-9 place-items-center rounded-xl bg-(--color-primary) text-sm font-bold text-white">
             {user.firstName?.charAt(0)?.toUpperCase() || "U"}
@@ -22,18 +22,18 @@ export default function UserRow({
           </span>
         </div>
       </td>
-      <td className="px-5 py-3">
+      <td className="border border-gray-200 px-5 py-3">
         <span className="rounded-lg bg-slate-100 px-2.5 py-1 font-mono text-xs font-semibold text-gray-600">
           {user.username}
         </span>
       </td>
-      <td className="px-5 py-3 text-right font-bold tabular-nums text-(--color-text-dark)">
+      <td className="border border-gray-200 px-5 py-3 text-right font-bold tabular-nums text-(--color-text-dark)">
         {Number(user.coins ?? 0).toLocaleString(undefined, {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
         })}
       </td>
-      <td className="px-5 py-3">
+      <td className="border border-gray-200 px-5 py-3">
         <span
           className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${user.isActive ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}
         >
@@ -43,7 +43,7 @@ export default function UserRow({
           {user.isActive ? "Active" : "Blocked"}
         </span>
       </td>
-      <td className="px-5 py-3">
+      <td className="border border-gray-200 px-5 py-3">
         <ActionButtons
           user={user}
           busy={busy}

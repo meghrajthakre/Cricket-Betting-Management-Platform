@@ -8,6 +8,7 @@ import DeleteConfirmModal from "./DeleteConfirmModal";
 import EditCoinsModal from "./EditCoinsModal";
 import SearchBar from "./SearchBar";
 import UsersTable from "./UsersTable";
+import UserStatusConfirmationModal from "./UserStatusConfirmationModal";
 
 export default function UsersList({ onGoCreate, refreshKey }) {
   const [users, setUsers] = useState([]);
@@ -21,6 +22,7 @@ export default function UsersList({ onGoCreate, refreshKey }) {
   const [balanceUser, setBalanceUser] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [limitSummary, setLimitSummary] = useState(null);
+  const [statusUser, setStatusUser] = useState(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -73,24 +75,24 @@ export default function UsersList({ onGoCreate, refreshKey }) {
 
   const handleToggle = async (id) => {
     const user = users.find((item) => item._id === id);
-    if (
-      !user ||
-      !window.confirm(
-        `${user.isActive ? "Block" : "Activate"} ${user.firstName}?`,
-      )
-    )
-      return;
-    setBusyUserId(id);
+    if (user) setStatusUser(user);
+  };
+
+  const confirmToggle = async () => {
+    if (!statusUser) return;
+    const user = statusUser;
+    setBusyUserId(user._id);
     try {
-      await toggleUserStatus(id);
+      await toggleUserStatus(user._id);
       setUsers((items) =>
         items.map((item) =>
-          item._id === id ? { ...item, isActive: !item.isActive } : item,
+          item._id === user._id ? { ...item, isActive: !item.isActive } : item,
         ),
       );
       toast.success(
         `User ${user.isActive ? "blocked" : "activated"} successfully`,
       );
+      setStatusUser(null);
     } catch (requestError) {
       toast.error(
         requestError?.response?.data?.message ||
@@ -249,6 +251,12 @@ export default function UsersList({ onGoCreate, refreshKey }) {
           return items.map((item) => (item._id === id ? { ...item, coins } : item));
         })}
         showToast={showToast}
+      />
+      <UserStatusConfirmationModal
+        user={statusUser}
+        busy={Boolean(busyUserId)}
+        onClose={() => setStatusUser(null)}
+        onConfirm={confirmToggle}
       />
       <Toaster position="bottom-right" />
     </div>

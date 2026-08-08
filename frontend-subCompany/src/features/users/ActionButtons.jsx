@@ -1,4 +1,4 @@
-import { Ban, Check, KeyRound, Landmark, Trash2 } from "lucide-react";
+import { KeyRound, Landmark, Trash2, UserCheck, UserX } from "lucide-react";
 
 export default function ActionButtons({
   user,
@@ -30,7 +30,7 @@ export default function ActionButtons({
         title={user.isActive ? "Block user" : "Activate user"}
         aria-label={user.isActive ? "Block user" : "Activate user"}
       >
-        {user.isActive ? <Ban size={14} /> : <Check size={14} />}
+        {user.isActive ? <UserX size={15} /> : <UserCheck size={15} />}
       </button>
       <button
         type="button"

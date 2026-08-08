@@ -19,15 +19,15 @@ export default function UsersTable({
     );
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[850px] text-sm">
+      <table className="w-full min-w-[850px] border-collapse text-sm">
         <thead>
           <tr className="border-b border-(--color-border) bg-slate-50 text-xs uppercase tracking-wider text-gray-500">
-            <th className="px-5 py-3 text-left">#</th>
-            <th className="px-5 py-3 text-left">User</th>
-            <th className="px-5 py-3 text-left">Username</th>
-            <th className="px-5 py-3 text-right">Balance</th>
-            <th className="px-5 py-3 text-left">Status</th>
-            <th className="px-5 py-3 text-left">Actions</th>
+            <th className="border border-gray-200 px-5 py-3 text-left">#</th>
+            <th className="border border-gray-200 px-5 py-3 text-left">User</th>
+            <th className="border border-gray-200 px-5 py-3 text-left">Username</th>
+            <th className="border border-gray-200 px-5 py-3 text-right">Balance</th>
+            <th className="border border-gray-200 px-5 py-3 text-left">Status</th>
+            <th className="border border-gray-200 px-5 py-3 text-left">Actions</th>
           </tr>
         </thead>
         <tbody>
