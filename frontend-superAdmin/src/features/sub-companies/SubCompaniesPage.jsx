@@ -26,6 +26,7 @@ export default function SubCompaniesPage() {
   const [editLimit, setEditLimit] = useState("");
   const [deleteCompany, setDeleteCompany] = useState(null);
   const [actionBusy, setActionBusy] = useState(false);
+  const [statusCompany, setStatusCompany] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -85,12 +86,14 @@ export default function SubCompaniesPage() {
     finally { setSaving(false); }
   };
 
-  const toggleStatus = async (company) => {
+  const confirmStatusChange = async () => {
+    if (!statusCompany) return;
     setActionBusy(true);
-    try { const response = await toggleSubCompanyStatus(company._id); toast.success(response.message); await load(); }
+    try { const response = await toggleSubCompanyStatus(statusCompany._id); toast.success(response.message); setStatusCompany(null); await load(); }
     catch (error) { toast.error(error?.response?.data?.message || "Status update nahi hua"); }
     finally { setActionBusy(false); }
   };
+  const toggleStatus = (company) => setStatusCompany(company);
 
   const saveFixLimit = async (event) => {
     event.preventDefault();
@@ -159,6 +162,12 @@ export default function SubCompaniesPage() {
         <p className="text-sm text-gray-700"><strong>{deleteCompany?.username?.toUpperCase()}</strong> permanently delete karna hai?</p>
         <p className="mt-2 text-xs text-red-600">Agar is Sub Company ke users hain to delete reject hoga. Pehle users delete ya reassign karein.</p>
         <div className="mt-5 flex justify-end gap-3"><button type="button" disabled={actionBusy} onClick={() => setDeleteCompany(null)} className="rounded-xl border border-(--color-border) px-4 py-2.5 text-sm font-bold text-gray-600">Cancel</button><button type="button" disabled={actionBusy} onClick={confirmDelete} className="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-red-700">{actionBusy ? "Deleting..." : "Delete"}</button></div>
+      </Modal>
+      <Modal open={Boolean(statusCompany)} title={statusCompany?.isActive ? "Block Sub Company" : "Unblock Sub Company"} onClose={actionBusy ? () => {} : () => setStatusCompany(null)}>
+        <div className={`rounded-xl border p-4 ${statusCompany?.isActive ? "border-red-100 bg-red-50" : "border-emerald-100 bg-emerald-50"}`}>
+          <div className="flex items-start gap-3"><div className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${statusCompany?.isActive ? "bg-red-100 text-red-600" : "bg-emerald-100 text-emerald-600"}`}>{statusCompany?.isActive ? <Ban size={20} /> : <CheckCircle2 size={20} />}</div><div><p className="text-sm font-semibold text-gray-800">{statusCompany?.isActive ? "Is Sub Company ko block karna hai?" : "Is Sub Company ko unblock karna hai?"}</p><p className="mt-1 text-xs text-gray-500"><strong>{statusCompany?.username?.toUpperCase()}</strong> {statusCompany?.isActive ? "block hone ke baad panel mein login nahi kar payegi." : "dobara panel mein login kar payegi."}</p></div></div>
+        </div>
+        <div className="mt-5 flex justify-end gap-3"><button type="button" disabled={actionBusy} onClick={() => setStatusCompany(null)} className="rounded-xl border border-(--color-border) px-4 py-2.5 text-sm font-bold text-gray-600 disabled:opacity-50">Cancel</button><button type="button" disabled={actionBusy} onClick={confirmStatusChange} className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50 ${statusCompany?.isActive ? "bg-red-600 hover:bg-red-700" : "bg-emerald-600 hover:bg-emerald-700"}`}>{statusCompany?.isActive ? <Ban size={16} /> : <CheckCircle2 size={16} />}{actionBusy ? "Please wait..." : statusCompany?.isActive ? "Block" : "Unblock"}</button></div>
       </Modal>
       <Toaster position="bottom-right" />
     </div>
