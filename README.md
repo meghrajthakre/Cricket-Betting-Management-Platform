@@ -30,12 +30,75 @@ A full-stack, role-based cricket betting and operations platform with dedicated 
 
 ```text
 .
-|-- Backend/                 # REST API, database models, business logic, and tests
-|-- frontend-user/           # Customer-facing application
-|-- frontend-superAdmin/     # Super administrator dashboard
-|-- frontend-subCompany/     # Sub-company management dashboard
-|-- Support/                 # Live match and score operations dashboard
-`-- scripts/verify.ps1       # Full repository verification script
+|-- Backend/                         # Node.js and Express REST API
+|   |-- src/
+|   |   |-- config/                  # MongoDB connection configuration
+|   |   |-- data/                    # Seed and dummy application data
+|   |   |-- middleware/              # Authentication, roles, errors, rate limits
+|   |   |-- modules/                 # Feature-based backend modules
+|   |   |   |-- admin/               # Admin accounts and profiles
+|   |   |   |-- auth/                # Login and authentication
+|   |   |   |-- banner/              # Marquee banner management
+|   |   |   |-- bet/                 # Bet placement and settlement
+|   |   |   |-- cricket/             # Matches and external odds
+|   |   |   |-- ledger/              # Transactions and reports
+|   |   |   |-- manual/              # Manual score and market controls
+|   |   |   |-- saved-match/         # Saved and in-play matches
+|   |   |   |-- session/             # Session markets
+|   |   |   |-- sub-company/         # Sub-company accounts and limits
+|   |   |   |-- support/             # Support endpoints
+|   |   |   |-- user/                # User accounts
+|   |   |   `-- wallet/              # Wallet and coin transactions
+|   |   |-- utils/                    # Tokens, validation, and helpers
+|   |   `-- app.js                    # Express application setup
+|   |-- tests/
+|   |   |-- unit/                     # Unit tests
+|   |   |-- integration/              # API and database tests
+|   |   `-- load/                     # HTTP load tests
+|   |-- server.js                     # Backend entry point
+|   `-- package.json
+|
+|-- frontend-user/                    # Customer-facing React application
+|   |-- public/                       # Static assets
+|   |-- src/
+|   |   |-- app/                      # Layouts and routes
+|   |   |-- features/                 # Auth, matches, bets, ledger, settings
+|   |   |-- shared/                   # Shared UI and API clients
+|   |   |-- store/                    # Zustand state stores
+|   |   `-- main.jsx                  # Application entry point
+|   |-- tests/e2e/                    # Playwright tests
+|   `-- package.json
+|
+|-- frontend-superAdmin/              # Super-admin React dashboard
+|   |-- src/
+|   |   |-- app/                      # Routes, navigation, and layouts
+|   |   |-- features/                 # Users, admins, matches, reports
+|   |   |-- shared/                   # Shared UI and API clients
+|   |   `-- main.jsx
+|   `-- package.json
+|
+|-- frontend-subCompany/              # Sub-company React dashboard
+|   |-- src/
+|   |   |-- app/                      # Routes and layouts
+|   |   |-- features/                 # Users, matches, ledger, reports
+|   |   |-- shared/                   # Shared UI and API clients
+|   |   `-- main.jsx
+|   `-- package.json
+|
+|-- Support/                          # Match-operations dashboard
+|   |-- src/
+|   |   |-- app/                      # Support routes and layouts
+|   |   |-- features/                 # Auth, dashboard, live match controls
+|   |   |-- shared/                   # Common UI, utilities, API client
+|   |   `-- main.jsx
+|   |-- tests/                        # Score calculation tests
+|   `-- package.json
+|
+|-- scripts/
+|   `-- verify.ps1                    # Full repository verification
+|-- .github/                          # GitHub configuration
+|-- .gitignore
+`-- README.md
 ```
 
 ## Prerequisites
@@ -183,4 +246,3 @@ Never point database-writing tests at production data.
 2. Keep changes focused and follow the existing project structure.
 3. Run the relevant tests, lint checks, and production builds.
 4. Open a pull request with a clear description of the change.
-
