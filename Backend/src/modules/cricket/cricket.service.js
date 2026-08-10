@@ -59,7 +59,7 @@ const callOddsApi = async (path, params = {}) => {
     if (remaining !== undefined) {
       console.info(`[cricketService] Odds API quota — used: ${used}, remaining: ${remaining}`);
     }
-
+   
     return response.data;
   } catch (err) {
     if (err.response) {
@@ -146,7 +146,9 @@ const normaliseEvent = (raw, sportKey) => ({
   homeTeam:     raw.home_team  ?? "",
   awayTeam:     raw.away_team  ?? "",
   commenceTime: raw.commence_time ?? null,
-  status:       raw.completed ? "Completed" : (raw.in_play ? "Live" : "Upcoming"),
+  status:       raw.completed
+    ? "Completed"
+    : (raw.in_play === true || (raw.commence_time && new Date(raw.commence_time) <= new Date()) ? "Live" : "Upcoming"),
   odds:         extractOdds(raw),
 
   // Scores — populated when the /scores endpoint is used
@@ -237,10 +239,10 @@ const fetchMatches = async (filter) => {
  */
 const fetchLiveMatches = async () => {
   const snapshot = await fetchCricketOddsSnapshot();
-  const now = new Date();
-  return snapshot.filter(
-    (event) => new Date(event.commenceTime) <= now && !event.completed
-  );
+  // The /odds response contains available live + upcoming events and does not
+  // consistently expose `in_play`. Keep all non-completed events and let the
+  // normalized status tell the frontend whether each one is Live or Upcoming.
+  return snapshot.filter((event) => !event.completed);
 };
 
 /**
