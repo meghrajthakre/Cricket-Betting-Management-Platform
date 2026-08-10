@@ -8,7 +8,7 @@ import {
   SlidersHorizontal,
   Users,
 } from "lucide-react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { logout } from "../../shared/api/authApi";
 
@@ -63,17 +63,18 @@ export default function Sidebar({ open, onClose }) {
       >
         <nav className="flex-1 space-y-1 pt-4">
           {links.map(({ label, to, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              onClick={onClose}
-              className={({ isActive }) => itemClass(isActive)}
-            >
-              <Icon size={18} />
-              <span>{label}</span>
-            </NavLink>
+            <Fragment key={to}>
+              <NavLink
+                to={to}
+                onClick={onClose}
+                className={({ isActive }) => itemClass(isActive)}
+              >
+                <Icon size={18} />
+                <span>{label}</span>
+              </NavLink>
+              {label === "Matches" && <ManageClientsMenu itemClass={itemClass} onClose={onClose} />}
+            </Fragment>
           ))}
-          <ManageClientsMenu itemClass={itemClass} onClose={onClose} />
         </nav>
         <button
           type="button"

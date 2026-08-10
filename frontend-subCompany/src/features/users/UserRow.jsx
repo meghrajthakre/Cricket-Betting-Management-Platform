@@ -8,7 +8,7 @@ export default function UserRow({ user, index, busy, onToggle, onChangePassword,
       <td className="border border-gray-200 px-5 py-3">
         <div className="flex items-center gap-3">
           <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-(--color-primary) text-sm font-bold text-white">{user.firstName?.charAt(0)?.toUpperCase() || "U"}</div>
-          <span className="font-semibold text-(--color-text-dark)">{mode === "limits" ? `${user.username?.toUpperCase()} (${user.firstName || "—"})` : user.firstName || "—"}</span>
+          <span className="font-semibold text-(--color-text-dark)">{mode === "limits" ? `${user.username} (${user.firstName || "—"})` : user.firstName || "—"}</span>
         </div>
       </td>
       {mode === "clients" && <td className="border border-gray-200 px-5 py-3"><span className="rounded-lg bg-slate-100 px-2.5 py-1 font-mono text-xs font-semibold text-gray-600">{user.username}</span></td>}

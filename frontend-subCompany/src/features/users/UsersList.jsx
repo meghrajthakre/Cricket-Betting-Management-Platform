@@ -1,13 +1,13 @@
 import { CircleDollarSign, Gauge, UserCheck, UserRound, Users, WalletCards } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
-import Spinner from "../../shared/components/Spinner";
 import { getLimitSummary, getUsers, toggleUserStatus } from "../../shared/api/userApi";
 import ChangePasswordModal from "./ChangePasswordModal";
 import DeleteConfirmModal from "./DeleteConfirmModal";
 import EditCoinsModal from "./EditCoinsModal";
 import SearchBar from "./SearchBar";
 import UsersTable from "./UsersTable";
+import UsersTableSkeleton from "./UsersTableSkeleton";
 import UserStatusConfirmationModal from "./UserStatusConfirmationModal";
 
 export default function UsersList({ onGoCreate, refreshKey, mode = "clients" }) {
@@ -64,6 +64,7 @@ export default function UsersList({ onGoCreate, refreshKey, mode = "clients" }) 
     () => ({
       total: users.length,
       active: users.filter((user) => user.isActive).length,
+      blocked: users.filter((user) => !user.isActive).length,
       balance: users.reduce((sum, user) => sum + Number(user.coins || 0), 0),
     }),
     [users],
@@ -105,31 +106,13 @@ export default function UsersList({ onGoCreate, refreshKey, mode = "clients" }) 
     }
   };
 
-  const statCards = [
-    {
-      label: "Superadmin se mili limit",
-      value: Number(limitSummary?.fixLimit || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }),
-      icon: Gauge,
-    },
-    {
-      label: "Used Limit",
-      value: Number(limitSummary?.usedLimit || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }),
-      icon: WalletCards,
-    },
-    { label: "Users shown", value: stats.total, icon: Users },
-    { label: "Active users", value: stats.active, icon: UserCheck },
-    {
-      label: "Blocked users",
-      value: stats.total - stats.active,
-      icon: UserRound,
-    },
-    {
-      label: "Total balance",
-      value: stats.balance.toLocaleString(undefined, {
-        maximumFractionDigits: 2,
-      }),
-      icon: CircleDollarSign,
-    },
+  const summaryItems = [
+    { label: "Total Limit", value: Number(limitSummary?.fixLimit || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }), icon: Gauge, color: "text-violet-600", background: "bg-violet-50" },
+    { label: "Used Limit", value: Number(limitSummary?.usedLimit || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }), icon: WalletCards, color: "text-amber-600", background: "bg-amber-50" },
+    { label: "Total Users", value: stats.total, icon: Users, color: "text-blue-600", background: "bg-blue-50" },
+    { label: "Active Users", value: stats.active, icon: UserCheck, color: "text-emerald-600", background: "bg-emerald-50" },
+    { label: "Blocked Users", value: stats.blocked, icon: UserRound, color: "text-red-600", background: "bg-red-50" },
+    { label: "Total Current", value: stats.balance.toLocaleString(undefined, { maximumFractionDigits: 2 }), icon: CircleDollarSign, color: "text-cyan-600", background: "bg-cyan-50" },
   ];
   const visibleUsers = blockedOnly ? users.filter((user) => !user.isActive) : users;
 
@@ -138,28 +121,28 @@ export default function UsersList({ onGoCreate, refreshKey, mode = "clients" }) 
       <div className="mx-auto max-w-7xl space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-xl font-bold text-(--color-primary) sm:text-2xl">{limitsOnly ? "Commission & Limits" : blockedOnly ? "Blocked Clients" : "My Clients"}</h1>
-          <p className="text-sm font-semibold text-gray-500">
+          <p className="hidden">
             Used Limit: <span className="font-bold text-amber-600 tabular-nums">{loading ? "—" : Number(limitSummary?.usedLimit || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
-          {statCards.map((card) => (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:gap-3 xl:grid-cols-6">
+          {summaryItems.map((card) => (
             <div
               key={card.label}
-              className="rounded-2xl border border-(--color-border) bg-white p-4 shadow-sm"
+              className={`group min-w-0 rounded-xl border border-(--color-border) p-3 shadow-xs transition hover:-translate-y-0.5 hover:shadow-sm ${card.background}`}
             >
-              <div className="flex items-center gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-xl bg-blue-50 text-(--color-primary)">
-                  <card.icon size={19} />
-                </div>
+              <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate text-xs font-semibold text-gray-400">
+                  <p className="truncate text-[10px] font-bold uppercase tracking-wider text-gray-500 sm:text-[11px]">
                     {card.label}
                   </p>
-                  <p className="mt-0.5 truncate text-lg font-bold text-(--color-text-dark)">
-                    {card.value}
+                  <p className={`mt-1 min-h-6 truncate text-base font-extrabold tabular-nums sm:text-lg ${card.color}`}>
+                    {loading ? <span className="block h-5 w-16 animate-pulse rounded-md bg-slate-300/80" /> : card.value}
                   </p>
+                </div>
+                <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/80 shadow-xs ${card.color}`}>
+                  <card.icon size={16} />
                 </div>
               </div>
             </div>
@@ -192,12 +175,7 @@ export default function UsersList({ onGoCreate, refreshKey, mode = "clients" }) 
               </button>
             </div>
           ) : loading ? (
-            <div className="flex min-h-72 items-center justify-center">
-              <span className="flex items-center gap-3 text-sm text-gray-400">
-                <Spinner size={28} variant="ocean" />
-                Loading users...
-              </span>
-            </div>
+            <UsersTableSkeleton mode={limitsOnly ? "limits" : "clients"} />
           ) : (
             <UsersTable
               users={visibleUsers}
