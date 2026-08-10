@@ -76,8 +76,6 @@ export default function UsersList({ onGoCreate, refreshKey }) {
   return (
     <div className="min-h-full bg-(--color-bg-main) p-3 sm:p-6">
       <div className="mx-auto max-w-7xl space-y-5">
-        <header className="relative overflow-hidden rounded-2xl bg-(--color-primary) px-5 py-5 text-white shadow-sm sm:px-7 sm:py-6"><div className="absolute -top-16 -right-10 h-40 w-40 rounded-full bg-white/5" /><div className="relative"><h1 className="text-xl font-bold sm:text-2xl">Users</h1><p className="mt-1 text-sm text-(--color-text-muted)">Create and manage user accounts and balances.</p></div></header>
-
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{statCards.map((card) => <div key={card.label} className="rounded-2xl border border-(--color-border) bg-white p-4 shadow-sm"><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-blue-50 text-(--color-primary)"><card.icon size={19} /></div><div className="min-w-0"><p className="truncate text-xs font-semibold text-gray-400">{card.label}</p><p className="mt-0.5 truncate text-lg font-bold text-(--color-text-dark)">{card.value}</p></div></div></div>)}</div>
 
         <section className="overflow-hidden rounded-2xl border border-(--color-border) bg-white shadow-sm">

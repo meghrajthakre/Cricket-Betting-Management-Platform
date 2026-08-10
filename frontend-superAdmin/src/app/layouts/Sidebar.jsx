@@ -1,4 +1,5 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -16,9 +17,15 @@ import { logoutUser } from "../../shared/api/userApi";
 
 const NAV_ITEMS = [
   { label: "Dashboard",         to: "/superadmin/dashboard",         icon: LayoutDashboard },
-  { label: "Admins",            to: "/superadmin/admins",            icon: Users },
-  { label: "Sub Companies",     to: "/superadmin/sub-companies",     icon: Building2 },
-  { label: "Create User",       to: "/superadmin/create-user",       icon: UserPlus },
+  {
+    label: "Manage Clients",
+    icon: Users,
+    children: [
+      { label: "Create Admin",     to: "/superadmin/admins",        icon: Users },
+      { label: "Create Sub Admin", to: "/superadmin/sub-companies", icon: Building2 },
+      { label: "Create User",      to: "/superadmin/create-user",   icon: UserPlus },
+    ],
+  },
   { label: "Collection Report", to: "/superadmin/collection-report", icon: FileBarChart2 },
   { label: "Matches",           to: "/superadmin/matches",           icon: Swords },
   { label: "In Play Matches",   to: "/superadmin/in-play-matches",   icon: Radio },
@@ -28,7 +35,7 @@ const NAV_ITEMS = [
 
 const SIDEBAR_BG = "#2E4151";
 
-function NavItem({ label, icon: Icon, isActive, onClick }) {
+function NavItem({ label, icon: Icon, isActive, onClick, isExpanded = false, hasChildren = false }) {
   return (
     <span
       onClick={onClick}
@@ -72,7 +79,13 @@ function NavItem({ label, icon: Icon, isActive, onClick }) {
       <span className="flex-1">{label}</span>
 
       {/* Arrow indicator on hover (except active) */}
-      {!isActive && (
+      {hasChildren ? (
+        <ChevronRight
+          size={14}
+          className={`transition-transform duration-200 ${isExpanded ? "rotate-90 lg:rotate-0" : ""}`}
+          style={{ color: "rgba(255,255,255,0.55)" }}
+        />
+      ) : !isActive && (
         <ChevronRight 
           size={14} 
           className="opacity-0 group-hover:opacity-100 transition-all duration-200 transform group-hover:translate-x-1"
@@ -80,6 +93,65 @@ function NavItem({ label, icon: Icon, isActive, onClick }) {
         />
       )}
     </span>
+  );
+}
+
+function NavGroup({ item, onNavigate }) {
+  const { pathname } = useLocation();
+  const groupRef = useRef(null);
+  const isChildActive = item.children.some(({ to }) => pathname === to);
+  const [isExpanded, setIsExpanded] = useState(isChildActive);
+
+  useEffect(() => {
+    const closeOnOutsideClick = (event) => {
+      if (!groupRef.current?.contains(event.target)) setIsExpanded(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    return () => document.removeEventListener("pointerdown", closeOnOutsideClick);
+  }, []);
+
+  return (
+    <div ref={groupRef} className="relative">
+      <button
+        type="button"
+        className="block w-full text-left"
+        aria-expanded={isExpanded}
+        aria-controls="manage-clients-menu"
+        onClick={() => setIsExpanded((current) => !current)}
+      >
+        <NavItem
+          label={item.label}
+          icon={item.icon}
+          isActive={isChildActive}
+          isExpanded={isExpanded}
+          hasChildren
+        />
+      </button>
+
+      {isExpanded && (
+        <div
+          id="manage-clients-menu"
+          className="mt-1 space-y-1 rounded-xl bg-black/10 p-1.5 lg:absolute lg:left-[calc(100%+12px)] lg:top-0 lg:mt-0 lg:w-60 lg:bg-[#2E4151] lg:p-2 lg:shadow-2xl"
+        >
+          <span className="absolute -left-3 top-0 hidden h-full w-3 lg:block" />
+          {item.children.map(({ label, to, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end
+              onClick={() => {
+                setIsExpanded(false);
+                onNavigate();
+              }}
+            >
+              {({ isActive }) => (
+                <NavItem label={label} icon={Icon} isActive={isActive} />
+              )}
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -130,11 +202,13 @@ export default function Sidebar({ isOpen, onClose }) {
           }}
         />
 
-        <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1">
-          {NAV_ITEMS.map(({ label, to, icon: Icon }) => (
-            <NavLink key={to} to={to} end onClick={onClose}>
+        <nav className="flex-1 overflow-visible py-6 px-3 space-y-1">
+          {NAV_ITEMS.map((item) => item.children ? (
+            <NavGroup key={item.label} item={item} onNavigate={onClose} />
+          ) : (
+            <NavLink key={item.to} to={item.to} end onClick={onClose}>
               {({ isActive }) => (
-                <NavItem label={label} icon={Icon} isActive={isActive} />
+                <NavItem label={item.label} icon={item.icon} isActive={isActive} />
               )}
             </NavLink>
           ))}

@@ -1,4 +1,4 @@
-import { Plus, Search, ShieldCheck, X } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { Toaster, toast } from "react-hot-toast";
 import AdminConfirmationModal from "./components/AdminConfirmationModal";
@@ -69,18 +69,13 @@ export default function AdminsPage() {
   return (
     <div className="min-h-full bg-(--color-bg-main) p-3 sm:p-6">
       <div className="mx-auto max-w-7xl space-y-5">
-        <header className="relative overflow-hidden rounded-2xl bg-(--color-primary) px-5 py-5 text-white shadow-sm sm:px-7 sm:py-6">
-          <div className="absolute -top-16 -right-10 h-40 w-40 rounded-full bg-white/5" />
-          <div className="relative flex items-center gap-4"><div className="grid h-11 w-11 place-items-center rounded-xl border border-white/15 bg-white/10"><ShieldCheck size={22} /></div><div><h1 className="text-xl font-bold sm:text-2xl">Admins</h1><p className="mt-1 text-sm text-(--color-text-muted)">Create and manage administrator accounts.</p></div></div>
-        </header>
-
         <section className="overflow-hidden rounded-2xl border border-(--color-border) bg-white shadow-sm">
           <div className="flex flex-col gap-3 border-b border-(--color-border) p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
             <form onSubmit={applySearch} className="flex w-full gap-2 sm:max-w-md">
               <div className="relative min-w-0 flex-1"><Search className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-gray-400" size={17} /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search by username or name..." className="w-full rounded-xl border border-(--color-border) bg-slate-50 py-2.5 pr-9 pl-10 text-sm outline-none focus:border-(--color-banner) focus:bg-white focus:ring-3 focus:ring-blue-100" />{searchInput && <button type="button" onClick={clearSearch} className="absolute top-1/2 right-2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-lg text-gray-400 hover:bg-gray-100"><X size={15} /></button>}</div>
               <button type="submit" className="rounded-xl border border-(--color-border) px-4 py-2 text-sm font-bold text-(--color-primary) hover:bg-blue-50">Search</button>
             </form>
-            <button type="button" onClick={() => setCreateOpen(true)} className="flex min-h-10 items-center justify-center gap-2 rounded-xl bg-(--color-btn-bg) px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-(--color-btn-hover)"><Plus size={17} />Create Admin</button>
+            <button type="button" onClick={() => setCreateOpen(true)} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-(--color-btn-bg) px-4 py-2.5 text-sm font-bold text-white shadow-sm transition duration-200 hover:bg-(--color-btn-hover) sm:w-auto"><Plus size={18} />Create Admin</button>
           </div>
 
           {searchQuery && <div className="border-b border-gray-100 bg-blue-50/50 px-5 py-2 text-xs text-(--color-primary)">Showing results for <strong>“{searchQuery}”</strong></div>}

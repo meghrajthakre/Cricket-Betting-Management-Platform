@@ -123,12 +123,31 @@ export default function SubCompaniesPage() {
   return (
     <div className="min-h-full bg-(--color-bg-main) p-2 sm:p-6">
       <div className="mx-auto max-w-7xl space-y-5">
-        <header className="relative overflow-hidden rounded-2xl bg-(--color-primary) px-5 py-5 text-white shadow-sm sm:px-7 sm:py-6">
-          <div className="relative flex items-center gap-4"><div className="grid h-11 w-11 place-items-center rounded-xl border border-white/15 bg-white/10"><Building2 size={22} /></div><div><h1 className="text-xl font-bold sm:text-2xl">Sub Companies</h1><p className="mt-1 text-sm text-(--color-text-muted)">Create owner panels and control profit/loss share.</p></div></div>
-        </header>
+      
 
         <section className="overflow-hidden rounded-2xl border border-(--color-border) bg-white shadow-sm">
-          <div className="flex items-center justify-between gap-3 border-b border-(--color-border) px-5 py-4"><h2 className="flex items-center gap-2 font-bold text-(--color-primary)"><ShieldCheck size={18} />All Admins</h2><button type="button" onClick={() => { setBackendError(""); setCreateOpen(true); loadUsername(); }} className="flex items-center gap-2 rounded-xl bg-(--color-btn-bg) px-4 py-2.5 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-(--color-btn-hover) hover:shadow-md active:translate-y-0"><Plus size={16} />Create Sub Company</button></div>
+          <div className="flex flex-col gap-4 border-b border-(--color-border) bg-linear-to-r from-slate-50 to-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-blue-50 text-(--color-primary)">
+                <ShieldCheck size={21} />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h1 className="truncate text-lg font-bold text-(--color-primary) sm:text-xl">Sub Companies</h1>
+                  {!loading && <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-bold text-slate-600">{companies.length}</span>}
+                </div>
+                <p className="mt-0.5 text-xs text-gray-500 sm:text-sm">Create and manage sub company accounts.</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setBackendError(""); setCreateOpen(true); loadUsername(); }}
+              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-(--color-btn-bg) px-4 py-2.5 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-(--color-btn-hover) hover:shadow-md active:translate-y-0 sm:w-auto"
+            >
+              <Plus size={18} />
+              <span>Create Sub Company</span>
+            </button>
+          </div>
           {loading ? <div className="flex justify-center py-14"><Spinner size={22} variant="ocean" /></div> : companies.length === 0 ? <p className="py-14 text-center text-sm text-gray-400">No Sub Company created yet.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[980px] border-collapse text-sm"><thead className="bg-slate-50 text-xs uppercase text-gray-500"><tr><th className="border border-gray-200 px-4 py-3 text-left">Username</th><th className="border border-gray-200 px-4 py-3 text-left">Owner</th><th className="border border-gray-200 px-4 py-3 text-left">Mobile</th><th className="border border-gray-200 px-4 py-3 text-right">My Share</th><th className="border border-gray-200 px-4 py-3 text-right">Company Share</th><th className="border border-gray-200 px-4 py-3 text-right">Fix Limit</th><th className="border border-gray-200 px-4 py-3 text-right">Users</th><th className="border border-gray-200 px-4 py-3">Status</th><th className="border border-gray-200 px-4 py-3">Actions</th></tr></thead><tbody>{companies.map((company) => <tr key={company._id} className="hover:bg-blue-50/30"><td className="border border-gray-200 px-4 py-3 font-bold text-(--color-primary)">{company.username?.replace(/^admin/i, "Admin")}</td><td className="border border-gray-200 px-4 py-3">{company.firstName}</td><td className="border border-gray-200 px-4 py-3">{company.mobile || "-"}</td><td className="border border-gray-200 px-4 py-3 text-right">{company.myShare}%</td><td className="border border-gray-200 px-4 py-3 text-right">{company.downlineShare}%</td><td className="border border-gray-200 px-4 py-3 text-right tabular-nums">{Number(company.fixLimit || 0).toLocaleString()}</td><td className="border border-gray-200 px-4 py-3 text-right">{company.userCount}</td><td className="border border-gray-200 px-4 py-3 text-center"><span className={`rounded-full px-3 py-1 text-xs font-bold ${company.isActive ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>{company.isActive ? "Active" : "Blocked"}</span></td><td className="border border-gray-200 px-3 py-3"><div className="flex items-center justify-center gap-2"><button disabled={actionBusy} type="button" title="Edit fix limit" onClick={() => { setEditCompany(company); setEditLimit(String(company.fixLimit || 0)); }} className="rounded-lg bg-blue-50 p-2 text-blue-700 hover:bg-blue-100 disabled:opacity-50"><Pencil size={15} /></button><button disabled={actionBusy} type="button" title={company.isActive ? "Block" : "Unblock"} onClick={() => toggleStatus(company)} className={`rounded-lg p-2 disabled:opacity-50 ${company.isActive ? "bg-amber-50 text-amber-700 hover:bg-amber-100" : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"}`}>{company.isActive ? <Ban size={15} /> : <CheckCircle2 size={15} />}</button><button disabled={actionBusy} type="button" title="Delete" onClick={() => setDeleteCompany(company)} className="rounded-lg bg-red-50 p-2 text-red-600 hover:bg-red-100 disabled:opacity-50"><Trash2 size={15} /></button></div></td></tr>)}</tbody></table></div>}
         </section>
       </div>
@@ -144,7 +163,7 @@ export default function SubCompaniesPage() {
             <Field label="Confirm Password"><input className={inputClass} type="password" minLength={4} value={form.confirmPassword} onChange={setField("confirmPassword")} placeholder="Re-enter password" /></Field>
           </div>
           <div className={`mt-4 rounded-xl border p-3 text-xs ${shareValid ? "border-emerald-100 bg-emerald-50 text-emerald-700" : "border-red-100 bg-red-50 text-red-600"}`}>My Share {form.myShare || 0}% + Company Share {form.companyShare || 0}% = {Number((Number(form.myShare || 0) + Number(form.companyShare || 0)).toFixed(2))}%</div>
-          <div className="mt-5 flex justify-end gap-3"><button type="button" disabled={saving} onClick={() => setCreateOpen(false)} className="rounded-xl border border-(--color-border) px-4 py-2.5 text-sm font-bold text-gray-600 transition duration-200 hover:border-(--color-accent) hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">Cancel</button><button disabled={saving || !shareValid || !/^Admin\d+$/i.test(form.username)} className="flex items-center gap-2 rounded-xl bg-(--color-btn-bg) px-5 py-2.5 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-(--color-btn-hover) hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50 disabled:shadow-none">{saving ? <Spinner size={16} variant="neon" /> : <Plus size={16} />}{saving ? "Creating..." : "Create"}</button></div>
+          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3"><button type="button" disabled={saving} onClick={() => setCreateOpen(false)} className="min-h-11 w-full rounded-xl border border-(--color-border) px-4 py-2.5 text-sm font-bold text-gray-600 transition duration-200 hover:border-(--color-accent) hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Cancel</button><button disabled={saving || !shareValid || !/^Admin\d+$/i.test(form.username)} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-(--color-btn-bg) px-5 py-2.5 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-(--color-btn-hover) hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50 disabled:shadow-none sm:w-auto">{saving ? <Spinner size={16} variant="neon" /> : <Plus size={16} />}{saving ? "Creating..." : "Create Sub Company"}</button></div>
         </form>
       </Modal>
       <Modal open={Boolean(backendError)} title="Sub Company Error" onClose={() => setBackendError("")}>
