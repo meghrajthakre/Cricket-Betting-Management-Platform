@@ -2,6 +2,7 @@
 
 const mongoose = require("mongoose");
 const { User, ROLES } = require("../user/user.model");
+const { Bet } = require("../bet/bet.model");
 const { setUserCoins } = require("../ledger/ledger.service");
 const AppError = require("../../utils/AppError");
 
@@ -22,6 +23,20 @@ const checkFixLimit = (allocatedCoins, requestedCoins, fixLimit) => {
     throw error;
   }
   return total;
+};
+
+const validateUserLimitBounds = (limit, usedLimit, fixLimit) => {
+  if (limit > fixLimit) {
+    const error = new AppError(`Client limit cannot exceed the Sub Company fix limit of ${fixLimit}.`, 409);
+    error.code = "CLIENT_LIMIT_ABOVE_FIX_LIMIT";
+    throw error;
+  }
+  if (limit < usedLimit) {
+    const error = new AppError(`Client limit cannot be below the used limit of ${usedLimit}.`, 409);
+    error.code = "CLIENT_LIMIT_BELOW_USED_LIMIT";
+    throw error;
+  }
+  return limit;
 };
 
 const lockCompany = async (companyId, session) => {
@@ -81,6 +96,12 @@ const setUserBalanceWithinFixLimit = async (companyId, userId, coins, actorId) =
     const company = await lockCompany(companyId, session);
     const user = await User.findOne({ _id: userId, role: ROLES.USER, createdBy: companyId }).session(session);
     if (!user) throw new AppError("User not found.", 404);
+    const [usage] = await Bet.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(userId), status: "pending" } },
+      { $group: { _id: null, total: { $sum: { $cond: [{ $gt: ["$walletAdjustment", 0] }, "$walletAdjustment", "$loss"] } } } },
+    ]).session(session);
+    const usedLimit = Number(Number(usage?.total || 0).toFixed(2));
+    validateUserLimitBounds(targetCoins, usedLimit, Number(company.fixLimit || 0));
     const allocated = await allocatedToOtherUsers(companyId, session, user._id);
     const totalAllocated = checkFixLimit(allocated, targetCoins, company.fixLimit);
     const wallet = await setUserCoins(user._id, targetCoins, "Sub Company updated balance", actorId, { session });
@@ -153,6 +174,7 @@ const getCompanyLimitSummary = async (companyId) => {
 
 module.exports = {
   checkFixLimit,
+  validateUserLimitBounds,
   createUserWithinFixLimit,
   normalizeCoins,
   setUserBalanceWithinFixLimit,
