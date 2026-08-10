@@ -8,6 +8,8 @@ import MatchesPage from "../../features/matches/MatchesPage";
 import MatchDashboard from "../../features/matches/MatchDashboard";
 import MatchLiveReport from "../../features/matches/MatchLiveReport";
 import CreateUserPage from "../../features/users/CreateUserPage";
+import CommissionLimitsPage from "../../features/users/CommissionLimitsPage";
+import BlockedClientsPage from "../../features/users/BlockedClientsPage";
 import ProtectedRoute from "./ProtectedRoute";
 
 export default function AppRoutes() {
@@ -21,7 +23,10 @@ export default function AppRoutes() {
           <Route path="matches" element={<MatchesPage />} />
           <Route path="matches/:id" element={<MatchDashboard />} />
           <Route path="matches/:id/live-report" element={<MatchLiveReport />} />
-          <Route path="create-user" element={<CreateUserPage />} />
+          <Route path="my-clients" element={<CreateUserPage />} />
+          <Route path="commission-limits" element={<CommissionLimitsPage />} />
+          <Route path="blocked-clients" element={<BlockedClientsPage />} />
+          <Route path="create-user" element={<Navigate to="../my-clients" replace />} />
           <Route path="collection-report" element={<CollectionReportPage />} />
           <Route path="my-ledger" element={<MyLedgerPage />} />
         </Route>

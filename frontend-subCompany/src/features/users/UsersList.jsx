@@ -10,7 +10,9 @@ import SearchBar from "./SearchBar";
 import UsersTable from "./UsersTable";
 import UserStatusConfirmationModal from "./UserStatusConfirmationModal";
 
-export default function UsersList({ onGoCreate, refreshKey }) {
+export default function UsersList({ onGoCreate, refreshKey, mode = "clients" }) {
+  const limitsOnly = mode === "limits";
+  const blockedOnly = mode === "blocked";
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -110,7 +112,7 @@ export default function UsersList({ onGoCreate, refreshKey }) {
       icon: Gauge,
     },
     {
-      label: "Users ko diya balance",
+      label: "Used Limit",
       value: Number(limitSummary?.usedLimit || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }),
       icon: WalletCards,
     },
@@ -129,19 +131,17 @@ export default function UsersList({ onGoCreate, refreshKey }) {
       icon: CircleDollarSign,
     },
   ];
+  const visibleUsers = blockedOnly ? users.filter((user) => !user.isActive) : users;
 
   return (
     <div className="min-h-full bg-(--color-bg-main) p-3 sm:p-6">
       <div className="mx-auto max-w-7xl space-y-5">
-        <header className="relative overflow-hidden rounded-2xl bg-(--color-primary) px-5 py-5 text-white shadow-sm sm:px-7 sm:py-6">
-          <div className="absolute -top-16 -right-10 h-40 w-40 rounded-full bg-white/5" />
-          <div className="relative">
-            <h1 className="text-xl font-bold sm:text-2xl">Users</h1>
-            <p className="mt-1 text-sm text-(--color-text-muted)">
-              Create and manage user accounts and balances.
-            </p>
-          </div>
-        </header>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-xl font-bold text-(--color-primary) sm:text-2xl">{limitsOnly ? "Commission & Limits" : blockedOnly ? "Blocked Clients" : "My Clients"}</h1>
+          <p className="text-sm font-semibold text-gray-500">
+            Used Limit: <span className="font-bold text-amber-600 tabular-nums">{loading ? "—" : Number(limitSummary?.usedLimit || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+          </p>
+        </div>
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
           {statCards.map((card) => (
@@ -173,7 +173,7 @@ export default function UsersList({ onGoCreate, refreshKey }) {
             onSearch={applySearch}
             onClear={clearSearch}
             loading={loading}
-            onCreate={onGoCreate}
+            onCreate={limitsOnly || blockedOnly ? undefined : onGoCreate}
           />
           {searchQuery && (
             <div className="border-b border-gray-100 bg-blue-50/50 px-5 py-2 text-xs text-(--color-primary)">
@@ -200,13 +200,23 @@ export default function UsersList({ onGoCreate, refreshKey }) {
             </div>
           ) : (
             <UsersTable
-              users={users}
+              users={visibleUsers}
               loading={Boolean(busyUserId)}
               busyUserId={busyUserId}
               onToggle={handleToggle}
               onChangePassword={setPasswordUser}
               onDelete={setDeleteUser}
               onEditCoins={setBalanceUser}
+              onLimitUpdated={(id, coins, allocation) => {
+                setUsers((items) => items.map((item) => item._id === id ? { ...item, coins } : item));
+                if (allocation) setLimitSummary((summary) => summary ? {
+                  ...summary,
+                  usedLimit: allocation.totalAllocated,
+                  remainingLimit: allocation.remainingLimit,
+                } : summary);
+              }}
+              showToast={showToast}
+              mode={limitsOnly ? "limits" : "clients"}
             />
           )}
         </section>

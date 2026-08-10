@@ -1,18 +1,20 @@
 import {
+  ChevronDown,
   FileBarChart2,
   LayoutDashboard,
   LogOut,
   NotebookTabs,
   Swords,
-  UserPlus,
+  SlidersHorizontal,
+  Users,
 } from "lucide-react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { logout } from "../../shared/api/authApi";
 
 const links = [
   { label: "Dashboard", to: "/sub-company/dashboard", icon: LayoutDashboard },
   { label: "Matches", to: "/sub-company/matches", icon: Swords },
-  { label: "Create User", to: "/sub-company/create-user", icon: UserPlus },
   {
     label: "Collection Report",
     to: "/sub-company/collection-report",
@@ -20,6 +22,24 @@ const links = [
   },
   { label: "My Ledger", to: "/sub-company/my-ledger", icon: NotebookTabs },
 ];
+
+function ManageClientsMenu({ itemClass, onClose }) {
+  const { pathname } = useLocation();
+  const isActive = ["/sub-company/my-clients", "/sub-company/blocked-clients", "/sub-company/commission-limits"].includes(pathname);
+  const [open, setOpen] = useState(isActive);
+  return (
+    <div>
+      <button type="button" onClick={() => setOpen((value) => !value)} className={`${itemClass(isActive)} w-full`} aria-expanded={open}>
+        <Users size={18} /><span className="flex-1 text-left">Manage Clients</span><ChevronDown size={15} className={`transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && <div className="mt-1 space-y-1 border-l border-white/15 pl-3 ml-5">
+        <NavLink to="/sub-company/my-clients" onClick={onClose} className={({ isActive: active }) => itemClass(active)}><Users size={17} /><span>My Clients</span></NavLink>
+        <NavLink to="/sub-company/blocked-clients" onClick={onClose} className={({ isActive: active }) => itemClass(active)}><Users size={17} /><span>Blocked Clients</span></NavLink>
+        <NavLink to="/sub-company/commission-limits" onClick={onClose} className={({ isActive: active }) => itemClass(active)}><SlidersHorizontal size={17} /><span>Commission & Limits</span></NavLink>
+      </div>}
+    </div>
+  );
+}
 export default function Sidebar({ open, onClose }) {
   const navigate = useNavigate();
   const signOut = async () => {
@@ -53,6 +73,7 @@ export default function Sidebar({ open, onClose }) {
               <span>{label}</span>
             </NavLink>
           ))}
+          <ManageClientsMenu itemClass={itemClass} onClose={onClose} />
         </nav>
         <button
           type="button"

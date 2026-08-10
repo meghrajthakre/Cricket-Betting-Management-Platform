@@ -1,4 +1,5 @@
 import ActionButtons from "./ActionButtons";
+import UserLimitEditor from "./UserLimitEditor";
 
 export default function UserRow({
   user,
@@ -8,6 +9,9 @@ export default function UserRow({
   onChangePassword,
   onDelete,
   onEditCoins,
+  onLimitUpdated,
+  showToast,
+  mode = "clients",
 }) {
   return (
     <tr className="border-b border-gray-100 transition hover:bg-blue-50/30">
@@ -27,13 +31,19 @@ export default function UserRow({
           {user.username}
         </span>
       </td>
-      <td className="border border-gray-200 px-5 py-3 text-right font-bold tabular-nums text-(--color-text-dark)">
+      {mode === "limits" && <><td className="border border-gray-200 px-5 py-3 text-right font-bold tabular-nums text-(--color-text-dark)">
         {Number(user.coins ?? 0).toLocaleString(undefined, {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
         })}
       </td>
-      <td className="border border-gray-200 px-5 py-3">
+      <td className="border border-gray-200 px-5 py-3 text-right font-semibold text-amber-600 tabular-nums">
+        {Number(user.usedLimit || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      </td>
+      <td className="border border-gray-200 px-3 py-2">
+        <UserLimitEditor key={`${user._id}-${user.coins}`} user={user} busy={busy} onUpdated={onLimitUpdated} showToast={showToast} />
+      </td></>}
+      {mode === "clients" && <><td className="border border-gray-200 px-5 py-3">
         <span
           className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${user.isActive ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}
         >
@@ -51,8 +61,9 @@ export default function UserRow({
           onChangePassword={onChangePassword}
           onDelete={onDelete}
           onEditCoins={onEditCoins}
+          clientOnly
         />
-      </td>
+      </td></>}
     </tr>
   );
 }

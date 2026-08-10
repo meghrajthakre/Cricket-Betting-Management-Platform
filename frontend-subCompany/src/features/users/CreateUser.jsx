@@ -126,7 +126,7 @@ export default function CreateUser({ onCancel, onSuccess }) {
         />
         {generatedUsername && (
           <p className="mt-1.5 text-xs font-semibold text-emerald-600">
-            User created successfully. Save this username for login.
+            This username will be assigned to the new user.
           </p>
         )}
       </div>
@@ -225,19 +225,19 @@ export default function CreateUser({ onCancel, onSuccess }) {
           {error}
         </div>
       )}
-      <div className="flex justify-end gap-3 border-t border-gray-100 pt-5">
+      <div className="flex flex-col-reverse gap-2 border-t border-gray-100 pt-5 sm:flex-row sm:justify-end sm:gap-3">
         <button
           type="button"
           onClick={onCancel}
           disabled={loading}
-          className="rounded-xl border border-(--color-border) px-4 py-2.5 text-sm font-semibold text-gray-600"
+          className="min-h-11 w-full rounded-xl border border-(--color-border) px-4 py-2.5 text-sm font-semibold text-gray-600 sm:w-auto"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={loading}
-          className="flex items-center gap-2 rounded-xl bg-(--color-btn-bg) px-5 py-2.5 text-sm font-bold text-white hover:bg-(--color-btn-hover) disabled:opacity-50"
+          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-(--color-btn-bg) px-5 py-2.5 text-sm font-bold text-white hover:bg-(--color-btn-hover) disabled:opacity-50 sm:w-auto"
         >
           {loading ? (
             <Spinner size={16} variant="neon" />

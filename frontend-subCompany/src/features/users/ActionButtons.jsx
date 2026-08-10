@@ -7,12 +7,13 @@ export default function ActionButtons({
   onChangePassword,
   onDelete,
   onEditCoins,
+  clientOnly = false,
 }) {
   const buttonClass =
     "grid h-8 w-8 place-items-center rounded-lg text-white transition disabled:cursor-not-allowed disabled:opacity-40";
   return (
     <div className="flex gap-2">
-      <button
+      {!clientOnly && <button
         type="button"
         disabled={busy}
         onClick={() => onEditCoins(user)}
@@ -21,7 +22,7 @@ export default function ActionButtons({
         aria-label="Manage balance"
       >
         <Landmark size={14} />
-      </button>
+      </button>}
       <button
         type="button"
         disabled={busy}
@@ -32,7 +33,7 @@ export default function ActionButtons({
       >
         {user.isActive ? <UserX size={15} /> : <UserCheck size={15} />}
       </button>
-      <button
+      {!clientOnly && <button
         type="button"
         disabled={busy}
         onClick={() => onChangePassword(user)}
@@ -41,7 +42,7 @@ export default function ActionButtons({
         aria-label="Change password"
       >
         <KeyRound size={14} />
-      </button>
+      </button>}
       <button
         type="button"
         disabled={busy}

@@ -192,7 +192,16 @@ const getCompanyUsers = asyncHandler(async (req, res) => {
   const filter = { role: ROLES.USER, createdBy: req.user._id };
   if (req.query.search?.trim()) filter.$or = [{ firstName: { $regex: req.query.search.trim(), $options: "i" } }, { username: { $regex: req.query.search.trim(), $options: "i" } }];
   const users = await User.find(filter).select("-password").sort({ createdAt: -1 });
-  res.json({ success: true, data: users });
+  const userIds = users.map((user) => user._id);
+  const usedLimits = userIds.length ? await Bet.aggregate([
+    { $match: { userId: { $in: userIds }, status: "pending" } },
+    { $group: { _id: "$userId", usedLimit: { $sum: { $cond: [{ $gt: ["$walletAdjustment", 0] }, "$walletAdjustment", "$loss"] } } } },
+  ]) : [];
+  const usedLimitMap = new Map(usedLimits.map((item) => [String(item._id), Number(item.usedLimit || 0)]));
+  res.json({ success: true, data: users.map((user) => ({
+    ...user.toObject(),
+    usedLimit: usedLimitMap.get(String(user._id)) || 0,
+  })) });
 });
 
 const findOwnedCompanyUser = async (req) => {

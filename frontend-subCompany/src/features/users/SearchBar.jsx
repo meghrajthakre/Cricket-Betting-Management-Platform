@@ -44,14 +44,14 @@ export default function SearchBar({
           Search
         </button>
       </form>
-      <button
+      {onCreate && <button
         type="button"
         onClick={onCreate}
         className="flex min-h-10 items-center justify-center gap-2 rounded-xl bg-(--color-btn-bg) px-4 py-2.5 text-sm font-bold text-white hover:bg-(--color-btn-hover)"
       >
         <Plus size={17} />
         Create User
-      </button>
+      </button>}
     </div>
   );
 }
