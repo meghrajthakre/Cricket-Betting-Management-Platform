@@ -17,6 +17,7 @@ router.post("/panel/users", subCompanyOnly, controller.createCompanyUser);
 router.patch("/panel/users/:id/status", subCompanyOnly, controller.toggleCompanyUserStatus);
 router.patch("/panel/users/:id/password", subCompanyOnly, controller.changeCompanyUserPassword);
 router.patch("/panel/users/:id/balance", subCompanyOnly, controller.setCompanyUserBalance);
+router.patch("/panel/users/:id/fix-limit", subCompanyOnly, controller.setCompanyUserFixLimit);
 router.delete("/panel/users/:id", subCompanyOnly, controller.deleteCompanyUser);
 router.patch("/:id/status", superAdminOnly, controller.toggleSubCompanyStatus);
 router.patch("/:id/fix-limit", superAdminOnly, controller.editSubCompanyFixLimit);

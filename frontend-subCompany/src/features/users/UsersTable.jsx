@@ -25,10 +25,11 @@ export default function UsersTable({
       <table className={`w-full border-collapse text-sm ${mode === "limits" ? "min-w-[900px]" : "min-w-[760px]"}`}>
         <thead>
           <tr className="border-b border-(--color-border) bg-slate-50 text-xs uppercase tracking-wider text-gray-500">
-            <th className="border border-gray-200 px-5 py-3 text-left">#</th>
-            <th className="border border-gray-200 px-5 py-3 text-left">User</th>
-            <th className="border border-gray-200 px-5 py-3 text-left">Username</th>
-            {mode === "limits" && <><th className="border border-gray-200 px-5 py-3 text-right">Current Limit</th><th className="border border-gray-200 px-5 py-3 text-right">Used Limit</th><th className="border border-gray-200 px-5 py-3 text-left">Edit Limit</th></>}
+            <th className="border border-gray-200 px-5 py-3 text-left">ID</th>
+            <th className="border border-gray-200 px-5 py-3 text-left">Client Name</th>
+            {mode === "clients" && <th className="border border-gray-200 px-5 py-3 text-left">Username</th>}
+            {mode === "clients" && <><th className="border border-gray-200 px-5 py-3 text-right">Fix Limit</th><th className="border border-gray-200 px-5 py-3 text-right">Current Limit</th></>}
+            {mode === "limits" && <><th className="border border-gray-200 px-5 py-3 text-left">Fix Limit</th><th className="border border-gray-200 px-5 py-3 text-left">Current Limit</th><th className="border border-gray-200 px-5 py-3 text-left">Used Limit</th><th className="border border-gray-200 px-5 py-3 text-left">Remarks/Narration</th><th className="border border-gray-200 px-5 py-3 text-left">Action</th></>}
             {mode === "clients" && <th className="border border-gray-200 px-5 py-3 text-left">Status</th>}
             {mode === "clients" && <th className="border border-gray-200 px-5 py-3 text-left">Actions</th>}
           </tr>

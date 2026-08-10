@@ -66,6 +66,13 @@ const userSchema = new mongoose.Schema(
       min: [0, "fixLimit cannot be negative"],
     },
 
+    limitRemarks: {
+      type: String,
+      trim: true,
+      maxlength: [120, "Limit remarks cannot exceed 120 characters"],
+      default: "",
+    },
+
     // Used only to serialize concurrent Sub Company limit allocations.
     allocationVersion: {
       type: Number,

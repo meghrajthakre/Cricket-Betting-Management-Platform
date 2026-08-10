@@ -10,6 +10,7 @@ const {
   updateCompanyFixLimit,
   deleteEmptySubCompany,
   getCompanyLimitSummary,
+  updateUserFixLimitWithinCompany,
 } = require("./sub-company-limit.service");
 const { getCompanyShareBps, getViewerShareBps, scaleBetForShare, scaleBetForRemainder, scaleBetForViewer } = require("../bet/bet-share.service");
 
@@ -169,7 +170,7 @@ const getSubCompanyReport = asyncHandler(async (req, res) => {
 });
 
 const createCompanyUser = asyncHandler(async (req, res) => {
-  const { firstName, password, confirmPassword, coins } = req.body;
+  const { firstName, password, confirmPassword, limit } = req.body;
   if (!firstName?.trim()) throw new AppError("First name is required.", 400);
   validatePassword(password, confirmPassword);
   const rootSuperAdminId = req.user.rootSuperAdminId || req.user.parentId || req.user.createdBy;
@@ -178,7 +179,7 @@ const createCompanyUser = asyncHandler(async (req, res) => {
     : [rootSuperAdminId, req.user._id].filter(Boolean);
   const allocation = await createUserWithinFixLimit(
     req.user._id,
-    { firstName: firstName.trim(), password, role: ROLES.USER, coins, createdBy: req.user._id, parentId: req.user._id, rootSuperAdminId, ancestorIds },
+    { firstName: firstName.trim(), password, role: ROLES.USER, fixLimit: limit, createdBy: req.user._id, parentId: req.user._id, rootSuperAdminId, ancestorIds },
     (session) => generateUsername("sm", session)
   );
   const user = allocation.user;
@@ -226,6 +227,11 @@ const setCompanyUserBalance = asyncHandler(async (req, res) => {
   res.json({ success: true, message: "Balance updated successfully.", data: { coins: result.balanceAfter, totalAllocated: result.totalAllocated, remainingLimit: result.remainingLimit } });
 });
 
+const setCompanyUserFixLimit = asyncHandler(async (req, res) => {
+  const result = await updateUserFixLimitWithinCompany(req.user._id, req.params.id, req.body.fixLimit, req.body.currentLimit, req.body.remarks, req.user._id);
+  res.json({ success: true, message: "User fix limit updated successfully.", data: result });
+});
+
 const getLimitSummary = asyncHandler(async (req, res) => {
   const data = await getCompanyLimitSummary(req.user._id);
   res.json({ success: true, data });
@@ -246,4 +252,4 @@ const deleteCompanyUser = asyncHandler(async (req, res) => {
   res.json({ success: true, message: `User ${user.username} deleted successfully.` });
 });
 
-module.exports = { getNextCompanyUsername, getNextCompanyUserUsername, getLimitSummary, createSubCompany, getSubCompanies, toggleSubCompanyStatus, editSubCompanyFixLimit, deleteSubCompany, getSubCompanyReport, createCompanyUser, getCompanyUsers, toggleCompanyUserStatus, changeCompanyUserPassword, setCompanyUserBalance, deleteCompanyUser };
+module.exports = { getNextCompanyUsername, getNextCompanyUserUsername, getLimitSummary, createSubCompany, getSubCompanies, toggleSubCompanyStatus, editSubCompanyFixLimit, deleteSubCompany, getSubCompanyReport, createCompanyUser, getCompanyUsers, toggleCompanyUserStatus, changeCompanyUserPassword, setCompanyUserBalance, setCompanyUserFixLimit, deleteCompanyUser };

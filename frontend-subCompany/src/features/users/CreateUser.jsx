@@ -8,7 +8,7 @@ const EMPTY_FORM = {
   firstName: "",
   password: "",
   confirmPassword: "",
-  coins: "",
+  limit: "",
 };
 const inputClassName =
   "w-full rounded-xl border border-(--color-border) bg-slate-50 px-4 py-2.5 text-sm text-(--color-text-dark) outline-none transition focus:border-(--color-banner) focus:bg-white focus:ring-3 focus:ring-blue-100";
@@ -47,17 +47,25 @@ export default function CreateUser({ onCancel, onSuccess }) {
     setError("");
   };
 
+  const changeLimit = (event) => {
+    const value = event.target.value;
+    if (value === "" || /^\d+(\.\d{0,2})?$/.test(value)) {
+      setForm((current) => ({ ...current, limit: value }));
+      setError("");
+    }
+  };
+
   const submit = async (event) => {
     event.preventDefault();
-    const coins = Number(form.coins);
+    const limit = Number(form.limit);
     if (!form.firstName.trim()) return setError("Full name is required.");
     if (form.password.length < 4)
       return setError("Password must be at least 4 characters.");
     if (form.password !== form.confirmPassword)
       return setError("Passwords do not match.");
-    if (!Number.isFinite(coins) || coins < 0)
-      return setError("Enter a valid non-negative balance.");
-    if (limitSummary && coins > Number(limitSummary.remainingLimit || 0))
+    if (!Number.isFinite(limit) || limit < 0)
+      return setError("Enter a valid non-negative limit.");
+    if (limitSummary && limit > Number(limitSummary.remainingLimit || 0))
       return setError(`Only ${Number(limitSummary.remainingLimit || 0).toLocaleString()} limit is available.`);
 
     setLoading(true);
@@ -66,7 +74,7 @@ export default function CreateUser({ onCancel, onSuccess }) {
         firstName: form.firstName.trim(),
         password: form.password,
         confirmPassword: form.confirmPassword,
-        coins,
+        limit,
       });
       const username = response?.data?.username || "";
       setGeneratedUsername(username);
@@ -152,24 +160,23 @@ export default function CreateUser({ onCancel, onSuccess }) {
           htmlFor="initial-balance"
           className="mb-2 block text-sm font-semibold text-(--color-text-dark)"
         >
-          Initial balance
+          Limit
         </label>
         <input
           id="initial-balance"
-          name="coins"
-          type="number"
-          min="0"
-          max={limitSummary?.remainingLimit}
-          step="0.01"
-          value={form.coins}
-          onChange={change}
+          name="limit"
+          type="text"
+          inputMode="decimal"
+          pattern="[0-9]+([.][0-9]{1,2})?"
+          value={form.limit}
+          onChange={changeLimit}
           className={inputClassName}
           placeholder="0.00"
         />
         <p className="mt-1.5 text-xs text-gray-400">
           {limitSummary
-            ? `${Number(form.coins || 0).toLocaleString()} enter karne ke baad ${Math.max(0, Number(limitSummary.remainingLimit || 0) - Number(form.coins || 0)).toLocaleString()} remaining rahega.`
-            : "Enter 0 if no opening balance is required."}
+            ? `${Number(form.limit || 0).toLocaleString()} limit dene ke baad ${Math.max(0, Number(limitSummary.remainingLimit || 0) - Number(form.limit || 0)).toLocaleString()} remaining rahega.`
+            : "Enter the user limit."}
         </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">

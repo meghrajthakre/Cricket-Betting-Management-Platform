@@ -207,8 +207,8 @@ export default function UsersList({ onGoCreate, refreshKey, mode = "clients" }) 
               onChangePassword={setPasswordUser}
               onDelete={setDeleteUser}
               onEditCoins={setBalanceUser}
-              onLimitUpdated={(id, coins, allocation) => {
-                setUsers((items) => items.map((item) => item._id === id ? { ...item, coins } : item));
+              onLimitUpdated={(id, fixLimit, allocation) => {
+                setUsers((items) => items.map((item) => item._id === id ? { ...item, fixLimit, coins: allocation?.currentLimit ?? item.coins, limitRemarks: allocation?.limitRemarks ?? item.limitRemarks } : item));
                 if (allocation) setLimitSummary((summary) => summary ? {
                   ...summary,
                   usedLimit: allocation.totalAllocated,
@@ -238,8 +238,8 @@ export default function UsersList({ onGoCreate, refreshKey, mode = "clients" }) 
             const removed = items.find((item) => item._id === id);
             if (removed) setLimitSummary((summary) => summary ? {
               ...summary,
-              usedLimit: Math.max(0, Number(summary.usedLimit || 0) - Number(removed.coins || 0)),
-              remainingLimit: Math.max(0, Number(summary.fixLimit || 0) - (Number(summary.usedLimit || 0) - Number(removed.coins || 0))),
+              usedLimit: Math.max(0, Number(summary.usedLimit || 0) - Number(removed.fixLimit || 0)),
+              remainingLimit: Math.max(0, Number(summary.fixLimit || 0) - (Number(summary.usedLimit || 0) - Number(removed.fixLimit || 0))),
             } : summary);
             return items.filter((item) => item._id !== id);
           })
@@ -252,12 +252,6 @@ export default function UsersList({ onGoCreate, refreshKey, mode = "clients" }) 
         user={balanceUser}
         onClose={() => setBalanceUser(null)}
         onSuccess={(id, coins) => setUsers((items) => {
-          const previous = items.find((item) => item._id === id);
-          if (previous) setLimitSummary((summary) => summary ? {
-            ...summary,
-            usedLimit: Number(summary.usedLimit || 0) - Number(previous.coins || 0) + Number(coins || 0),
-            remainingLimit: Math.max(0, Number(summary.fixLimit || 0) - (Number(summary.usedLimit || 0) - Number(previous.coins || 0) + Number(coins || 0))),
-          } : summary);
           return items.map((item) => (item._id === id ? { ...item, coins } : item));
         })}
         showToast={showToast}

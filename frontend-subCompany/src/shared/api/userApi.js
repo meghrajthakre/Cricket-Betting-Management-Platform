@@ -31,6 +31,8 @@ export const updateUserBalance = (id, coins) =>
   api
     .patch(`/sub-companies/panel/users/${id}/balance`, { coins })
     .then((response) => response.data);
+export const updateUserFixLimit = (id, fixLimit, currentLimit, remarks) =>
+  api.patch(`/sub-companies/panel/users/${id}/fix-limit`, { fixLimit, currentLimit, remarks }).then((response) => response.data);
 export const deleteUser = (id) =>
   api
     .delete(`/sub-companies/panel/users/${id}`)
