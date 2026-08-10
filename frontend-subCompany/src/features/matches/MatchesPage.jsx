@@ -1,8 +1,20 @@
-import { Clock, Search, Swords, X } from "lucide-react";
+import { Clock, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../../shared/api/apiClient";
-import Spinner from "../../shared/components/Spinner";
+
+const TABLE_HEADINGS = ["#", "Match ID", "Title", "Sport", "Date", "Type", "Status"];
+
+function MatchesTableSkeleton() {
+  return (
+    <div className="overflow-x-auto p-4" aria-label="Loading matches" aria-busy="true">
+      <table className="w-full min-w-[900px] border-collapse text-sm">
+        <thead className="bg-slate-50 text-xs uppercase text-gray-500"><tr>{TABLE_HEADINGS.map((heading) => <th key={heading} className="border border-gray-200 px-3 py-3 text-left font-bold">{heading}</th>)}</tr></thead>
+        <tbody>{Array.from({ length: 6 }, (_, row) => <tr key={row}>{TABLE_HEADINGS.map((heading, column) => <td key={heading} className="border border-gray-200 px-3 py-3"><span className={`block h-5 animate-pulse rounded bg-slate-200 ${column === 2 ? "w-52" : column === 4 ? "w-36" : column === 0 ? "w-7" : "w-24"}`} /></td>)}</tr>)}</tbody>
+      </table>
+    </div>
+  );
+}
 
 const formatDate = (value) => {
   if (!value) return "-";
@@ -84,18 +96,9 @@ export default function MatchesPage() {
 
   return (
     <section className="animate-fade-up space-y-5">
-      <header className="rounded-2xl bg-(--color-primary) p-6 text-white shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-xl border border-white/15 bg-white/10">
-            <Swords size={21} />
-          </div>
-          <div>
-            <h1 className="text-2xl font-extrabold">Matches</h1>
-            <p className="mt-1 text-sm text-(--color-text-muted)">
-              View all available cricket matches.
-            </p>
-          </div>
-        </div>
+      <header>
+        <h1 className="text-xl font-bold text-(--color-primary) sm:text-2xl">Matches</h1>
+        <p className="mt-1 text-sm text-slate-500">View all available cricket matches.</p>
       </header>
 
       <section className="overflow-hidden rounded-2xl border border-(--color-border) bg-white shadow-sm">
@@ -139,23 +142,13 @@ export default function MatchesPage() {
         </div>
 
         {loading ? (
-          <div className="grid min-h-72 place-items-center text-(--color-primary)">
-            <Spinner size={28} label="Matches loading" />
-          </div>
+          <MatchesTableSkeleton />
         ) : (
           <div className="overflow-x-auto p-4">
             <table className="w-full min-w-[900px] border-collapse text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-gray-500">
                 <tr>
-                  {[
-                    "#",
-                    "Match ID",
-                    "Title",
-                    "Sport",
-                    "Date",
-                    "Type",
-                    "Status",
-                  ].map((heading) => (
+                  {TABLE_HEADINGS.map((heading) => (
                     <th
                       key={heading}
                       className="border border-gray-200 px-3 py-3 text-left font-bold"
