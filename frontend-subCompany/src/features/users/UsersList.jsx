@@ -1,4 +1,3 @@
-import { CircleDollarSign, Gauge, UserCheck, UserRound, Users, WalletCards } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { getLimitSummary, getUsers, toggleUserStatus } from "../../shared/api/userApi";
@@ -107,12 +106,12 @@ export default function UsersList({ onGoCreate, refreshKey, mode = "clients" }) 
   };
 
   const summaryItems = [
-    { label: "Total Limit", value: Number(limitSummary?.fixLimit || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }), icon: Gauge, color: "text-violet-600", background: "bg-violet-50" },
-    { label: "Used Limit", value: Number(limitSummary?.usedLimit || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }), icon: WalletCards, color: "text-amber-600", background: "bg-amber-50" },
-    { label: "Total Users", value: stats.total, icon: Users, color: "text-blue-600", background: "bg-blue-50" },
-    { label: "Active Users", value: stats.active, icon: UserCheck, color: "text-emerald-600", background: "bg-emerald-50" },
-    { label: "Blocked Users", value: stats.blocked, icon: UserRound, color: "text-red-600", background: "bg-red-50" },
-    { label: "Total Current", value: stats.balance.toLocaleString(undefined, { maximumFractionDigits: 2 }), icon: CircleDollarSign, color: "text-cyan-600", background: "bg-cyan-50" },
+    { label: "Total Limit", value: Number(limitSummary?.fixLimit || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
+    { label: "Used Limit", value: Number(limitSummary?.usedLimit || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
+    { label: "Total Users", value: stats.total },
+    { label: "Active Users", value: stats.active },
+    { label: "Blocked Users", value: stats.blocked },
+    { label: "Total Current", value: stats.balance.toLocaleString(undefined, { maximumFractionDigits: 2 }) },
   ];
   const visibleUsers = blockedOnly ? users.filter((user) => !user.isActive) : users;
 
@@ -126,30 +125,23 @@ export default function UsersList({ onGoCreate, refreshKey, mode = "clients" }) 
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:gap-3 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-2 sm:grid-cols-3 xl:grid-cols-6">
           {summaryItems.map((card) => (
             <div
               key={card.label}
-              className={`group min-w-0 rounded-xl border border-(--color-border) p-3 shadow-xs transition hover:-translate-y-0.5 hover:shadow-sm ${card.background}`}
+              className="min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-3.5"
             >
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate text-[10px] font-bold uppercase tracking-wider text-gray-500 sm:text-[11px]">
-                    {card.label}
-                  </p>
-                  <p className={`mt-1 min-h-6 truncate text-base font-extrabold tabular-nums sm:text-lg ${card.color}`}>
-                    {loading ? <span className="block h-5 w-16 animate-pulse rounded-md bg-slate-300/80" /> : card.value}
-                  </p>
-                </div>
-                <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/80 shadow-xs ${card.color}`}>
-                  <card.icon size={16} />
-                </div>
+              <div className="min-w-0">
+                <p className="truncate text-[11px] font-medium text-slate-500">{card.label}</p>
+                <p className="mt-1 min-h-6 truncate text-lg font-semibold text-slate-800 tabular-nums">
+                  {loading ? <span className="block h-5 w-16 animate-pulse rounded bg-slate-200" /> : card.value}
+                </p>
               </div>
             </div>
           ))}
         </div>
 
-        <section className="overflow-hidden rounded-2xl border border-(--color-border) bg-white shadow-sm">
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <SearchBar
             search={searchInput}
             onSearchChange={setSearchInput}
