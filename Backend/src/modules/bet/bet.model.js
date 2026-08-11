@@ -127,6 +127,12 @@ const betSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
         },
+        settlementId: {
+            type: String,
+            trim: true,
+            maxlength: 160,
+            index: true,
+        },
     },
     {
         timestamps: true,

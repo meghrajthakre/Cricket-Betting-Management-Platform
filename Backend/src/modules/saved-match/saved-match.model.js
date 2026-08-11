@@ -31,6 +31,13 @@ const savedMatchSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: null,
     },
+    isDeclared: { type: Boolean, default: false },
+    winningRunnerId: { type: String, trim: true, default: "" },
+    wonBy: { type: String, trim: true, default: "" },
+    profitLoss: { type: Number, default: 0 },
+    settledAt: Date,
+    settledBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    settlementId: { type: String, trim: true, default: "" },
   },
   {
     timestamps: true,

@@ -12,6 +12,7 @@ import {
   UserPlus,
   ChevronRight,
   Building2,
+  Trophy,
 } from "lucide-react";
 import { logoutUser } from "../../shared/api/userApi";
 
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { label: "Collection Report", to: "/superadmin/collection-report", icon: FileBarChart2 },
   { label: "Matches",           to: "/superadmin/matches",           icon: Swords },
   { label: "In Play Matches",   to: "/superadmin/in-play-matches",   icon: Radio },
+  { label: "Match Settlement",  to: "/superadmin/match-settlement",  icon: Trophy },
   { label: "Profile",           to: "/superadmin/profile",           icon: KeyRound },
   { label: "Settings",          to: "/superadmin/settings",          icon: Settings },
 ];

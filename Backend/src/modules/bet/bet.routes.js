@@ -5,6 +5,7 @@ const {
     placeBetController,
     settleBetController,
     settleMatchBetsController,
+    reverseMatchSettlementController,
     getMyBetsController,
     getAllMatchBetsController,
     getCompanyMatchBetsController,
@@ -31,5 +32,6 @@ router.delete("/:betId", protect, allowRoles("superadmin"), deleteBetController)
 // POST /bet/settle
 router.post("/settle", protect, allowRoles("support", "superadmin"), settleBetController);
 router.post("/settle-match", protect, allowRoles("support", "superadmin"), settleMatchBetsController);
+router.post("/reverse-match-settlement", protect, allowRoles("superadmin"), reverseMatchSettlementController);
 
 module.exports = router;

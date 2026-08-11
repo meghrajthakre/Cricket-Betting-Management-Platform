@@ -9,6 +9,7 @@ const Session = require("../session/session.model");
 const { DEFAULT_OPTIONS } = require("../manual/manual-options.service");
 const { User, ROLES } = require("../user/user.model");
 const { Ledger } = require("../ledger/ledger.model");
+const SavedMatch = require("../saved-match/saved-match.model");
 const { getCompanyShareBps, getViewerShareBps, scaleBetForShare, scaleBetForRemainder, scaleBetForViewer, resolveShareSnapshot } = require("./bet-share.service");
 
 // ---------------------------------------------------------------------------
@@ -671,14 +672,27 @@ const settleMatchBets = async ({ matchId, winningRunnerId, settledBy }) => {
         await dbSession.withTransaction(async () => {
             const actor = await User.findById(settledBy).session(dbSession).lean();
             if (!actor || ![ROLES.SUPPORT, ROLES.SUPERADMIN].includes(actor.role)) throw serviceError("Settlement is not authorized", 403, "SETTLEMENT_FORBIDDEN");
-            const runner = await ManualRunner.exists({ matchId, runnerId: winningRunnerId }).session(dbSession);
+            const runner = await ManualRunner.findOne({ matchId, runnerId: winningRunnerId }).session(dbSession).lean();
             if (!runner) throw serviceError("Winning runner does not belong to this match", 400, "INVALID_WINNING_RUNNER");
+            const savedMatch = await SavedMatch.findOne(actor.role === ROLES.SUPERADMIN
+                ? { matchId, user: actor._id }
+                : { matchId }).session(dbSession);
+            if (savedMatch?.isDeclared) throw serviceError("Match has already been settled", 409, "MATCH_ALREADY_SETTLED");
             const betFilter = { matchId, marketType: "match", status: BET_STATUS.PENDING };
             if (actor.role === ROLES.SUPERADMIN) betFilter.rootSuperAdminId = actor._id;
             const bets = await Bet.find(betFilter).session(dbSession).lean();
-            if (!bets.length) throw serviceError("Match has already been settled or has no pending bets", 409, "MATCH_ALREADY_SETTLED");
+            if (!bets.length && !savedMatch) throw serviceError("Saved match not found and there are no pending match bets", 404, "MATCH_NOT_FOUND");
+            const existingUsers = bets.length
+                ? await User.find({ _id: { $in: [...new Set(bets.map((bet) => String(bet.userId)))] } })
+                    .session(dbSession)
+                    .select("_id")
+                    .lean()
+                : [];
+            const existingUserIds = new Set(existingUsers.map((user) => String(user._id)));
+            const orphanBets = bets.filter((bet) => !existingUserIds.has(String(bet.userId)));
+            const validBets = bets.filter((bet) => existingUserIds.has(String(bet.userId)));
             const byUser = new Map();
-            for (const bet of bets) {
+            for (const bet of validBets) {
                 const key = String(bet.userId);
                 if (!byUser.has(key)) byUser.set(key, []);
                 byUser.get(key).push(bet);
@@ -693,7 +707,7 @@ const settleMatchBets = async ({ matchId, winningRunnerId, settledBy }) => {
                 }, 0).toFixed(2));
                 const adjustment = Number((reserved + netPnl).toFixed(2));
                 const user = await User.findById(userId).session(dbSession);
-                if (!user) throw serviceError("Bet user not found", 404, "USER_NOT_FOUND");
+                if (!user) throw serviceError("Bet user disappeared during settlement", 409, "CONCURRENT_USER_REMOVAL");
                 const balanceBefore = Number(user.coins);
                 const balanceAfter = Number((balanceBefore + adjustment).toFixed(2));
                 if (!Number.isFinite(balanceAfter) || balanceAfter < 0) throw serviceError("Settlement would create an invalid wallet balance", 409, "INVALID_WALLET");
@@ -709,13 +723,130 @@ const settleMatchBets = async ({ matchId, winningRunnerId, settledBy }) => {
                 wallets.push({ userId, reserved, netPnl, adjustment, balanceBefore, balanceAfter });
             }
             const now = new Date();
-            for (const bet of bets) {
+            const profitLoss = Number(validBets.reduce((total, bet) => {
                 const selectedWon = bet.marketId === winningRunnerId;
                 const won = bet.type === BET_TYPE.YES ? selectedWon : !selectedWon;
-                const update = await Bet.updateOne({ _id: bet._id, status: BET_STATUS.PENDING }, { $set: { status: won ? BET_STATUS.WON : BET_STATUS.LOST, settledAt: now, settledBy } }, { session: dbSession });
+                return total + (won ? -Number(bet.profit) : Number(bet.loss));
+            }, 0).toFixed(2));
+            for (const bet of validBets) {
+                const selectedWon = bet.marketId === winningRunnerId;
+                const won = bet.type === BET_TYPE.YES ? selectedWon : !selectedWon;
+                const update = await Bet.updateOne({ _id: bet._id, status: BET_STATUS.PENDING }, { $set: { status: won ? BET_STATUS.WON : BET_STATUS.LOST, settledAt: now, settledBy, settlementId: correlationId } }, { session: dbSession });
                 if (update.modifiedCount !== 1) throw serviceError("Concurrent match settlement detected", 409, "MATCH_ALREADY_SETTLED");
             }
-            result = { matchId, winningRunnerId, settledCount: bets.length, wallets };
+            for (const bet of orphanBets) {
+                const update = await Bet.updateOne(
+                    { _id: bet._id, status: BET_STATUS.PENDING },
+                    { $set: { status: BET_STATUS.CANCELLED, settledAt: now, settledBy, settlementId: correlationId } },
+                    { session: dbSession }
+                );
+                if (update.modifiedCount !== 1) throw serviceError("Concurrent orphan bet update detected", 409, "MATCH_ALREADY_SETTLED");
+            }
+            if (savedMatch) {
+                savedMatch.isDeclared = true;
+                savedMatch.winningRunnerId = winningRunnerId;
+                savedMatch.wonBy = runner.runnerName;
+                savedMatch.profitLoss = profitLoss;
+                savedMatch.settledAt = now;
+                savedMatch.settledBy = settledBy;
+                savedMatch.settlementId = correlationId;
+                await savedMatch.save({ session: dbSession, validateModifiedOnly: true });
+            }
+            result = { matchId, winningRunnerId, winningRunnerName: runner.runnerName, settledCount: validBets.length, orphanCancelledCount: orphanBets.length, profitLoss, wallets };
+        });
+    } finally {
+        await dbSession.endSession();
+    }
+    return result;
+};
+
+const reverseMatchSettlement = async ({ matchId, reversedBy }) => {
+    matchId = requireNonEmptyString(matchId, "matchId");
+    if (!mongoose.Types.ObjectId.isValid(reversedBy)) throw serviceError("Invalid reversedBy", 400, "INVALID_SETTLER");
+    const dbSession = await mongoose.startSession();
+    let result;
+    try {
+        await dbSession.withTransaction(async () => {
+            const actor = await User.findById(reversedBy).session(dbSession).lean();
+            if (!actor || actor.role !== ROLES.SUPERADMIN) throw serviceError("Only Super Admin can reverse a match settlement", 403, "REVERSAL_FORBIDDEN");
+            const savedMatch = await SavedMatch.findOne({ matchId, user: actor._id }).session(dbSession);
+            if (!savedMatch) throw serviceError("Saved match not found", 404, "MATCH_NOT_FOUND");
+            if (!savedMatch.isDeclared) throw serviceError("Match is not settled", 409, "MATCH_NOT_SETTLED");
+
+            const settlementFilter = savedMatch.settlementId
+                ? { settlementId: savedMatch.settlementId }
+                : { settledAt: savedMatch.settledAt };
+            const bets = await Bet.find({
+                matchId,
+                marketType: "match",
+                status: { $in: [BET_STATUS.WON, BET_STATUS.LOST, BET_STATUS.CANCELLED] },
+                ...settlementFilter,
+            }).session(dbSession).lean();
+            const validBets = bets.filter((bet) => bet.status === BET_STATUS.WON || bet.status === BET_STATUS.LOST);
+            const byUser = new Map();
+            for (const bet of validBets) {
+                const key = String(bet.userId);
+                if (!byUser.has(key)) byUser.set(key, []);
+                byUser.get(key).push(bet);
+            }
+            const reversalId = `match-reversal:${matchId}:${new mongoose.Types.ObjectId()}`;
+            const wallets = [];
+            for (const [userId, userBets] of byUser) {
+                const settlementAdjustment = Number(userBets.reduce((sum, bet) => {
+                    const reserved = Number(bet.walletAdjustment == null ? bet.loss : bet.walletAdjustment);
+                    const netPnl = bet.status === BET_STATUS.WON ? Number(bet.profit) : -Number(bet.loss);
+                    return sum + reserved + netPnl;
+                }, 0).toFixed(2));
+                const reversalAdjustment = Number((-settlementAdjustment).toFixed(2));
+                const user = await User.findById(userId).session(dbSession);
+                if (!user) throw serviceError("Bet user not found; settlement cannot be reversed", 409, "REVERSAL_USER_NOT_FOUND");
+                const balanceBefore = Number(user.coins);
+                const balanceAfter = Number((balanceBefore + reversalAdjustment).toFixed(2));
+                if (!Number.isFinite(balanceAfter) || balanceAfter < 0) throw serviceError("User balance is insufficient to reverse this settlement", 409, "REVERSAL_INSUFFICIENT_BALANCE");
+                if (reversalAdjustment !== 0) {
+                    await Ledger.create([{
+                        userId,
+                        amount: Math.abs(reversalAdjustment),
+                        type: reversalAdjustment > 0 ? "credit" : "debit",
+                        reason: `Match ${matchId} settlement reversed`,
+                        createdBy: reversedBy,
+                        balanceBefore,
+                        balanceAfter,
+                        transactionCode: reversalAdjustment > 0 ? "MATCH_REVERSAL_CREDIT" : "MATCH_REVERSAL_DEBIT",
+                        referenceType: "match",
+                        referenceId: matchId,
+                        correlationId: reversalId,
+                        matchId,
+                        marketType: "match",
+                        marketId: savedMatch.winningRunnerId,
+                    }], { session: dbSession });
+                    user.coins = balanceAfter;
+                    await user.save({ session: dbSession });
+                }
+                wallets.push({ userId, settlementAdjustment, reversalAdjustment, balanceBefore, balanceAfter });
+            }
+
+            const betIds = bets.map((bet) => bet._id);
+            if (betIds.length) {
+                const update = await Bet.updateMany(
+                    { _id: { $in: betIds }, ...settlementFilter },
+                    { $set: { status: BET_STATUS.PENDING }, $unset: { settledAt: 1, settledBy: 1, settlementId: 1 } },
+                    { session: dbSession }
+                );
+                if (update.modifiedCount !== betIds.length) throw serviceError("Concurrent match reversal detected", 409, "MATCH_REVERSAL_CONFLICT");
+            }
+
+            const previousWinner = savedMatch.wonBy;
+            const previousProfitLoss = Number(savedMatch.profitLoss || 0);
+            savedMatch.isDeclared = false;
+            savedMatch.winningRunnerId = "";
+            savedMatch.wonBy = "";
+            savedMatch.profitLoss = 0;
+            savedMatch.settledAt = undefined;
+            savedMatch.settledBy = undefined;
+            savedMatch.settlementId = "";
+            await savedMatch.save({ session: dbSession, validateModifiedOnly: true });
+            result = { matchId, reversedCount: bets.length, previousWinner, previousProfitLoss, wallets };
         });
     } finally {
         await dbSession.endSession();
@@ -915,6 +1046,7 @@ module.exports = {
     placeBet,
     settleBet,
     settleMatchBets,
+    reverseMatchSettlement,
     getUserMatchBets,
     getAllMatchBets,
     getCompanyMatchBets,

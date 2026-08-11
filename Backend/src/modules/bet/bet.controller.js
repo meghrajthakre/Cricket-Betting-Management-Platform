@@ -1,6 +1,6 @@
 "use strict";
 
-const { placeBet, settleBet, settleMatchBets, getUserMatchBets, getAllMatchBets, getCompanyMatchBets, deleteBetSlip } = require("./bet.service");
+const { placeBet, settleBet, settleMatchBets, reverseMatchSettlement, getUserMatchBets, getAllMatchBets, getCompanyMatchBets, deleteBetSlip } = require("./bet.service");
 const { z } = require("zod");
 const mongoose = require("mongoose");
 const sse = require("../manual/manual.events");
@@ -186,6 +186,16 @@ const settleMatchBetsController = async (req, res) => {
     }
 };
 
+const reverseMatchSettlementController = async (req, res) => {
+    try {
+        const parsed = z.object({ matchId: z.string().trim().min(1) }).strict().parse(req.body);
+        const data = await reverseMatchSettlement({ ...parsed, reversedBy: req.user._id });
+        return res.status(200).json({ success: true, message: "Match settlement reversed successfully", data });
+    } catch (error) {
+        return res.status(error.statusCode || 400).json({ success: false, error: error.message, ...(error.code ? { code: error.code } : {}) });
+    }
+};
+
 const getCompanyMatchBetsController = async (req, res) => {
     try {
         const matchId = z.string().min(1, "matchId is required").parse(req.query.matchId);
@@ -227,6 +237,7 @@ module.exports = {
     placeBetController,
     settleBetController,
     settleMatchBetsController,
+    reverseMatchSettlementController,
     getMyBetsController,
     getAllMatchBetsController,
     getCompanyMatchBetsController,

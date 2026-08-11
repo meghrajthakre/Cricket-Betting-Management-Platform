@@ -260,10 +260,19 @@ export default function MatchesPage() {
                     <td className="border border-[#dedede] px-3 py-3">
                       {formatSportType(match.sportKey)}
                     </td>
-                    <td className="border border-[#dedede] px-3 py-3">No</td>
-                    <td className="border border-[#dedede] px-3 py-3">—</td>
+                    <td className="border border-[#dedede] px-3 py-3">
+                      <span className={`font-semibold ${match.isDeclared ? "text-emerald-600" : "text-gray-500"}`}>
+                        {match.isDeclared ? "Yes" : "No"}
+                      </span>
+                    </td>
+                    <td className="border border-[#dedede] px-3 py-3 font-semibold">
+                      {match.wonBy || "—"}
+                    </td>
                     <td className="border border-[#dedede] px-3 py-3 font-bold">
-                      0.0
+                      <span className={Number(match.profitLoss) > 0 ? "text-emerald-600" : Number(match.profitLoss) < 0 ? "text-red-600" : "text-gray-500"}>
+                        {Number(match.profitLoss || 0) > 0 ? "+" : ""}
+                        {Number(match.profitLoss || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
                     </td>
                   </tr>
                 ))}

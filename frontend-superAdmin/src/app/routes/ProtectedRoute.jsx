@@ -4,22 +4,27 @@ import Spinner from "../../shared/components/Spinner";
 import { getMe } from "../../shared/api/userApi";
 
 export default function ProtectedRoute() {
-  const [status, setStatus] = useState("checking");
+  const [status, setStatus] = useState(() =>
+    sessionStorage.getItem("superAdminVerified") === "true" ? "allowed" : "checking"
+  );
 
   useEffect(() => {
+    if (status !== "checking") return undefined;
     const controller = new AbortController();
 
     getMe(controller.signal)
       .then((response) => {
         const user = response?.data?.user;
-        setStatus(user?.role === "superadmin" ? "allowed" : "denied");
+        const allowed = user?.role === "superadmin";
+        if (allowed) sessionStorage.setItem("superAdminVerified", "true");
+        setStatus(allowed ? "allowed" : "denied");
       })
       .catch((error) => {
         if (error.code !== "ERR_CANCELED") setStatus("denied");
       });
 
     return () => controller.abort();
-  }, []);
+  }, [status]);
 
   if (status === "checking") {
     return (

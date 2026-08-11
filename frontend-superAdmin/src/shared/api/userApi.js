@@ -15,6 +15,7 @@ export const loginUser = async (username, password) => {
   if (token) {
     sessionStorage.setItem("accessToken", token);
   }
+  sessionStorage.setItem("superAdminVerified", "true");
 
   return res.data;
 };
@@ -25,6 +26,7 @@ export const logoutUser = async () => {
   } finally {
     // Always clear local token even if server request fails
     sessionStorage.removeItem("accessToken");
+    sessionStorage.removeItem("superAdminVerified");
   }
 };
 

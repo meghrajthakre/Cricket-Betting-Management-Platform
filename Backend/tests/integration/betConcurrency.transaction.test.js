@@ -10,10 +10,12 @@ const ManualRunner = require("../../src/modules/manual/manual-runner.model");
 const ManualSettings = require("../../src/modules/manual/manual-settings.model");
 const ManualOptions = require("../../src/modules/manual/manual-options.model");
 const Session = require("../../src/modules/session/session.model");
+const SavedMatch = require("../../src/modules/saved-match/saved-match.model");
 const {
   placeBet,
   settleBet,
   settleMatchBets,
+  reverseMatchSettlement,
   deleteBetSlip,
 } = require("../../src/modules/bet/bet.service");
 
@@ -91,6 +93,7 @@ async function cleanup(ids) {
     ManualSettings.deleteMany({ matchId: { $in: ids.matchIds } }),
     ManualOptions.deleteMany({ matchId: { $in: ids.matchIds } }),
     Session.deleteMany({ matchId: { $in: ids.matchIds } }),
+    SavedMatch.deleteMany({ matchId: { $in: ids.matchIds } }),
     Ledger.deleteMany({ userId: { $in: ids.userIds } }),
     User.deleteMany({ _id: { $in: ids.accountIds } }),
   ]);
@@ -153,6 +156,173 @@ test("concurrent hedged match settlement applies zero adjustment exactly once", 
     assert.notEqual(user.coins, 1180);
     assert.equal(ledgers.filter((entry) => /settled; winner/.test(entry.reason)).length, 0);
   } finally { await f.cleanup(); }
+});
+
+test("saved match can be declared without match bets and leaves sessions untouched", { skip: !enabled }, async () => {
+  const f = await fixture();
+  try {
+    await SavedMatch.create({ user: f.superAdmin._id, matchId: f.matchIds[0], homeTeam: "A", awayTeam: "B" });
+    const result = await settleMatchBets({ matchId: f.matchIds[0], winningRunnerId: "a", settledBy: f.superAdmin._id });
+    assert.equal(result.settledCount, 0);
+    assert.equal(result.profitLoss, 0);
+    const saved = await SavedMatch.findOne({ matchId: f.matchIds[0] }).lean();
+    assert.equal(saved.isDeclared, true);
+    assert.equal(saved.wonBy, "A");
+    assert.equal(await Session.countDocuments({ matchId: f.matchIds[0], resultStatus: "settled" }), 0);
+    await assert.rejects(
+      settleMatchBets({ matchId: f.matchIds[0], winningRunnerId: "a", settledBy: f.superAdmin._id }),
+      (error) => error.code === "MATCH_ALREADY_SETTLED",
+    );
+  } finally { await f.cleanup(); }
+});
+
+test("orphan match bets are cancelled and do not block saved match settlement", { skip: !enabled }, async () => {
+  const f = await fixture();
+  try {
+    await SavedMatch.create({ user: f.superAdmin._id, matchId: f.matchIds[0], homeTeam: "A", awayTeam: "B" });
+    const orphanUserId = new mongoose.Types.ObjectId();
+    const orphanBet = await Bet.create({
+      userId: orphanUserId,
+      rootSuperAdminId: f.superAdmin._id,
+      matchId: f.matchIds[0],
+      marketType: "match",
+      marketId: "a",
+      amount: 100,
+      rate: 90,
+      type: "yes",
+      profit: 90,
+      loss: 100,
+      walletAdjustment: 100,
+    });
+    const result = await settleMatchBets({ matchId: f.matchIds[0], winningRunnerId: "a", settledBy: f.superAdmin._id });
+    assert.equal(result.settledCount, 0);
+    assert.equal(result.orphanCancelledCount, 1);
+    assert.equal(result.profitLoss, 0);
+    assert.equal((await Bet.findById(orphanBet._id).lean()).status, BET_STATUS.CANCELLED);
+    assert.equal((await SavedMatch.findOne({ matchId: f.matchIds[0] }).lean()).isDeclared, true);
+  } finally { await f.cleanup(); }
+});
+
+test("match settlement persists platform profit or loss on the saved match", { skip: !enabled }, async () => {
+  const f = await fixture();
+  try {
+    await SavedMatch.create({ user: f.superAdmin._id, matchId: f.matchIds[0], homeTeam: "A", awayTeam: "B" });
+    await placeBet(f.user._id, f.matchIds[0], 100, 90, "yes", "match", "a", undefined, "saved-pnl");
+    const result = await settleMatchBets({ matchId: f.matchIds[0], winningRunnerId: "a", settledBy: f.superAdmin._id });
+    assert.equal(result.profitLoss, -90);
+    const saved = await SavedMatch.findOne({ matchId: f.matchIds[0] }).lean();
+    assert.equal(saved.profitLoss, -90);
+    assert.equal(saved.wonBy, "A");
+  } finally { await f.cleanup(); }
+});
+
+test("match settlement can be reversed once and then settled again", { skip: !enabled }, async () => {
+  const f = await fixture();
+  try {
+    await SavedMatch.create({ user: f.superAdmin._id, matchId: f.matchIds[0], homeTeam: "A", awayTeam: "B" });
+    const placed = await placeBet(f.user._id, f.matchIds[0], 100, 90, "yes", "match", "a", undefined, "reverse-resettle");
+    assert.equal((await User.findById(f.user._id).lean()).coins, 900);
+
+    await settleMatchBets({ matchId: f.matchIds[0], winningRunnerId: "a", settledBy: f.superAdmin._id });
+    assert.equal((await User.findById(f.user._id).lean()).coins, 1090);
+    await assert.rejects(
+      settleMatchBets({ matchId: f.matchIds[0], winningRunnerId: "b", settledBy: f.superAdmin._id }),
+      (error) => error.code === "MATCH_ALREADY_SETTLED",
+    );
+
+    const reversed = await reverseMatchSettlement({ matchId: f.matchIds[0], reversedBy: f.superAdmin._id });
+    assert.equal(reversed.reversedCount, 1);
+    assert.equal((await User.findById(f.user._id).lean()).coins, 900);
+    assert.equal((await Bet.findById(placed.bet._id).lean()).status, BET_STATUS.PENDING);
+    assert.equal((await SavedMatch.findOne({ matchId: f.matchIds[0] }).lean()).isDeclared, false);
+    await assert.rejects(
+      reverseMatchSettlement({ matchId: f.matchIds[0], reversedBy: f.superAdmin._id }),
+      (error) => error.code === "MATCH_NOT_SETTLED",
+    );
+
+    await settleMatchBets({ matchId: f.matchIds[0], winningRunnerId: "b", settledBy: f.superAdmin._id });
+    assert.equal((await User.findById(f.user._id).lean()).coins, 900);
+    assert.equal((await Bet.findById(placed.bet._id).lean()).status, BET_STATUS.LOST);
+    assert.equal((await SavedMatch.findOne({ matchId: f.matchIds[0] }).lean()).wonBy, "B");
+    await assertLedgerInvariants(f.user._id);
+  } finally { await f.cleanup(); }
+});
+
+test("zero-bet match reversal resets declaration and never changes session bets", { skip: !enabled }, async () => {
+  const f = await fixture();
+  try {
+    await SavedMatch.create({ user: f.superAdmin._id, matchId: f.matchIds[0], homeTeam: "A", awayTeam: "B" });
+    const sessionBet = await placeBet(f.user._id, f.matchIds[0], 100, 91, "yes", "session", "s1", 1, "reverse-session-isolation");
+    const balanceAfterPlacement = (await User.findById(f.user._id).lean()).coins;
+    await settleMatchBets({ matchId: f.matchIds[0], winningRunnerId: "a", settledBy: f.superAdmin._id });
+    const reversed = await reverseMatchSettlement({ matchId: f.matchIds[0], reversedBy: f.superAdmin._id });
+    assert.equal(reversed.reversedCount, 0);
+    assert.equal((await User.findById(f.user._id).lean()).coins, balanceAfterPlacement);
+    assert.equal((await Bet.findById(sessionBet.bet._id).lean()).status, BET_STATUS.PENDING);
+    const saved = await SavedMatch.findOne({ matchId: f.matchIds[0] }).lean();
+    assert.equal(saved.isDeclared, false);
+    assert.equal(saved.wonBy, "");
+    assert.equal(saved.profitLoss, 0);
+  } finally { await f.cleanup(); }
+});
+
+test("reversing orphan settlement returns its cancelled bet to pending", { skip: !enabled }, async () => {
+  const f = await fixture();
+  try {
+    await SavedMatch.create({ user: f.superAdmin._id, matchId: f.matchIds[0], homeTeam: "A", awayTeam: "B" });
+    const orphanBet = await Bet.create({
+      userId: new mongoose.Types.ObjectId(), rootSuperAdminId: f.superAdmin._id,
+      matchId: f.matchIds[0], marketType: "match", marketId: "a",
+      amount: 100, rate: 90, type: "yes", profit: 90, loss: 100, walletAdjustment: 100,
+    });
+    await settleMatchBets({ matchId: f.matchIds[0], winningRunnerId: "a", settledBy: f.superAdmin._id });
+    assert.equal((await Bet.findById(orphanBet._id).lean()).status, BET_STATUS.CANCELLED);
+    const reversed = await reverseMatchSettlement({ matchId: f.matchIds[0], reversedBy: f.superAdmin._id });
+    assert.equal(reversed.reversedCount, 1);
+    const refreshed = await Bet.findById(orphanBet._id).lean();
+    assert.equal(refreshed.status, BET_STATUS.PENDING);
+    assert.equal(refreshed.settlementId, undefined);
+  } finally { await f.cleanup(); }
+});
+
+test("failed reversal due to insufficient wallet rolls back every change", { skip: !enabled }, async () => {
+  const f = await fixture();
+  try {
+    await SavedMatch.create({ user: f.superAdmin._id, matchId: f.matchIds[0], homeTeam: "A", awayTeam: "B" });
+    const placed = await placeBet(f.user._id, f.matchIds[0], 100, 90, "yes", "match", "a", undefined, "reverse-insufficient");
+    await settleMatchBets({ matchId: f.matchIds[0], winningRunnerId: "a", settledBy: f.superAdmin._id });
+    await User.updateOne({ _id: f.user._id }, { $set: { coins: 100 } });
+    const ledgerCountBefore = await Ledger.countDocuments({ userId: f.user._id });
+    await assert.rejects(
+      reverseMatchSettlement({ matchId: f.matchIds[0], reversedBy: f.superAdmin._id }),
+      (error) => error.code === "REVERSAL_INSUFFICIENT_BALANCE",
+    );
+    assert.equal((await User.findById(f.user._id).lean()).coins, 100);
+    assert.equal((await Bet.findById(placed.bet._id).lean()).status, BET_STATUS.WON);
+    assert.equal((await SavedMatch.findOne({ matchId: f.matchIds[0] }).lean()).isDeclared, true);
+    assert.equal(await Ledger.countDocuments({ userId: f.user._id }), ledgerCountBefore);
+  } finally { await f.cleanup(); }
+});
+
+test("normal user and another Super Admin cannot reverse an owned settlement", { skip: !enabled }, async () => {
+  const f = await fixture();
+  const other = await createAccount();
+  try {
+    await SavedMatch.create({ user: f.superAdmin._id, matchId: f.matchIds[0], homeTeam: "A", awayTeam: "B" });
+    await settleMatchBets({ matchId: f.matchIds[0], winningRunnerId: "a", settledBy: f.superAdmin._id });
+    await assert.rejects(
+      reverseMatchSettlement({ matchId: f.matchIds[0], reversedBy: f.user._id }),
+      (error) => error.code === "REVERSAL_FORBIDDEN",
+    );
+    await assert.rejects(
+      reverseMatchSettlement({ matchId: f.matchIds[0], reversedBy: other.superAdmin._id }),
+      (error) => error.code === "MATCH_NOT_FOUND",
+    );
+    assert.equal((await SavedMatch.findOne({ matchId: f.matchIds[0] }).lean()).isDeclared, true);
+  } finally {
+    await f.cleanup();
+    await cleanup({ matchIds: [], userIds: [other.user._id], accountIds: [other.user._id, other.superAdmin._id] });
+  }
 });
 
 test("concurrent independent match placements cannot overspend", { skip: !enabled }, async () => {
