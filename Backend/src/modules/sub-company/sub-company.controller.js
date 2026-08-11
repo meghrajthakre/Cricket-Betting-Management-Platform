@@ -197,16 +197,48 @@ const getCompanyUsers = asyncHandler(async (req, res) => {
   const users = await User.find(filter).select("-password").sort({ createdAt: -1 });
   const userIds = users.map((user) => user._id);
   const usedLimits = userIds.length ? await Bet.aggregate([
-    { $match: { userId: { $in: userIds }, status: "pending" } },
-    { $group: { _id: "$userId", usedLimit: { $sum: { $cond: [{ $gt: ["$walletAdjustment", 0] }, "$walletAdjustment", "$loss"] } } } },
+    { $match: { userId: { $in: userIds }, status: { $in: ["pending", "won", "lost"] } } },
+    {
+      $group: {
+        _id: "$userId",
+        pendingUsedLimit: {
+          $sum: {
+            $cond: [
+              { $eq: ["$status", "pending"] },
+              { $cond: [{ $gt: ["$walletAdjustment", 0] }, "$walletAdjustment", "$loss"] },
+              0,
+            ],
+          },
+        },
+        settlementPnl: {
+          $sum: {
+            $switch: {
+              branches: [
+                { case: { $eq: ["$status", "won"] }, then: { $multiply: ["$profit", -1] } },
+                { case: { $eq: ["$status", "lost"] }, then: "$loss" },
+              ],
+              default: 0,
+            },
+          },
+        },
+      },
+    },
   ]) : [];
-  const usedLimitMap = new Map(usedLimits.map((item) => [String(item._id), Number(item.usedLimit || 0)]));
+  const usedLimitMap = new Map(usedLimits.map((item) => [String(item._id), {
+    pending: Number(Number(item.pendingUsedLimit || 0).toFixed(2)),
+    settled: Number(Number(item.settlementPnl || 0).toFixed(2)),
+  }]));
   res.json({ success: true, data: users.map((user) => ({
     ...user.toObject(),
     // Existing users predate currentLimit; their originally assigned fixLimit
     // is the safe fallback, never the wallet balance reduced by open bets.
     currentLimit: user.currentLimit ?? (Number(user.fixLimit) > 0 ? user.fixLimit : user.coins),
-    usedLimit: usedLimitMap.get(String(user._id)) || 0,
+    pendingUsedLimit: usedLimitMap.get(String(user._id))?.pending || 0,
+    settlementPnl: usedLimitMap.get(String(user._id))?.settled || 0,
+    usedLimit: Number((
+      (usedLimitMap.get(String(user._id))?.pending || 0) +
+      (usedLimitMap.get(String(user._id))?.settled || 0)
+    ).toFixed(2)),
   })) });
 });
 
