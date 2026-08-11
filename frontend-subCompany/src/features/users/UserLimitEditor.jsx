@@ -3,7 +3,7 @@ import { updateUserFixLimit } from "../../shared/api/userApi";
 
 export default function UserLimitEditor({ user, busy, onUpdated, showToast }) {
   const [limit, setLimit] = useState(String(user.fixLimit ?? 0));
-  const [currentLimit, setCurrentLimit] = useState(String(user.coins ?? 0));
+  const [currentLimit, setCurrentLimit] = useState(String(user.currentLimit ?? user.fixLimit ?? user.coins ?? 0));
   const [saving, setSaving] = useState(false);
   const [remarks, setRemarks] = useState(user.limitRemarks || "");
 
@@ -14,7 +14,7 @@ export default function UserLimitEditor({ user, busy, onUpdated, showToast }) {
     if (!Number.isFinite(currentValue) || currentValue < 0) return showToast("Valid non-negative current limit enter karein", true);
     if (currentValue > value) return showToast("Current Limit ko Fix Limit se upar nahi rakh sakte. Pehle Fix Limit badhayein.", true);
     if (currentValue < Number(user.usedLimit || 0)) return showToast(`Current Limit used limit ${user.usedLimit || 0} se kam nahi ho sakti`, true);
-    if (value === Number(user.fixLimit || 0) && currentValue === Number(user.coins || 0) && remarks === (user.limitRemarks || "")) return showToast("Koi change nahi hai", true);
+    if (value === Number(user.fixLimit || 0) && currentValue === Number(user.currentLimit ?? user.fixLimit ?? user.coins ?? 0) && remarks === (user.limitRemarks || "")) return showToast("Koi change nahi hai", true);
     setSaving(true);
     try {
       const response = await updateUserFixLimit(user._id, value, currentValue, remarks);

@@ -66,6 +66,13 @@ const userSchema = new mongoose.Schema(
       min: [0, "fixLimit cannot be negative"],
     },
 
+    // Manually assigned display limit. Betting changes wallet coins, not this.
+    currentLimit: {
+      type: Number,
+      default: undefined,
+      min: [0, "currentLimit cannot be negative"],
+    },
+
     limitRemarks: {
       type: String,
       trim: true,

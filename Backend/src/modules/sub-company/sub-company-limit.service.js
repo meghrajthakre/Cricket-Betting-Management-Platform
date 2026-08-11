@@ -54,7 +54,7 @@ const allocatedToOtherUsers = async (companyId, session, excludeUserId) => {
   if (excludeUserId) match._id = { $ne: new mongoose.Types.ObjectId(excludeUserId) };
   const [row] = await User.aggregate([
     { $match: match },
-    { $group: { _id: null, total: { $sum: "$fixLimit" } } },
+    { $group: { _id: null, total: { $sum: { $cond: [{ $gt: ["$fixLimit", 0] }, "$fixLimit", "$coins"] } } } },
   ]).session(session);
   return Number((row?.total || 0).toFixed(2));
 };
@@ -72,15 +72,16 @@ const runTransaction = async (work) => {
 
 const createUserWithinFixLimit = async (companyId, userData, getUsername) => {
   const fixLimit = normalizeCoins(userData.fixLimit ?? 0);
-  const coins = fixLimit;
+  const coins = normalizeCoins(userData.coins ?? fixLimit);
+  const requestedAllocation = fixLimit > 0 ? fixLimit : coins;
   for (let attempt = 0; attempt < 30; attempt += 1) {
     try {
       return await runTransaction(async (session) => {
         const company = await lockCompany(companyId, session);
         const allocated = await allocatedToOtherUsers(companyId, session);
-        const totalAllocated = checkFixLimit(allocated, fixLimit, company.fixLimit);
+        const totalAllocated = checkFixLimit(allocated, requestedAllocation, company.fixLimit);
         const username = await getUsername(session);
-        const [user] = await User.create([{ ...userData, username, coins, fixLimit }], { session });
+        const [user] = await User.create([{ ...userData, username, coins, fixLimit, currentLimit: coins }], { session });
         return { user, totalAllocated, remainingLimit: Number((company.fixLimit - totalAllocated).toFixed(2)) };
       });
     } catch (error) {
@@ -102,10 +103,12 @@ const setUserBalanceWithinFixLimit = async (companyId, userId, coins, actorId) =
       { $group: { _id: null, total: { $sum: { $cond: [{ $gt: ["$walletAdjustment", 0] }, "$walletAdjustment", "$loss"] } } } },
     ]).session(session);
     const usedLimit = Number(Number(usage?.total || 0).toFixed(2));
-    validateUserLimitBounds(targetCoins, usedLimit, Number(company.fixLimit || 0));
+    if (Number(user.fixLimit || 0) > 0) validateUserLimitBounds(targetCoins, usedLimit, Number(user.fixLimit));
     const allocated = await allocatedToOtherUsers(companyId, session, user._id);
     const totalAllocated = checkFixLimit(allocated, targetCoins, company.fixLimit);
     const wallet = await setUserCoins(user._id, targetCoins, "Sub Company updated balance", actorId, { session });
+    user.currentLimit = targetCoins;
+    await user.save({ session, validateModifiedOnly: true });
     return { ...wallet, totalAllocated, remainingLimit: Number((company.fixLimit - totalAllocated).toFixed(2)) };
   });
 };
@@ -137,6 +140,7 @@ const updateUserFixLimitWithinCompany = async (companyId, userId, value, current
     const allocated = await allocatedToOtherUsers(companyId, session, user._id);
     const totalAllocated = checkFixLimit(allocated, fixLimit, company.fixLimit);
     user.fixLimit = fixLimit;
+    user.currentLimit = currentLimit;
     user.limitRemarks = remarks.trim();
     await user.save({ session, validateModifiedOnly: true });
     await setUserCoins(user._id, currentLimit, "Sub Company updated client current limit", actorId || companyId, { session });
@@ -196,7 +200,7 @@ const getCompanyLimitSummary = async (companyId) => {
 
   const [row] = await User.aggregate([
     { $match: { role: ROLES.USER, createdBy: new mongoose.Types.ObjectId(companyId) } },
-    { $group: { _id: null, total: { $sum: "$fixLimit" } } },
+    { $group: { _id: null, total: { $sum: { $cond: [{ $gt: ["$fixLimit", 0] }, "$fixLimit", "$coins"] } } } },
   ]);
   const usedLimit = Number((row?.total || 0).toFixed(2));
   const fixLimit = Number(company.fixLimit || 0);

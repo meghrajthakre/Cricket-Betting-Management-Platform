@@ -64,7 +64,7 @@ export default function UsersList({ onGoCreate, refreshKey, mode = "clients" }) 
       total: users.length,
       active: users.filter((user) => user.isActive).length,
       blocked: users.filter((user) => !user.isActive).length,
-      balance: users.reduce((sum, user) => sum + Number(user.coins || 0), 0),
+      balance: users.reduce((sum, user) => sum + Number(user.currentLimit ?? user.fixLimit ?? user.coins ?? 0), 0),
     }),
     [users],
   );
@@ -178,7 +178,7 @@ export default function UsersList({ onGoCreate, refreshKey, mode = "clients" }) 
               onDelete={setDeleteUser}
               onEditCoins={setBalanceUser}
               onLimitUpdated={(id, fixLimit, allocation) => {
-                setUsers((items) => items.map((item) => item._id === id ? { ...item, fixLimit, coins: allocation?.currentLimit ?? item.coins, limitRemarks: allocation?.limitRemarks ?? item.limitRemarks } : item));
+                setUsers((items) => items.map((item) => item._id === id ? { ...item, fixLimit, currentLimit: allocation?.currentLimit ?? item.currentLimit, coins: allocation?.currentLimit ?? item.coins, limitRemarks: allocation?.limitRemarks ?? item.limitRemarks } : item));
                 if (allocation) setLimitSummary((summary) => summary ? {
                   ...summary,
                   usedLimit: allocation.totalAllocated,
@@ -222,7 +222,7 @@ export default function UsersList({ onGoCreate, refreshKey, mode = "clients" }) 
         user={balanceUser}
         onClose={() => setBalanceUser(null)}
         onSuccess={(id, coins) => setUsers((items) => {
-          return items.map((item) => (item._id === id ? { ...item, coins } : item));
+          return items.map((item) => (item._id === id ? { ...item, coins, currentLimit: coins } : item));
         })}
         showToast={showToast}
       />

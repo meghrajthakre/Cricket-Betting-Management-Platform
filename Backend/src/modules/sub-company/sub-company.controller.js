@@ -170,16 +170,18 @@ const getSubCompanyReport = asyncHandler(async (req, res) => {
 });
 
 const createCompanyUser = asyncHandler(async (req, res) => {
-  const { firstName, password, confirmPassword, limit } = req.body;
+  const { firstName, password, confirmPassword, limit, coins } = req.body;
   if (!firstName?.trim()) throw new AppError("First name is required.", 400);
   validatePassword(password, confirmPassword);
   const rootSuperAdminId = req.user.rootSuperAdminId || req.user.parentId || req.user.createdBy;
   const ancestorIds = req.user.ancestorIds?.length
     ? [...req.user.ancestorIds, req.user._id]
     : [rootSuperAdminId, req.user._id].filter(Boolean);
+  const usesLegacyCoins = limit === undefined && coins !== undefined;
+  const requestedLimit = usesLegacyCoins ? coins : limit;
   const allocation = await createUserWithinFixLimit(
     req.user._id,
-    { firstName: firstName.trim(), password, role: ROLES.USER, fixLimit: limit, createdBy: req.user._id, parentId: req.user._id, rootSuperAdminId, ancestorIds },
+    { firstName: firstName.trim(), password, role: ROLES.USER, fixLimit: usesLegacyCoins ? 0 : requestedLimit, coins: usesLegacyCoins ? requestedLimit : undefined, currentLimit: requestedLimit, createdBy: req.user._id, parentId: req.user._id, rootSuperAdminId, ancestorIds },
     (session) => generateUsername("sm", session)
   );
   const user = allocation.user;
@@ -201,6 +203,9 @@ const getCompanyUsers = asyncHandler(async (req, res) => {
   const usedLimitMap = new Map(usedLimits.map((item) => [String(item._id), Number(item.usedLimit || 0)]));
   res.json({ success: true, data: users.map((user) => ({
     ...user.toObject(),
+    // Existing users predate currentLimit; their originally assigned fixLimit
+    // is the safe fallback, never the wallet balance reduced by open bets.
+    currentLimit: user.currentLimit ?? (Number(user.fixLimit) > 0 ? user.fixLimit : user.coins),
     usedLimit: usedLimitMap.get(String(user._id)) || 0,
   })) });
 });
