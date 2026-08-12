@@ -206,7 +206,7 @@ export default function MatchesPage() {
                       </td>
                       <td className="border border-gray-200 px-3 py-3">
                         <span className={`font-bold ${match.isDeclared ? "text-emerald-600" : "text-gray-500"}`}>
-                          {match.isDeclared ? `Settled · ${match.wonBy || "Winner"}` : "Pending"}
+                          {match.isDeclared ? (match.wonBy || "Winner") : "Pending"}
                         </span>
                       </td>
                       <td className="border border-gray-200 px-3 py-3 font-bold">

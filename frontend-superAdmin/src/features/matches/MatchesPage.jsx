@@ -50,7 +50,7 @@ export default function MatchesPage() {
       try {
         setLoading(true);
         setError("");
-        const response = await api.get("/matches/saved");
+        const response = await api.get("/bet/superadmin-match-summaries");
         const savedMatches = response.data?.data;
 
         if (active) {
@@ -270,7 +270,7 @@ export default function MatchesPage() {
                     </td>
                     <td className="border border-[#dedede] px-3 py-3 font-bold">
                       <span className={!match.isDeclared ? "text-gray-400" : Number(match.profitLoss) > 0 ? "text-emerald-600" : Number(match.profitLoss) < 0 ? "text-red-600" : "text-gray-500"}>
-                        {!match.isDeclared ? "—" : <>{Number(match.profitLoss || 0) > 0 ? "+" : ""}{Number(match.profitLoss || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</>}
+                        {!match.isDeclared ? "—" : Number(match.profitLoss || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
                       </span>
                     </td>
                   </tr>

@@ -1,6 +1,6 @@
 "use strict";
 
-const { placeBet, settleBet, settleMatchBets, reverseMatchSettlement, getUserMatchBets, getAllMatchBets, getCompanyMatchBets, getCompanyMatchSummaries, deleteBetSlip } = require("./bet.service");
+const { placeBet, settleBet, settleMatchBets, reverseMatchSettlement, getUserMatchBets, getAllMatchBets, getCompanyMatchBets, getCompanyMatchSummaries, getSuperAdminMatchSummaries, deleteBetSlip } = require("./bet.service");
 const { z } = require("zod");
 const mongoose = require("mongoose");
 const sse = require("../manual/manual.events");
@@ -216,6 +216,15 @@ const getCompanyMatchSummariesController = async (req, res) => {
     }
 };
 
+const getSuperAdminMatchSummariesController = async (req, res) => {
+    try {
+        const matches = await getSuperAdminMatchSummaries(req.user._id);
+        return res.status(200).json({ success: true, count: matches.length, data: matches });
+    } catch (error) {
+        return res.status(error.statusCode || 400).json({ success: false, error: error.message, ...(error.code ? { code: error.code } : {}) });
+    }
+};
+
 const getSettlementLedgerController = async (req, res) => {
     try {
         const data = await getSettlementLedger(req.user._id);
@@ -261,6 +270,7 @@ module.exports = {
     getAllMatchBetsController,
     getCompanyMatchBetsController,
     getCompanyMatchSummariesController,
+    getSuperAdminMatchSummariesController,
     getSettlementLedgerController,
     deleteBetController,
 };

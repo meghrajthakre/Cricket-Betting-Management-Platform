@@ -10,6 +10,7 @@ const {
     getAllMatchBetsController,
     getCompanyMatchBetsController,
     getCompanyMatchSummariesController,
+    getSuperAdminMatchSummariesController,
     getSettlementLedgerController,
     deleteBetController,
 } = require("./bet.controller");
@@ -28,6 +29,7 @@ router.get("/mine", protect, allowRoles("user"), getMyBetsController);
 router.get("/match", protect, allowRoles("superadmin"), getAllMatchBetsController);
 router.get("/company-match", protect, allowRoles("sub_company"), getCompanyMatchBetsController);
 router.get("/company-match-summaries", protect, allowRoles("sub_company"), getCompanyMatchSummariesController);
+router.get("/superadmin-match-summaries", protect, allowRoles("superadmin"), getSuperAdminMatchSummariesController);
 router.get("/settlement-ledger", protect, allowRoles("superadmin", "sub_company"), getSettlementLedgerController);
 
 // DELETE /bet/:betId — pending exposure is safely reversed.

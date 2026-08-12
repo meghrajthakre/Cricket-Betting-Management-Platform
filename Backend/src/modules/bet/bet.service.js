@@ -921,6 +921,36 @@ const getCompanyMatchSummaries = async (companyId) => {
     }));
 };
 
+const getSuperAdminMatchSummaries = async (superAdminId) => {
+    const superAdmin = await User.findOne({ _id: superAdminId, role: ROLES.SUPERADMIN }).select("_id").lean();
+    if (!superAdmin) throw serviceError("Super Admin not found", 404, "SUPERADMIN_NOT_FOUND");
+    const matches = await SavedMatch.find({ user: superAdminId }).sort({ createdAt: -1 }).lean();
+    if (!matches.length) return [];
+    const companies = await User.find({ role: ROLES.SUB_COMPANY, $or: [{ rootSuperAdminId: superAdminId }, { parentId: superAdminId }, { createdBy: superAdminId }] })
+        .select("_id allocatedShareBps allocatedShare downlineShare").lean();
+    const companyIds = companies.map((company) => company._id);
+    const companyById = new Map(companies.map((company) => [String(company._id), company]));
+    const users = await User.find({ role: ROLES.USER, rootSuperAdminId: superAdminId }).select("_id parentId createdBy").lean();
+    const companyByUser = new Map(users.map((user) => {
+        const companyId = user.parentId || user.createdBy;
+        return [String(user._id), companyById.has(String(companyId)) ? String(companyId) : null];
+    }));
+    const bets = await Bet.find({ matchId: { $in: matches.map((match) => match.matchId) }, rootSuperAdminId: superAdminId, status: { $in: [BET_STATUS.WON, BET_STATUS.LOST] } }).lean();
+    const pnlByMatch = new Map();
+    for (const bet of bets) {
+        let shareBps = getViewerShareBps(bet, superAdminId);
+        if (shareBps === undefined) {
+            const pathCompanyId = companyIds.find((id) => Array.isArray(bet.ownerPath) && bet.ownerPath.some((ownerId) => String(ownerId) === String(id)));
+            const company = companyById.get(String(pathCompanyId || companyByUser.get(String(bet.userId))));
+            shareBps = company ? 10000 - getCompanyShareBps(company) : 10000;
+        }
+        const fullPnl = bet.status === BET_STATUS.WON ? -Number(bet.profit) : Number(bet.loss);
+        const visiblePnl = Number((fullPnl * shareBps / 10000).toFixed(2));
+        pnlByMatch.set(bet.matchId, Number(((pnlByMatch.get(bet.matchId) || 0) + visiblePnl).toFixed(2)));
+    }
+    return matches.map((match) => ({ ...match, profitLoss: match.isDeclared ? (pnlByMatch.get(match.matchId) || 0) : null }));
+};
+
 /** Deletes a bet and safely releases any pending wallet exposure. */
 const unsafeDeleteBetSlipLegacy = async (betId, deletedBy) => {
     const dbSession = await mongoose.startSession();
@@ -1081,6 +1111,7 @@ module.exports = {
     getAllMatchBets,
     getCompanyMatchBets,
     getCompanyMatchSummaries,
+    getSuperAdminMatchSummaries,
     deleteBetSlip,
     acceptCurrentMarketRate,
     waitForBetDelay,
