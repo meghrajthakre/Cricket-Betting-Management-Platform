@@ -5,7 +5,9 @@ import { getMe } from "../../shared/api/userApi";
 
 export default function ProtectedRoute() {
   const [status, setStatus] = useState(() =>
-    sessionStorage.getItem("superAdminVerified") === "true" ? "allowed" : "checking"
+    sessionStorage.getItem("superAdminVerified") === "true" && sessionStorage.getItem("accessToken")
+      ? "allowed"
+      : "checking"
   );
 
   useEffect(() => {

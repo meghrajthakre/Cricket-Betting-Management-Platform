@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Building2,
   Trophy,
+  NotebookTabs,
 } from "lucide-react";
 import { logoutUser } from "../../shared/api/userApi";
 
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
     ],
   },
   { label: "Collection Report", to: "/superadmin/collection-report", icon: FileBarChart2 },
+  { label: "Company Ledger",    to: "/superadmin/company-ledger",    icon: NotebookTabs },
   { label: "Matches",           to: "/superadmin/matches",           icon: Swords },
   { label: "In Play Matches",   to: "/superadmin/in-play-matches",   icon: Radio },
   { label: "Match Settlement",  to: "/superadmin/match-settlement",  icon: Trophy },

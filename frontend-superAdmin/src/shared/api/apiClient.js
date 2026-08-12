@@ -19,7 +19,7 @@
   api.interceptors.response.use(
     (response) => response,
     (error) => {
-      if (error.response?.status === 401) {
+      if (error.response?.status === 401 && !error.config?.skipAuthRedirect) {
         sessionStorage.removeItem("accessToken");
         sessionStorage.removeItem("superAdminVerified");
         if (!window.location.pathname.includes("/login")) {

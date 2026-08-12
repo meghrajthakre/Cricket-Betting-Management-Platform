@@ -8,6 +8,7 @@ import SuperAdminProfilePage from "../../features/profile/SuperAdminProfilePage"
 import SettingsPage from "../../features/settings/SettingsPage";
 import CreateUserPage from "../../features/users/CreateUserPage";
 import SubCompaniesPage from "../../features/sub-companies/SubCompaniesPage";
+import CompanyLedgerPage from "../../features/ledger/CompanyLedgerPage";
 
 import MatchRoutes from "./MatchRoutes";
 import ProtectedRoute from "./ProtectedRoute";
@@ -23,6 +24,7 @@ export default function SuperAdminRoutes() {
         <Route path="sub-companies" element={<SubCompaniesPage />} />
         <Route path="create-user" element={<CreateUserPage />} />
         <Route path="collection-report" element={<CollectionReportPage />} />
+        <Route path="company-ledger" element={<CompanyLedgerPage />} />
         <Route path="profile" element={<SuperAdminProfilePage />} />
         <Route path="settings" element={<SettingsPage />} />
 

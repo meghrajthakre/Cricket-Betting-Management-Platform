@@ -1,4 +1,5 @@
 const SavedMatch = require("./saved-match.model");
+const { Bet, BET_STATUS } = require("../bet/bet.model");
 
 /**
  * Save a match for a user.
@@ -36,9 +37,17 @@ const saveMatch = async (userId, matchData) => {
  * Sorted newest first, returns plain JS objects via lean().
  */
 const getSavedMatches = async () => {
-  return SavedMatch.find()
-    .sort({ createdAt: -1 })
-    .lean();
+  const matches = await SavedMatch.find().sort({ createdAt: -1 }).lean();
+  if (!matches.length) return [];
+  const totals = await Bet.aggregate([
+    { $match: { matchId: { $in: matches.map((match) => match.matchId) }, status: { $in: [BET_STATUS.WON, BET_STATUS.LOST] } } },
+    { $group: { _id: "$matchId", profitLoss: { $sum: { $cond: [{ $eq: ["$status", BET_STATUS.WON] }, { $multiply: ["$profit", -1] }, "$loss"] } } } },
+  ]);
+  const pnlByMatch = new Map(totals.map((item) => [String(item._id), Number(Number(item.profitLoss).toFixed(2))]));
+  return matches.map((match) => ({
+    ...match,
+    profitLoss: match.isDeclared ? (pnlByMatch.get(match.matchId) || 0) : null,
+  }));
 };
 
 /**

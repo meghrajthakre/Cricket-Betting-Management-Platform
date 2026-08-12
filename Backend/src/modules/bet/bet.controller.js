@@ -1,9 +1,10 @@
 "use strict";
 
-const { placeBet, settleBet, settleMatchBets, reverseMatchSettlement, getUserMatchBets, getAllMatchBets, getCompanyMatchBets, deleteBetSlip } = require("./bet.service");
+const { placeBet, settleBet, settleMatchBets, reverseMatchSettlement, getUserMatchBets, getAllMatchBets, getCompanyMatchBets, getCompanyMatchSummaries, deleteBetSlip } = require("./bet.service");
 const { z } = require("zod");
 const mongoose = require("mongoose");
 const sse = require("../manual/manual.events");
+const { getSettlementLedger } = require("../ledger/settlement-ledger.service");
 
 // ---------------------------------------------------------------------------
 // Validation schemas
@@ -206,6 +207,24 @@ const getCompanyMatchBetsController = async (req, res) => {
     }
 };
 
+const getCompanyMatchSummariesController = async (req, res) => {
+    try {
+        const matches = await getCompanyMatchSummaries(req.user._id);
+        return res.status(200).json({ success: true, count: matches.length, data: matches });
+    } catch (error) {
+        return res.status(error.statusCode || 400).json({ success: false, error: error.message, ...(error.code ? { code: error.code } : {}) });
+    }
+};
+
+const getSettlementLedgerController = async (req, res) => {
+    try {
+        const data = await getSettlementLedger(req.user._id);
+        return res.status(200).json({ success: true, data });
+    } catch (error) {
+        return res.status(error.statusCode || 400).json({ success: false, error: error.message, ...(error.code ? { code: error.code } : {}) });
+    }
+};
+
 /** DELETE /bet/:betId — superadmin can remove resolved slip records. */
 const deleteBetController = async (req, res) => {
     try {
@@ -241,5 +260,7 @@ module.exports = {
     getMyBetsController,
     getAllMatchBetsController,
     getCompanyMatchBetsController,
+    getCompanyMatchSummariesController,
+    getSettlementLedgerController,
     deleteBetController,
 };

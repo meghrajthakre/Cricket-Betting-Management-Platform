@@ -3,6 +3,7 @@
 const { updateUserCoins } = require("./ledger.service");
 const { z } = require("zod");
 const mongoose = require("mongoose");
+const { getSettlementLedger } = require("./settlement-ledger.service");
 
 // Validation schemas
 const walletTransactionSchema = z.object({
@@ -77,4 +78,13 @@ const debitCoins = async (req, res) => {
     }
 };
 
-module.exports = { creditCoins, debitCoins };
+const settlementLedger = async (req, res) => {
+    try {
+        const data = await getSettlementLedger(req.user._id);
+        return res.status(200).json({ success: true, data });
+    } catch (error) {
+        return res.status(error.statusCode || 400).json({ success: false, error: error.message, ...(error.code ? { code: error.code } : {}) });
+    }
+};
+
+module.exports = { creditCoins, debitCoins, settlementLedger };

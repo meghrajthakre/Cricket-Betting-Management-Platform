@@ -891,6 +891,36 @@ const getCompanyMatchBets = async (companyId, matchId) => {
     });
 };
 
+const getCompanyMatchSummaries = async (companyId) => {
+    const company = await User.findOne({ _id: companyId, role: ROLES.SUB_COMPANY })
+        .select("allocatedShareBps allocatedShare downlineShare rootSuperAdminId parentId createdBy").lean();
+    if (!company) throw serviceError("Sub Company not found", 404, "SUB_COMPANY_NOT_FOUND");
+    const ownerId = company.rootSuperAdminId || company.parentId || company.createdBy;
+    if (!ownerId) throw serviceError("Sub Company owner is unavailable", 409, "COMPANY_OWNER_NOT_FOUND");
+    const [matches, userIds] = await Promise.all([
+        SavedMatch.find({ user: ownerId }).sort({ createdAt: -1 }).lean(),
+        User.find({ role: ROLES.USER, $or: [{ createdBy: companyId }, { parentId: companyId }] }).distinct("_id"),
+    ]);
+    if (!matches.length) return [];
+    const bets = await Bet.find({
+        matchId: { $in: matches.map((match) => match.matchId) },
+        status: { $in: [BET_STATUS.WON, BET_STATUS.LOST] },
+        $or: [{ ownerPath: company._id }, { ownerPath: { $size: 0 }, userId: { $in: userIds } }],
+    }).lean();
+    const fallbackShareBps = getCompanyShareBps(company);
+    const pnlByMatch = new Map();
+    for (const bet of bets) {
+        const shareBps = getViewerShareBps(bet, companyId) ?? fallbackShareBps;
+        const fullPnl = bet.status === BET_STATUS.WON ? -Number(bet.profit) : Number(bet.loss);
+        const visiblePnl = Number((fullPnl * shareBps / 10000).toFixed(2));
+        pnlByMatch.set(bet.matchId, Number(((pnlByMatch.get(bet.matchId) || 0) + visiblePnl).toFixed(2)));
+    }
+    return matches.map((match) => ({
+        ...match,
+        profitLoss: match.isDeclared ? (pnlByMatch.get(match.matchId) || 0) : null,
+    }));
+};
+
 /** Deletes a bet and safely releases any pending wallet exposure. */
 const unsafeDeleteBetSlipLegacy = async (betId, deletedBy) => {
     const dbSession = await mongoose.startSession();
@@ -1050,6 +1080,7 @@ module.exports = {
     getUserMatchBets,
     getAllMatchBets,
     getCompanyMatchBets,
+    getCompanyMatchSummaries,
     deleteBetSlip,
     acceptCurrentMarketRate,
     waitForBetDelay,

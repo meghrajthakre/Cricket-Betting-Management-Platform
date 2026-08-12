@@ -269,9 +269,8 @@ export default function MatchesPage() {
                       {match.wonBy || "—"}
                     </td>
                     <td className="border border-[#dedede] px-3 py-3 font-bold">
-                      <span className={Number(match.profitLoss) > 0 ? "text-emerald-600" : Number(match.profitLoss) < 0 ? "text-red-600" : "text-gray-500"}>
-                        {Number(match.profitLoss || 0) > 0 ? "+" : ""}
-                        {Number(match.profitLoss || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <span className={!match.isDeclared ? "text-gray-400" : Number(match.profitLoss) > 0 ? "text-emerald-600" : Number(match.profitLoss) < 0 ? "text-red-600" : "text-gray-500"}>
+                        {!match.isDeclared ? "—" : <>{Number(match.profitLoss || 0) > 0 ? "+" : ""}{Number(match.profitLoss || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</>}
                       </span>
                     </td>
                   </tr>

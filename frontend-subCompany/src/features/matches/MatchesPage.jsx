@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../../shared/api/apiClient";
 
-const TABLE_HEADINGS = ["#", "Match ID", "Title", "Sport", "Date", "Type", "Status"];
+const TABLE_HEADINGS = ["#", "Match ID", "Title", "Sport", "Date", "Type", "Status", "P/L Status", "Profit / Loss"];
 
 function MatchesTableSkeleton() {
   return (
@@ -53,7 +53,7 @@ export default function MatchesPage() {
   useEffect(() => {
     let active = true;
     api
-      .get("/matches/saved")
+      .get("/bet/company-match-summaries")
       .then((response) => {
         if (active)
           setMatches(
@@ -162,7 +162,7 @@ export default function MatchesPage() {
                 {(error || filtered.length === 0) && (
                   <tr>
                     <td
-                      colSpan="7"
+                      colSpan="9"
                       className={`border border-gray-200 px-4 py-14 text-center ${error ? "text-red-600" : "text-gray-400"}`}
                     >
                       {error ||
@@ -205,8 +205,18 @@ export default function MatchesPage() {
                         {formatSport(match.sportKey)}
                       </td>
                       <td className="border border-gray-200 px-3 py-3">
-                        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
-                          Available
+                        <span className={`font-bold ${match.isDeclared ? "text-emerald-600" : "text-gray-500"}`}>
+                          {match.isDeclared ? `Settled · ${match.wonBy || "Winner"}` : "Pending"}
+                        </span>
+                      </td>
+                      <td className="border border-gray-200 px-3 py-3 font-bold">
+                        <span className={!match.isDeclared ? "text-gray-400" : Number(match.profitLoss) > 0 ? "text-emerald-600" : Number(match.profitLoss) < 0 ? "text-red-600" : "text-gray-500"}>
+                          {!match.isDeclared ? "—" : Number(match.profitLoss) > 0 ? "Profit" : Number(match.profitLoss) < 0 ? "Loss" : "No P/L"}
+                        </span>
+                      </td>
+                      <td className="border border-gray-200 px-3 py-3 font-bold">
+                        <span className={!match.isDeclared ? "text-gray-400" : Number(match.profitLoss) > 0 ? "text-emerald-600" : Number(match.profitLoss) < 0 ? "text-red-600" : "text-gray-500"}>
+                          {!match.isDeclared ? "—" : <>{Number(match.profitLoss || 0) > 0 ? "+" : ""}{Number(match.profitLoss || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</>}
                         </span>
                       </td>
                     </tr>
