@@ -65,6 +65,7 @@ async function createAccount(coins = 1000) {
   });
   const user = await User.create({
     username: `usr${token}`.slice(0, 30), password: "pass1234", role: ROLES.USER, coins,
+    currentLimit: coins,
     createdBy: superAdmin._id, parentId: superAdmin._id, rootSuperAdminId: superAdmin._id,
   });
   return { superAdmin, user };
@@ -133,6 +134,7 @@ test("concurrent session settlement credits exactly once", { skip: !enabled }, a
     const { user, ledgers } = await assertLedgerInvariants(f.user._id);
     assert.equal(bet.status, BET_STATUS.WON);
     assert.equal(user.coins, 1100);
+    assert.equal(user.currentLimit, 1000);
     assert.equal(ledgers.filter((entry) => /session bet won/.test(entry.reason)).length, 1);
   } finally { await f.cleanup(); }
 });
@@ -153,6 +155,7 @@ test("concurrent hedged match settlement applies zero adjustment exactly once", 
     const { user, ledgers } = await assertLedgerInvariants(f.user._id);
     assert.deepEqual(bets.map((bet) => bet.status).sort(), [BET_STATUS.LOST, BET_STATUS.WON]);
     assert.equal(user.coins, 990);
+    assert.equal(user.currentLimit, 990);
     assert.notEqual(user.coins, 1180);
     assert.equal(ledgers.filter((entry) => /settled; winner/.test(entry.reason)).length, 0);
   } finally { await f.cleanup(); }
@@ -225,6 +228,7 @@ test("match settlement can be reversed once and then settled again", { skip: !en
 
     await settleMatchBets({ matchId: f.matchIds[0], winningRunnerId: "a", settledBy: f.superAdmin._id });
     assert.equal((await User.findById(f.user._id).lean()).coins, 1090);
+    assert.equal((await User.findById(f.user._id).lean()).currentLimit, 1090);
     await assert.rejects(
       settleMatchBets({ matchId: f.matchIds[0], winningRunnerId: "b", settledBy: f.superAdmin._id }),
       (error) => error.code === "MATCH_ALREADY_SETTLED",
@@ -233,6 +237,7 @@ test("match settlement can be reversed once and then settled again", { skip: !en
     const reversed = await reverseMatchSettlement({ matchId: f.matchIds[0], reversedBy: f.superAdmin._id });
     assert.equal(reversed.reversedCount, 1);
     assert.equal((await User.findById(f.user._id).lean()).coins, 900);
+    assert.equal((await User.findById(f.user._id).lean()).currentLimit, 900);
     assert.equal((await Bet.findById(placed.bet._id).lean()).status, BET_STATUS.PENDING);
     assert.equal((await SavedMatch.findOne({ matchId: f.matchIds[0] }).lean()).isDeclared, false);
     await assert.rejects(
@@ -242,6 +247,7 @@ test("match settlement can be reversed once and then settled again", { skip: !en
 
     await settleMatchBets({ matchId: f.matchIds[0], winningRunnerId: "b", settledBy: f.superAdmin._id });
     assert.equal((await User.findById(f.user._id).lean()).coins, 900);
+    assert.equal((await User.findById(f.user._id).lean()).currentLimit, 900);
     assert.equal((await Bet.findById(placed.bet._id).lean()).status, BET_STATUS.LOST);
     assert.equal((await SavedMatch.findOne({ matchId: f.matchIds[0] }).lean()).wonBy, "B");
     await assertLedgerInvariants(f.user._id);

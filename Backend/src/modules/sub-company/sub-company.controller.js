@@ -230,8 +230,8 @@ const getCompanyUsers = asyncHandler(async (req, res) => {
   }]));
   res.json({ success: true, data: users.map((user) => ({
     ...user.toObject(),
-    // Existing users predate currentLimit; their originally assigned fixLimit
-    // is the safe fallback, never the wallet balance reduced by open bets.
+    // Session settlements do not change the displayed limit. Match settlement
+    // writes the final wallet result into currentLimit in one step.
     currentLimit: user.currentLimit ?? (Number(user.fixLimit) > 0 ? user.fixLimit : user.coins),
     pendingUsedLimit: usedLimitMap.get(String(user._id))?.pending || 0,
     settlementPnl: usedLimitMap.get(String(user._id))?.settled || 0,

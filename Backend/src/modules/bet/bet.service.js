@@ -636,10 +636,10 @@ const settleBet = async (betId, won, settledBy) => {
                 { new: true, session: dbSession }
             );
             if (!settledBet) throw serviceError("Bet has already been settled", 409, "BET_ALREADY_SETTLED");
+            const user = await User.findById(existing.userId).session(dbSession);
+            if (!user) throw serviceError("Bet user not found", 404, "USER_NOT_FOUND");
             if (won) {
                 const creditAmount = Number((existing.profit + existing.loss).toFixed(2));
-                const user = await User.findById(existing.userId).session(dbSession);
-                if (!user) throw serviceError("Bet user not found", 404, "USER_NOT_FOUND");
                 const balanceBefore = Number(user.coins);
                 const balanceAfter = Number((balanceBefore + creditAmount).toFixed(2));
                 if (!Number.isFinite(balanceAfter)) throw serviceError("Invalid wallet result", 409, "INVALID_WALLET");
@@ -649,8 +649,8 @@ const settleBet = async (betId, won, settledBy) => {
                     marketType: existing.marketType, marketId: existing.marketId,
                 }], { session: dbSession });
                 user.coins = balanceAfter;
-                await user.save({ session: dbSession });
             }
+            if (won) await user.save({ session: dbSession });
         });
     } catch (error) {
         if (error?.code === 11000 && error?.keyPattern?.clientBetId) throw serviceError("Duplicate bet request", 409, "DUPLICATE_BET");
@@ -717,9 +717,10 @@ const settleMatchBets = async ({ matchId, winningRunnerId, settledBy }) => {
                         referenceType: "match", referenceId: matchId, correlationId, matchId,
                         marketType: "match", marketId: winningRunnerId,
                     }], { session: dbSession });
-                    user.coins = balanceAfter;
-                    await user.save({ session: dbSession });
                 }
+                user.coins = balanceAfter;
+                user.currentLimit = balanceAfter;
+                await user.save({ session: dbSession, validateModifiedOnly: true });
                 wallets.push({ userId, reserved, netPnl, adjustment, balanceBefore, balanceAfter });
             }
             const now = new Date();
@@ -820,9 +821,10 @@ const reverseMatchSettlement = async ({ matchId, reversedBy }) => {
                         marketType: "match",
                         marketId: savedMatch.winningRunnerId,
                     }], { session: dbSession });
-                    user.coins = balanceAfter;
-                    await user.save({ session: dbSession });
                 }
+                user.coins = balanceAfter;
+                user.currentLimit = balanceAfter;
+                await user.save({ session: dbSession, validateModifiedOnly: true });
                 wallets.push({ userId, settlementAdjustment, reversalAdjustment, balanceBefore, balanceAfter });
             }
 
