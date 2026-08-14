@@ -90,21 +90,22 @@ const validateBody = (schema) => (req, res, next) => {
 
 /**
  * Validate req.query against a Zod schema.
- * Attaches parsed data to req.query.
+ * Attaches parsed data separately because req.query is getter-only in Express 5.
  */
 const validateQuery = (schema) => (req, res, next) => {
   const result = schema.safeParse(req.query);
   if (!result.success) {
+    const issues = result.error?.issues ?? result.error?.errors ?? [];
     return res.status(400).json({
       success: false,
       message: "Invalid query parameters",
-      errors: result.error.errors.map((e) => ({
+      errors: issues.map((e) => ({
         field: e.path.join(".") || "query",
         message: e.message,
       })),
     });
   }
-  req.query = result.data;
+  req.validatedQuery = result.data;
   next();
 };
 

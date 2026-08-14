@@ -28,6 +28,16 @@ export const updateBanner = (text) => API.put("/banner", { text }).then((r) => r
 // ========== Saved Matches ==========
 export const getSavedMatches = () => API.get("/matches/saved").then((r) => r.data);
 export const getSavedMatchById = (matchId) => API.get(`/matches/saved/${matchId}`).then((r) => r.data);
+const pendingMatchEntries = new Map();
+export const enterSavedMatch = (matchId) => {
+  const key = String(matchId);
+  if (pendingMatchEntries.has(key)) return pendingMatchEntries.get(key);
+  const request = API.post(`/matches/saved/${matchId}/enter`)
+    .then((r) => r.data)
+    .finally(() => pendingMatchEntries.delete(key));
+  pendingMatchEntries.set(key, request);
+  return request;
+};
 
 // ========== Wallet ==========
 export const creditWallet = (userId, amount) => API.post("/wallet/credit", { userId, amount });
@@ -35,6 +45,10 @@ export const debitWallet = (userId, amount) => API.post("/wallet/debit", { userI
 export const getWalletBalance = (userId) => API.get(`/wallet/${userId}/balance`);
 export const getWalletHistory = (userId, limit = 10, skip = 0) => 
   API.get(`/wallet/${userId}/history`, { params: { limit, skip } });
+export const getUserLedger = (page = 1, limit = 20) =>
+  API.get("/user/ledger", { params: { page, limit } }).then((r) => r.data);
+export const getLedgerMatchBets = (matchId) =>
+  API.get(`/user/ledger/matches/${encodeURIComponent(matchId)}`).then((r) => r.data);
 
 // ========== Betting ==========
 const createClientBetId = () => globalThis.crypto?.randomUUID?.() ||

@@ -11,7 +11,7 @@ import { MOCK_DATA } from "./mockData.js";
 import MatchMessages from "./MatchMessages.jsx";
 import BetSlip from "./BetSlip.jsx";
 import BetResultModal from "./BetResultModal.jsx";
-import { getMyBets, getWalletBalance, placeBet } from "../../shared/api/userService.js";
+import { enterSavedMatch, getMyBets, getWalletBalance, placeBet } from "../../shared/api/userService.js";
 import { useAuthStore } from "../../store/authStore.js";
 import { useCoinStore } from "../../store/coinStore.js";
 import RecentMatchesAndBets from "./RecentMatchesAndBets.jsx";
@@ -42,6 +42,8 @@ export default function MatchDetails() {
     const [placingBet, setPlacingBet] = useState(false);
     const [betResult, setBetResult] = useState(null);
     const [myBets, setMyBets] = useState([]);
+    const [entryState, setEntryState] = useState({ loading: true, error: "" });
+    const [entryRetry, setEntryRetry] = useState(0);
 
     const savedMatch = useSavedMatch(matchId);
     const {
@@ -58,6 +60,27 @@ export default function MatchDetails() {
         sessionSettlementVersion,
         fetchLatestData,
     } = useManualScoreboard(matchId);
+
+    useEffect(() => {
+        if (!user?._id || !matchId) return;
+        let active = true;
+        setEntryState({ loading: true, error: "" });
+        enterSavedMatch(matchId)
+            .then((response) => {
+                if (!active) return;
+                const balance = Number(response?.data?.userBalance);
+                if (Number.isFinite(balance)) setCoins(balance);
+                setEntryState({ loading: false, error: "" });
+            })
+            .catch((requestError) => {
+                if (!active) return;
+                setEntryState({
+                    loading: false,
+                    error: requestError?.response?.data?.message || "Match entry could not be completed.",
+                });
+            });
+        return () => { active = false; };
+    }, [entryRetry, matchId, setCoins, user?._id]);
 
     const loadMyBets = useCallback(async () => {
         if (!user?._id || !matchId) return;
@@ -187,8 +210,12 @@ export default function MatchDetails() {
         );
     }
 
-    if (loading && runners.length === 0) {
+    if (entryState.loading || (loading && runners.length === 0)) {
         return <LoadingState />;
+    }
+
+    if (entryState.error) {
+        return <ErrorState error={entryState.error} onRetry={() => setEntryRetry((value) => value + 1)} />;
     }
 
     if (error) {

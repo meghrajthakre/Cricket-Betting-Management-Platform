@@ -3,6 +3,7 @@
 const { User, ROLES } = require("../user/user.model");
 const { Bet, BET_STATUS } = require("../bet/bet.model");
 const SavedMatch = require("../saved-match/saved-match.model");
+const MatchEntry = require("../saved-match/match-entry.model");
 const { getCompanyShareBps, getViewerShareBps } = require("../bet/bet-share.service");
 
 const money = (value) => Number(Number(value || 0).toFixed(2));
@@ -35,16 +36,33 @@ async function getSettlementLedger(viewerId) {
     const key = `${company._id}:${bet.matchId}`;
     totals.set(key, money((totals.get(key) || 0) + superPnl));
   }
+  const entryFees = new Map();
+  if (viewer.role === ROLES.SUPERADMIN) {
+    const entries = await MatchEntry.find({
+      userId: { $in: users.map((user) => user._id) },
+      matchId: { $in: matches.map((match) => match.matchId) },
+      rootSuperAdminId: rootId,
+    }).lean();
+    for (const entry of entries) {
+      const companyId = companyByUser.get(String(entry.userId));
+      if (!companyId) continue;
+      const key = `${companyId}:${entry.matchId}`;
+      entryFees.set(key, money((entryFees.get(key) || 0) + Number(entry.fee)));
+    }
+  }
 
   const rows = [];
   for (const match of matches) {
     for (const company of companies) {
-      const superPnl = totals.get(`${company._id}:${match.matchId}`) || 0;
-      if (superPnl === 0) continue;
       const subCompanyView = viewer.role === ROLES.SUB_COMPANY;
+      const key = `${company._id}:${match.matchId}`;
+      const superPnl = totals.get(key) || 0;
+      const matchEntryFees = subCompanyView ? 0 : (entryFees.get(key) || 0);
+      const ledgerAmount = money(superPnl + matchEntryFees);
+      if (ledgerAmount === 0) continue;
       const type = subCompanyView
-        ? (superPnl > 0 ? "debit" : "credit")
-        : (superPnl > 0 ? "credit" : "debit");
+        ? (ledgerAmount > 0 ? "debit" : "credit")
+        : (ledgerAmount > 0 ? "credit" : "debit");
       rows.push({
         id: `${match._id}:${company._id}`,
         matchId: match.matchId,
@@ -53,10 +71,11 @@ async function getSettlementLedger(viewerId) {
         companyName: company.firstName || company.username,
         date: match.settledAt || match.updatedAt,
         type,
-        amount: Math.abs(superPnl),
+        amount: Math.abs(ledgerAmount),
+        matchEntryFee: matchEntryFees,
         note: subCompanyView
           ? (type === "debit" ? "Payable to SuperAdmin" : "Receivable from SuperAdmin")
-          : (type === "credit" ? "Receivable from Sub Company" : "Payable to Sub Company"),
+          : `${type === "credit" ? "Receivable from Sub Company" : "Payable to Sub Company"}${matchEntryFees ? `; includes ${matchEntryFees} match fee` : ""}`,
       });
     }
   }
