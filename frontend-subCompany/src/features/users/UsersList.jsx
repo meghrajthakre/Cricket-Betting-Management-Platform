@@ -181,7 +181,7 @@ export default function UsersList({ onGoCreate, refreshKey, mode = "clients" }) 
                 setUsers((items) => items.map((item) => item._id === id ? { ...item, fixLimit, currentLimit: allocation?.currentLimit ?? item.currentLimit, coins: allocation?.currentLimit ?? item.coins, limitRemarks: allocation?.limitRemarks ?? item.limitRemarks } : item));
                 if (allocation) setLimitSummary((summary) => summary ? {
                   ...summary,
-                  usedLimit: allocation.totalAllocated,
+                  allocatedLimit: allocation.totalAllocated,
                   remainingLimit: allocation.remainingLimit,
                 } : summary);
               }}
@@ -208,8 +208,8 @@ export default function UsersList({ onGoCreate, refreshKey, mode = "clients" }) 
             const removed = items.find((item) => item._id === id);
             if (removed) setLimitSummary((summary) => summary ? {
               ...summary,
-              usedLimit: Math.max(0, Number(summary.usedLimit || 0) - Number(removed.fixLimit || 0)),
-              remainingLimit: Math.max(0, Number(summary.fixLimit || 0) - (Number(summary.usedLimit || 0) - Number(removed.fixLimit || 0))),
+              allocatedLimit: Math.max(0, Number(summary.allocatedLimit || 0) - Number(removed.fixLimit || 0)),
+              remainingLimit: Math.max(0, Number(summary.fixLimit || 0) - (Number(summary.allocatedLimit || 0) - Number(removed.fixLimit || 0))),
             } : summary);
             return items.filter((item) => item._id !== id);
           })

@@ -85,7 +85,8 @@ export default function CreateUser({ onCancel, onSuccess }) {
       if (response?.allocation) {
         setLimitSummary((current) => ({
           fixLimit: current?.fixLimit || 0,
-          usedLimit: response.allocation.totalAllocated,
+          usedLimit: current?.usedLimit || 0,
+          allocatedLimit: response.allocation.totalAllocated,
           remainingLimit: response.allocation.remainingLimit,
         }));
       }

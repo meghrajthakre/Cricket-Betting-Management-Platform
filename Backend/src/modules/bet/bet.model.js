@@ -133,6 +133,12 @@ const betSchema = new mongoose.Schema(
             maxlength: 160,
             index: true,
         },
+        // Once the full match is declared, this bet no longer contributes to
+        // the Sub Company used-limit display. Bet status/history stays intact.
+        limitReleasedAt: {
+            type: Date,
+            default: undefined,
+        },
     },
     {
         timestamps: true,

@@ -227,6 +227,7 @@ test("match settlement can be reversed once and then settled again", { skip: !en
     assert.equal((await User.findById(f.user._id).lean()).coins, 900);
 
     await settleMatchBets({ matchId: f.matchIds[0], winningRunnerId: "a", settledBy: f.superAdmin._id });
+    assert.ok((await Bet.findById(placed.bet._id).lean()).limitReleasedAt instanceof Date);
     assert.equal((await User.findById(f.user._id).lean()).coins, 1090);
     assert.equal((await User.findById(f.user._id).lean()).currentLimit, 1090);
     await assert.rejects(
@@ -239,6 +240,7 @@ test("match settlement can be reversed once and then settled again", { skip: !en
     assert.equal((await User.findById(f.user._id).lean()).coins, 900);
     assert.equal((await User.findById(f.user._id).lean()).currentLimit, 900);
     assert.equal((await Bet.findById(placed.bet._id).lean()).status, BET_STATUS.PENDING);
+    assert.equal((await Bet.findById(placed.bet._id).lean()).limitReleasedAt, undefined);
     assert.equal((await SavedMatch.findOne({ matchId: f.matchIds[0] }).lean()).isDeclared, false);
     await assert.rejects(
       reverseMatchSettlement({ matchId: f.matchIds[0], reversedBy: f.superAdmin._id }),
@@ -261,10 +263,13 @@ test("zero-bet match reversal resets declaration and never changes session bets"
     const sessionBet = await placeBet(f.user._id, f.matchIds[0], 100, 91, "yes", "session", "s1", 1, "reverse-session-isolation");
     const balanceAfterPlacement = (await User.findById(f.user._id).lean()).coins;
     await settleMatchBets({ matchId: f.matchIds[0], winningRunnerId: "a", settledBy: f.superAdmin._id });
+    assert.ok((await Bet.findById(sessionBet.bet._id).lean()).limitReleasedAt instanceof Date);
+    assert.equal((await User.findById(f.user._id).lean()).currentLimit, balanceAfterPlacement);
     const reversed = await reverseMatchSettlement({ matchId: f.matchIds[0], reversedBy: f.superAdmin._id });
     assert.equal(reversed.reversedCount, 0);
     assert.equal((await User.findById(f.user._id).lean()).coins, balanceAfterPlacement);
     assert.equal((await Bet.findById(sessionBet.bet._id).lean()).status, BET_STATUS.PENDING);
+    assert.equal((await Bet.findById(sessionBet.bet._id).lean()).limitReleasedAt, undefined);
     const saved = await SavedMatch.findOne({ matchId: f.matchIds[0] }).lean();
     assert.equal(saved.isDeclared, false);
     assert.equal(saved.wonBy, "");

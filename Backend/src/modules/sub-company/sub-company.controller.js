@@ -2,6 +2,7 @@
 
 const { User, ROLES } = require("../user/user.model");
 const { Bet } = require("../bet/bet.model");
+const SavedMatch = require("../saved-match/saved-match.model");
 const asyncHandler = require("../../utils/asyncHandler");
 const AppError = require("../../utils/AppError");
 const {
@@ -197,7 +198,26 @@ const getCompanyUsers = asyncHandler(async (req, res) => {
   const users = await User.find(filter).select("-password").sort({ createdAt: -1 });
   const userIds = users.map((user) => user._id);
   const usedLimits = userIds.length ? await Bet.aggregate([
-    { $match: { userId: { $in: userIds }, status: { $in: ["pending", "won", "lost"] } } },
+    { $match: { userId: { $in: userIds }, status: { $in: ["pending", "won", "lost"] }, limitReleasedAt: { $exists: false } } },
+    {
+      $lookup: {
+        from: SavedMatch.collection.name,
+        let: { betMatchId: "$matchId", betOwnerId: "$rootSuperAdminId" },
+        pipeline: [{
+          $match: {
+            $expr: {
+              $and: [
+                { $eq: ["$matchId", "$$betMatchId"] },
+                { $eq: ["$user", "$$betOwnerId"] },
+                { $eq: ["$isDeclared", true] },
+              ],
+            },
+          },
+        }],
+        as: "declaredMatches",
+      },
+    },
+    { $match: { "declaredMatches.0": { $exists: false } } },
     {
       $group: {
         _id: "$userId",
@@ -205,7 +225,7 @@ const getCompanyUsers = asyncHandler(async (req, res) => {
           $sum: {
             $cond: [
               { $eq: ["$status", "pending"] },
-              { $cond: [{ $gt: ["$walletAdjustment", 0] }, "$walletAdjustment", "$loss"] },
+              { $ifNull: ["$walletAdjustment", "$loss"] },
               0,
             ],
           },

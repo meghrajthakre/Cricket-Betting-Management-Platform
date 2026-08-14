@@ -1,6 +1,7 @@
 "use strict";
 const test = require("node:test"); const assert = require("node:assert/strict"); const mongoose = require("mongoose"); const app = require("../../server");
 const { User, ROLES } = require("../../src/modules/user/user.model"); const { generateAccessToken } = require("../../src/utils/generateToken");
+const { Bet } = require("../../src/modules/bet/bet.model");
 const enabled = process.env.TEST_ALLOW_DB_WRITES === "true" && Boolean(process.env.TEST_MONGODB_URI); const stamp = Date.now(); let server; let baseUrl; let companyA; let companyB; let normal; let created;
 const auth = (user) => ({ Authorization: `Bearer ${generateAccessToken({ id: user._id, role: user.role })}`, "Content-Type": "application/json" }); const payload = { firstName: "Company Client", password: "pass1234", confirmPassword: "pass1234", coins: 100 };
 test.before(async () => { if (!enabled) return; await mongoose.connect(process.env.TEST_MONGODB_URI); [companyA, companyB, normal] = await User.create([{ username: `usercompanya${stamp}`, password: "pass1234", role: ROLES.SUB_COMPANY, fixLimit: 300 }, { username: `usercompanyb${stamp}`, password: "pass1234", role: ROLES.SUB_COMPANY, fixLimit: 300 }, { username: `usernormal${stamp}`, password: "pass1234", role: ROLES.USER }]); server = app.listen(0, "127.0.0.1"); await new Promise((resolve) => server.once("listening", resolve)); baseUrl = `http://127.0.0.1:${server.address().port}`; });
@@ -9,8 +10,23 @@ const post = (user, body = payload) => fetch(`${baseUrl}/api/sub-companies/panel
 test("unauthenticated user creation is rejected", { skip: !enabled }, async () => assert.equal((await post(null)).status, 401));
 test("normal user cannot create company users", { skip: !enabled }, async () => assert.equal((await post(normal)).status, 403));
 test("Sub Company creates the unique SM-prefixed username shown in the form", { skip: !enabled }, async () => { const previewResponse = await fetch(`${baseUrl}/api/sub-companies/panel/users/next-username`, { headers: auth(companyA) }); const preview = await previewResponse.json(); assert.equal(previewResponse.status, 200); assert.match(preview.data.username, /^sm\d{4}$/); const response = await post(companyA, { ...payload, role: ROLES.SUPERADMIN, parentId: companyB._id }); const body = await response.json(); assert.equal(response.status, 201); assert.equal(body.data.username, preview.data.username); assert.equal(await User.countDocuments({ username: body.data.username }), 1); assert.equal(body.data.role, ROLES.USER); assert.equal(String(body.data.createdBy), String(companyA._id)); assert.equal(String(body.data.parentId), String(companyA._id)); assert.equal("password" in body.data, false); created = body.data; });
-test("Sub Company limit summary shows fix, used and remaining balance", { skip: !enabled }, async () => { const response = await fetch(`${baseUrl}/api/sub-companies/panel/limit-summary`, { headers: auth(companyA) }); const body = await response.json(); assert.equal(response.status, 200); assert.equal(body.data.fixLimit, 300); assert.equal(body.data.usedLimit, 100); assert.equal(body.data.remainingLimit, 200); });
+test("Sub Company limit summary separates betting usage from allocation", { skip: !enabled }, async () => { const response = await fetch(`${baseUrl}/api/sub-companies/panel/limit-summary`, { headers: auth(companyA) }); const body = await response.json(); assert.equal(response.status, 200); assert.equal(body.data.fixLimit, 300); assert.equal(body.data.usedLimit, 0); assert.equal(body.data.allocatedLimit, 100); assert.equal(body.data.remainingLimit, 200); });
 test("Sub Company lists only its own users", { skip: !enabled }, async () => { await post(companyB); const body = await (await fetch(`${baseUrl}/api/sub-companies/panel/users`, { headers: auth(companyA) })).json(); assert.ok(body.data.every((user) => String(user.createdBy) === String(companyA._id))); });
+test("opposite match bets use their net exposure instead of summed liabilities", { skip: !enabled }, async () => {
+  const matchId = `hedged-limit-${stamp}`;
+  await Bet.create([
+    { userId: created._id, matchId, marketType: "match", marketId: "southern-brave", amount: 10000, rate: 90, type: "no", profit: 10000, loss: 9000, walletAdjustment: 9000 },
+    { userId: created._id, matchId, marketType: "match", marketId: "southern-brave", amount: 10000, rate: 90, type: "yes", profit: 9000, loss: 10000, walletAdjustment: -9000 },
+  ]);
+  try {
+    const usersBody = await (await fetch(`${baseUrl}/api/sub-companies/panel/users`, { headers: auth(companyA) })).json();
+    assert.equal(usersBody.data.find((user) => String(user._id) === String(created._id)).usedLimit, 0);
+    const summaryBody = await (await fetch(`${baseUrl}/api/sub-companies/panel/limit-summary`, { headers: auth(companyA) })).json();
+    assert.equal(summaryBody.data.usedLimit, 0);
+  } finally {
+    await Bet.deleteMany({ matchId });
+  }
+});
 test("Sub Company cannot mutate another company's user", { skip: !enabled }, async () => assert.equal((await fetch(`${baseUrl}/api/sub-companies/panel/users/${created._id}/status`, { method: "PATCH", headers: auth(companyB) })).status, 404));
 test("combined user balances cannot exceed Sub Company fixLimit", { skip: !enabled }, async () => { const response = await post(companyA, { ...payload, coins: 201 }); const body = await response.json(); assert.equal(response.status, 409); assert.equal(body.code, "FIX_LIMIT_EXCEEDED"); assert.equal(await User.countDocuments({ createdBy: companyA._id }), 1); });
 test("combined user balances may equal Sub Company fixLimit", { skip: !enabled }, async () => { const response = await post(companyA, { ...payload, coins: 200 }); const body = await response.json(); assert.equal(response.status, 201); assert.equal(body.allocation.totalAllocated, 300); assert.equal(body.allocation.remainingLimit, 0); await User.deleteOne({ _id: body.data._id }); });

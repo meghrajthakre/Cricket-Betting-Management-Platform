@@ -743,6 +743,24 @@ const settleMatchBets = async ({ matchId, winningRunnerId, settledBy }) => {
                 );
                 if (update.modifiedCount !== 1) throw serviceError("Concurrent orphan bet update detected", 409, "MATCH_ALREADY_SETTLED");
             }
+            const limitReleaseFilter = {
+                matchId,
+                status: { $in: [BET_STATUS.PENDING, BET_STATUS.WON, BET_STATUS.LOST] },
+            };
+            if (actor.role === ROLES.SUPERADMIN) limitReleaseFilter.rootSuperAdminId = actor._id;
+            const limitUserIds = await Bet.find(limitReleaseFilter).distinct("userId").session(dbSession);
+            await Bet.updateMany(
+                limitReleaseFilter,
+                { $set: { limitReleasedAt: now } },
+                { session: dbSession }
+            );
+            if (limitUserIds.length) {
+                const limitUsers = await User.find({ _id: { $in: limitUserIds } }).session(dbSession);
+                for (const limitUser of limitUsers) {
+                    limitUser.currentLimit = Number(limitUser.coins);
+                    await limitUser.save({ session: dbSession, validateModifiedOnly: true });
+                }
+            }
             if (savedMatch) {
                 savedMatch.isDeclared = true;
                 savedMatch.winningRunnerId = winningRunnerId;
@@ -837,6 +855,12 @@ const reverseMatchSettlement = async ({ matchId, reversedBy }) => {
                 );
                 if (update.modifiedCount !== betIds.length) throw serviceError("Concurrent match reversal detected", 409, "MATCH_REVERSAL_CONFLICT");
             }
+
+            await Bet.updateMany(
+                { matchId, rootSuperAdminId: actor._id, limitReleasedAt: { $exists: true } },
+                { $unset: { limitReleasedAt: 1 } },
+                { session: dbSession }
+            );
 
             const previousWinner = savedMatch.wonBy;
             const previousProfitLoss = Number(savedMatch.profitLoss || 0);

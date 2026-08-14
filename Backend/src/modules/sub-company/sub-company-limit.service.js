@@ -3,6 +3,7 @@
 const mongoose = require("mongoose");
 const { User, ROLES } = require("../user/user.model");
 const { Bet } = require("../bet/bet.model");
+const SavedMatch = require("../saved-match/saved-match.model");
 const { setUserCoins } = require("../ledger/ledger.service");
 const AppError = require("../../utils/AppError");
 
@@ -100,7 +101,7 @@ const setUserBalanceWithinFixLimit = async (companyId, userId, coins, actorId) =
     if (!user) throw new AppError("User not found.", 404);
     const [usage] = await Bet.aggregate([
       { $match: { userId: new mongoose.Types.ObjectId(userId), status: "pending" } },
-      { $group: { _id: null, total: { $sum: { $cond: [{ $gt: ["$walletAdjustment", 0] }, "$walletAdjustment", "$loss"] } } } },
+      { $group: { _id: null, total: { $sum: { $ifNull: ["$walletAdjustment", "$loss"] } } } },
     ]).session(session);
     const usedLimit = Number(Number(usage?.total || 0).toFixed(2));
     if (Number(user.fixLimit || 0) > 0) validateUserLimitBounds(targetCoins, usedLimit, Number(user.fixLimit));
@@ -123,7 +124,7 @@ const updateUserFixLimitWithinCompany = async (companyId, userId, value, current
     if (!user) throw new AppError("User not found.", 404);
     const [usage] = await Bet.aggregate([
       { $match: { userId: new mongoose.Types.ObjectId(userId), status: "pending" } },
-      { $group: { _id: null, total: { $sum: { $cond: [{ $gt: ["$walletAdjustment", 0] }, "$walletAdjustment", "$loss"] } } } },
+      { $group: { _id: null, total: { $sum: { $ifNull: ["$walletAdjustment", "$loss"] } } } },
     ]).session(session);
     const usedLimit = Number(Number(usage?.total || 0).toFixed(2));
     validateUserLimitBounds(fixLimit, usedLimit, Number(company.fixLimit || 0));
@@ -198,16 +199,70 @@ const getCompanyLimitSummary = async (companyId) => {
   }).select("fixLimit").lean();
   if (!company) throw new AppError("Sub Company not found.", 404);
 
-  const [row] = await User.aggregate([
-    { $match: { role: ROLES.USER, createdBy: new mongoose.Types.ObjectId(companyId) } },
-    { $group: { _id: null, total: { $sum: { $cond: [{ $gt: ["$fixLimit", 0] }, "$fixLimit", "$coins"] } } } },
+  const companyObjectId = new mongoose.Types.ObjectId(companyId);
+  const [userIds, allocationRows] = await Promise.all([
+    User.find({ role: ROLES.USER, createdBy: companyId }).distinct("_id"),
+    User.aggregate([
+      { $match: { role: ROLES.USER, createdBy: companyObjectId } },
+      { $group: { _id: null, total: { $sum: { $cond: [{ $gt: ["$fixLimit", 0] }, "$fixLimit", "$coins"] } } } },
+    ]),
   ]);
+  const [row] = userIds.length ? await Bet.aggregate([
+    {
+      $match: {
+        userId: { $in: userIds },
+        status: { $in: ["pending", "won", "lost"] },
+        limitReleasedAt: { $exists: false },
+      },
+    },
+    {
+      $lookup: {
+        from: SavedMatch.collection.name,
+        let: { betMatchId: "$matchId", betOwnerId: "$rootSuperAdminId" },
+        pipeline: [{
+          $match: {
+            $expr: {
+              $and: [
+                { $eq: ["$matchId", "$$betMatchId"] },
+                { $eq: ["$user", "$$betOwnerId"] },
+                { $eq: ["$isDeclared", true] },
+              ],
+            },
+          },
+        }],
+        as: "declaredMatches",
+      },
+    },
+    { $match: { "declaredMatches.0": { $exists: false } } },
+    {
+      $group: {
+        _id: null,
+        total: {
+          $sum: {
+            $switch: {
+              branches: [
+                {
+                  case: { $eq: ["$status", "pending"] },
+                  then: { $ifNull: ["$walletAdjustment", "$loss"] },
+                },
+                { case: { $eq: ["$status", "won"] }, then: { $multiply: ["$profit", -1] } },
+                { case: { $eq: ["$status", "lost"] }, then: "$loss" },
+              ],
+              default: 0,
+            },
+          },
+        },
+      },
+    },
+  ]) : [];
   const usedLimit = Number((row?.total || 0).toFixed(2));
+  const allocatedLimit = Number((allocationRows[0]?.total || 0).toFixed(2));
   const fixLimit = Number(company.fixLimit || 0);
   return {
     fixLimit,
     usedLimit,
-    remainingLimit: Math.max(0, Number((fixLimit - usedLimit).toFixed(2))),
+    allocatedLimit,
+    remainingLimit: Math.max(0, Number((fixLimit - allocatedLimit).toFixed(2))),
   };
 };
 
