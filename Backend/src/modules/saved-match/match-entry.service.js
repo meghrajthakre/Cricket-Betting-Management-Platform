@@ -64,6 +64,8 @@ const enterMatch = async (userId, rawMatchId) => {
       if (!Number.isFinite(userBalanceBefore) || userBalanceBefore < fee) {
         const error = new AppError(`At least ${fee} coins are required to enter this match.`, 409);
         error.code = "MATCH_ENTRY_INSUFFICIENT_BALANCE";
+        error.requiredFee = fee;
+        error.currentBalance = Number.isFinite(userBalanceBefore) ? userBalanceBefore : 0;
         throw error;
       }
 

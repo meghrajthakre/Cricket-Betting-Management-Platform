@@ -73,7 +73,12 @@ test("concurrent and repeated entry requests charge exactly once", { skip: !enab
 
 test("insufficient balance rejects entry without partial wallet or ledger changes", { skip: !enabled }, async () => {
   const f = await fixture(MATCH_ENTRY_FEE - 1);
-  await assert.rejects(enterMatch(f.user._id, f.matchId), (error) => error.code === "MATCH_ENTRY_INSUFFICIENT_BALANCE");
+  await assert.rejects(enterMatch(f.user._id, f.matchId), (error) => {
+    assert.equal(error.code, "MATCH_ENTRY_INSUFFICIENT_BALANCE");
+    assert.equal(error.requiredFee, MATCH_ENTRY_FEE);
+    assert.equal(error.currentBalance, MATCH_ENTRY_FEE - 1);
+    return true;
+  });
   assert.equal((await User.findById(f.user._id).lean()).coins, MATCH_ENTRY_FEE - 1);
   assert.equal((await User.findById(f.superAdmin._id).lean()).coins, 100);
   assert.equal(await MatchEntry.countDocuments({ userId: f.user._id, matchId: f.matchId }), 0);

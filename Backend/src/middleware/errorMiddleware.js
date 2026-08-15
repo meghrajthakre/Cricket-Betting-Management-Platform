@@ -64,6 +64,8 @@ const errorHandler = (err, req, res, _next) => {
   const body = { success: false, message };
   if (errors) body.errors = errors;
   if (err.code) body.code = err.code; // e.g. TOKEN_EXPIRED
+  if (Number.isFinite(err.requiredFee)) body.requiredFee = err.requiredFee;
+  if (Number.isFinite(err.currentBalance)) body.currentBalance = err.currentBalance;
   if (process.env.NODE_ENV === "development") body.stack = err.stack;
 
   res.status(statusCode).json(body);

@@ -16,6 +16,7 @@ import { useAuthStore } from "../../store/authStore.js";
 import { useCoinStore } from "../../store/coinStore.js";
 import RecentMatchesAndBets from "./RecentMatchesAndBets.jsx";
 import LiveTvPanel from "./LiveTvPanel.jsx";
+import MatchEntryError from "./MatchEntryError.jsx";
 
 const MIN_BET_LOADER_MS = 500;
 
@@ -42,7 +43,7 @@ export default function MatchDetails() {
     const [placingBet, setPlacingBet] = useState(false);
     const [betResult, setBetResult] = useState(null);
     const [myBets, setMyBets] = useState([]);
-    const [entryState, setEntryState] = useState({ loading: true, error: "" });
+    const [entryState, setEntryState] = useState({ loading: true, error: "", code: "", requiredFee: 15, currentBalance: 0 });
     const [entryRetry, setEntryRetry] = useState(0);
 
     const savedMatch = useSavedMatch(matchId);
@@ -64,19 +65,23 @@ export default function MatchDetails() {
     useEffect(() => {
         if (!user?._id || !matchId) return;
         let active = true;
-        setEntryState({ loading: true, error: "" });
+        setEntryState((current) => ({ ...current, loading: true, error: "", code: "" }));
         enterSavedMatch(matchId)
             .then((response) => {
                 if (!active) return;
                 const balance = Number(response?.data?.userBalance);
                 if (Number.isFinite(balance)) setCoins(balance);
-                setEntryState({ loading: false, error: "" });
+                setEntryState({ loading: false, error: "", code: "", requiredFee: 15, currentBalance: balance });
             })
             .catch((requestError) => {
                 if (!active) return;
+                const responseData = requestError?.response?.data || {};
                 setEntryState({
                     loading: false,
-                    error: requestError?.response?.data?.message || "Match entry could not be completed.",
+                    error: responseData.message || "Match entry could not be completed.",
+                    code: responseData.code || "",
+                    requiredFee: Number(responseData.requiredFee) || 15,
+                    currentBalance: Number(responseData.currentBalance) || 0,
                 });
             });
         return () => { active = false; };
@@ -215,6 +220,16 @@ export default function MatchDetails() {
     }
 
     if (entryState.error) {
+        if (entryState.code === "MATCH_ENTRY_INSUFFICIENT_BALANCE") {
+            return (
+                <MatchEntryError
+                    requiredFee={entryState.requiredFee}
+                    currentBalance={entryState.currentBalance}
+                    checking={entryState.loading}
+                    onRetry={() => setEntryRetry((value) => value + 1)}
+                />
+            );
+        }
         return <ErrorState error={entryState.error} onRetry={() => setEntryRetry((value) => value + 1)} />;
     }
 
