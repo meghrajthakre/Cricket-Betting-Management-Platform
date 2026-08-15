@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { RefreshCw, Trophy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import apiClient from "../../shared/api/apiClient";
+import { sortMatchesForSupport } from "./matchOrdering";
 
 const formatSport = (value) =>
   value ? value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) : "Cricket";
@@ -69,7 +70,8 @@ export default function SupportMatchesPage() {
 
     try {
       const response = await apiClient.get("/matches/saved");
-      setMatches(Array.isArray(response.data?.data) ? response.data.data : []);
+      const savedMatches = Array.isArray(response.data?.data) ? response.data.data : [];
+      setMatches(sortMatchesForSupport(savedMatches));
     } catch (requestError) {
       setError(requestError.response?.data?.message || requestError.message || "Failed to fetch matches");
     } finally {

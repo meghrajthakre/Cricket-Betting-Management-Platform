@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "test": "node tests/scoreCalculations.test.js",
+    "test": "node tests/run.js",
     "preview": "vite preview"
   },
   "dependencies": {

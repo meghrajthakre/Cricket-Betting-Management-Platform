@@ -37,18 +37,16 @@ async function getSettlementLedger(viewerId) {
     totals.set(key, money((totals.get(key) || 0) + superPnl));
   }
   const entryFees = new Map();
-  if (viewer.role === ROLES.SUPERADMIN) {
-    const entries = await MatchEntry.find({
-      userId: { $in: users.map((user) => user._id) },
-      matchId: { $in: matches.map((match) => match.matchId) },
-      rootSuperAdminId: rootId,
-    }).lean();
-    for (const entry of entries) {
-      const companyId = companyByUser.get(String(entry.userId));
-      if (!companyId) continue;
-      const key = `${companyId}:${entry.matchId}`;
-      entryFees.set(key, money((entryFees.get(key) || 0) + Number(entry.fee)));
-    }
+  const entries = await MatchEntry.find({
+    userId: { $in: users.map((user) => user._id) },
+    matchId: { $in: matches.map((match) => match.matchId) },
+    rootSuperAdminId: rootId,
+  }).lean();
+  for (const entry of entries) {
+    const companyId = companyByUser.get(String(entry.userId));
+    if (!companyId) continue;
+    const key = `${companyId}:${entry.matchId}`;
+    entryFees.set(key, money((entryFees.get(key) || 0) + Number(entry.fee)));
   }
 
   const rows = [];
@@ -57,7 +55,7 @@ async function getSettlementLedger(viewerId) {
       const subCompanyView = viewer.role === ROLES.SUB_COMPANY;
       const key = `${company._id}:${match.matchId}`;
       const superPnl = totals.get(key) || 0;
-      const matchEntryFees = subCompanyView ? 0 : (entryFees.get(key) || 0);
+      const matchEntryFees = entryFees.get(key) || 0;
       const ledgerAmount = money(superPnl + matchEntryFees);
       if (ledgerAmount === 0) continue;
       const type = subCompanyView
@@ -74,7 +72,7 @@ async function getSettlementLedger(viewerId) {
         amount: Math.abs(ledgerAmount),
         matchEntryFee: matchEntryFees,
         note: subCompanyView
-          ? (type === "debit" ? "Payable to SuperAdmin" : "Receivable from SuperAdmin")
+          ? `${type === "debit" ? "Payable to SuperAdmin" : "Receivable from SuperAdmin"}${matchEntryFees ? `; includes ${matchEntryFees} match fee` : ""}`
           : `${type === "credit" ? "Receivable from Sub Company" : "Payable to Sub Company"}${matchEntryFees ? `; includes ${matchEntryFees} match fee` : ""}`,
       });
     }

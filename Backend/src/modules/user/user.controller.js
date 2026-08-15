@@ -56,17 +56,42 @@ const getLedger = asyncHandler(async (req, res) => {
     ],
   };
 
-  const [entries, total] = await Promise.all([
-    Ledger.find(filter)
-      .populate("createdBy", "username role")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean(),
-    Ledger.countDocuments(filter),
-  ]);
+  const entries = await Ledger.find(filter)
+    .populate("createdBy", "username role")
+    .sort({ createdAt: -1 })
+    .lean();
 
-  const visibleEntries = entries.map((entry) => {
+  const groupedEntries = [];
+  const matchGroups = new Map();
+  for (const entry of entries) {
+    if (!entry.matchId) {
+      groupedEntries.push({
+        ...entry,
+        debitAmount: entry.type === "debit" ? Number(entry.amount) : 0,
+        creditAmount: entry.type === "credit" ? Number(entry.amount) : 0,
+      });
+      continue;
+    }
+
+    let group = matchGroups.get(entry.matchId);
+    if (!group) {
+      group = {
+        ...entry,
+        _id: `match:${entry.matchId}`,
+        debitAmount: 0,
+        creditAmount: 0,
+        transactionCount: 0,
+      };
+      matchGroups.set(entry.matchId, group);
+      groupedEntries.push(group);
+    }
+    group.transactionCount += 1;
+    if (entry.type === "debit") group.debitAmount = Number((group.debitAmount + Number(entry.amount)).toFixed(2));
+    else group.creditAmount = Number((group.creditAmount + Number(entry.amount)).toFixed(2));
+  }
+
+  const total = groupedEntries.length;
+  const visibleEntries = groupedEntries.slice(skip, skip + limit).map((entry) => {
     if (!entry.matchId) return entry;
     const match = matchById.get(entry.matchId);
     return {

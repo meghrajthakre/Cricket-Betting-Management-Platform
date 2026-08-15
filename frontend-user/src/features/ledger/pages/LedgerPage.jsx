@@ -98,8 +98,8 @@ export default function LedgerPage() {
                       <span className="block truncate text-slate-700">{entryLabel(entry)}</span>
                     )}
                   </td>
-                  <td className="px-4 py-4 text-right font-semibold">{entry.type === "debit" ? money(entry.amount) : "0.00"}</td>
-                  <td className="px-4 py-4 text-right font-semibold">{entry.type === "credit" ? money(entry.amount) : "0.00"}</td>
+                  <td className="px-4 py-4 text-right font-semibold">{money(entry.debitAmount ?? (entry.type === "debit" ? entry.amount : 0))}</td>
+                  <td className="px-4 py-4 text-right font-semibold">{money(entry.creditAmount ?? (entry.type === "credit" ? entry.amount : 0))}</td>
                   <td className="px-4 py-4 text-right font-bold">{money(entry.balanceAfter)}</td>
                 </tr>
               ))}

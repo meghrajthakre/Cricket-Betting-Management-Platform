@@ -42,6 +42,7 @@ test.before(async () => {
     amount: 500, rate: 90, type: "no", profit: 500, loss: 450, status: "lost", settledAt: new Date(),
   });
   await Ledger.create([
+    { userId: user._id, amount: 1000, type: "debit", reason: "settled match loss", matchId: settledMatchId, createdBy: owner._id, balanceBefore: 2000, balanceAfter: 1000 },
     { userId: user._id, amount: 15, type: "debit", reason: "settled match fee", matchId: settledMatchId, createdBy: user._id, balanceBefore: 1000, balanceAfter: 985 },
     { userId: user._id, amount: 15, type: "debit", reason: "pending match fee", matchId: pendingMatchId, createdBy: user._id, balanceBefore: 985, balanceAfter: 970 },
     { userId: user._id, amount: 30, type: "credit", reason: "Cash received", createdBy: owner._id, balanceBefore: 970, balanceAfter: 1000 },
@@ -70,6 +71,10 @@ test("ledger hides pending match entries and labels settled match entries", { sk
   const settled = body.data.entries.find((entry) => entry.matchId === settledMatchId);
   assert.equal(settled.matchName, "Team A vs Team B");
   assert.equal(settled.canViewBets, true);
+  assert.equal(settled.debitAmount, 1015);
+  assert.equal(settled.creditAmount, 0);
+  assert.equal(settled.transactionCount, 2);
+  assert.equal(body.data.entries.filter((entry) => entry.matchId === settledMatchId).length, 1);
   assert.equal(body.data.entries.some((entry) => entry.reason === "Cash received"), true);
 });
 

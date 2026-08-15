@@ -96,4 +96,11 @@ test("declared-match Super Admin ledger includes the match entry fee", { skip: !
   assert.equal(row.type, "credit");
   assert.equal(row.amount, MATCH_ENTRY_FEE);
   assert.equal(row.matchEntryFee, MATCH_ENTRY_FEE);
+  const subLedger = await getSettlementLedger(f.subCompany._id);
+  const subRow = subLedger.rows.find((item) => item.matchId === f.matchId);
+  assert.ok(subRow);
+  assert.equal(subRow.type, "debit");
+  assert.equal(subRow.amount, MATCH_ENTRY_FEE);
+  assert.equal(subRow.matchEntryFee, MATCH_ENTRY_FEE);
+  assert.match(subRow.note, /includes 15 match fee/i);
 });
