@@ -29,7 +29,7 @@ export default {
       /* ── Typography ───────────────────────────────────────────────────── */
       fontFamily: {
         sans:    ["'Inter'", 'sans-serif'],
-        display: ["'Inter'", 'sans-serif'],
+        display: ["'Rajdhani'", "'Inter'", 'sans-serif'],
         body:    ["'Inter'", 'sans-serif'],
       },
 
