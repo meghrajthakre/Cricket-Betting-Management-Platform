@@ -22,9 +22,7 @@ const MainLayout = () => {
       </main>
 
       {!isMatchDetailsPage && (
-        <footer className="mt-auto">
-          <Footer />
-        </footer>
+        <Footer />
       )}
 
     </div>

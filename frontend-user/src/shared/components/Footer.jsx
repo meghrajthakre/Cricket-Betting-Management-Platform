@@ -1,127 +1,56 @@
-import React from 'react';
+import { NavLink } from "react-router-dom";
 
-const NAV_LINKS = [
-  { href: '/dashboard', label: 'Home',       icon: 'ri-home-4-line'         },
-  { href: '/rules',     label: 'Rules',       icon: 'ri-information-line'    },
-  { href: '/ledger',    label: 'Ledger',      icon: 'ri-file-list-3-line'    },
-  { href: '/password',  label: 'Password',    icon: 'ri-lock-password-line'  },
+const FOOTER_LINKS = [
+  { to: "/dashboard", label: "Home", icon: "ri-home-4-line", end: true },
+  { to: "/dashboard/live", label: "Live Matches", icon: "ri-broadcast-line" },
+  { to: "/dashboard/rules", label: "Rules", icon: "ri-information-line" },
+  { to: "/dashboard/ledger", label: "Ledger", icon: "ri-file-list-3-line" },
+  { to: "/dashboard/password", label: "Password", icon: "ri-lock-password-line" },
+  { to: "/dashboard/settings", label: "Settings", icon: "ri-settings-3-line" },
 ];
 
-const MATCH_LINKS = [
-  { href: '/live',          label: 'Live Matches',  icon: 'ri-broadcast-line'      },
-  { href: '/upcoming',      label: 'Upcoming',      icon: 'ri-calendar-event-line' },
-  { href: '/tournament',    label: 'Tournament',    icon: 'ri-trophy-line'         },
-  { href: '/entertainment', label: 'Entertainment', icon: 'ri-gamepad-line'        },
-];
-
-const SOCIAL_LINKS = [
-  { href: '#', icon: 'ri-whatsapp-line',  label: 'WhatsApp'  },
-  { href: '#', icon: 'ri-telegram-line',  label: 'Telegram'  },
-  { href: '#', icon: 'ri-instagram-line', label: 'Instagram' },
-  { href: '#', icon: 'ri-youtube-line',   label: 'YouTube'   },
-];
-
-/* Reusable link list */
-const LinkList = ({ title, links }) => (
-  <div className="flex flex-col items-center text-center">
-    <h3 className="
-      font-rajdhani font-semibold text-base uppercase tracking-widest
-      text-(--color-text-muted) mb-4
-      pb-2 border-b border-(--color-text-muted)/20 w-full text-center
-    ">
-      {title}
-    </h3>
-    <ul className="space-y-2.5 w-full">
-      {links.map(({ href, label, icon }) => (
-        <li key={href}>
-          <a
-            href={href}
-            className="
-              flex items-center justify-center gap-2
-              text-sm font-nunito text-(--color-text-muted)/80
-              transition-all duration-150
-              hover:text-(--color-text-muted) hover:translate-x-0.5
-            "
-          >
-            <i className={`${icon} text-base`} aria-hidden="true" />
-            {label}
-          </a>
-        </li>
-      ))}
-    </ul>
-  </div>
-);
-
-const Footer = () => {
+export default function Footer() {
   return (
-    <footer className="bg-(--color-primary) text-(--color-text-muted) font-nunito mt-auto">
+    <footer className="mt-auto border-t-4 border-(--color-banner) bg-(--color-primary) font-nunito text-(--color-text-muted)">
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
+        <div className="flex flex-col items-center gap-7">
+          <div className="text-center">
+            <h2 className="font-rajdhani text-xl font-bold uppercase tracking-[0.16em] text-white sm:text-2xl">
+              Sonu Book Group
+            </h2>
+            <p className="mt-1.5 text-xs tracking-wide text-(--color-text-muted)/65 sm:text-sm">
+              Trusted · Transparent · Fair Play
+            </p>
+          </div>
 
-      {/* ── Top accent bar ─────────────────────────────────────── */}
-      <div className="h-1 bg-(--color-banner) w-full" />
+          <nav aria-label="Footer navigation">
+            <ul className="flex max-w-3xl flex-wrap items-center justify-center gap-2 sm:gap-3">
+              {FOOTER_LINKS.map(({ to, label, icon, end }) => (
+                <li key={to}>
+                  <NavLink
+                    to={to}
+                    end={end}
+                    className={({ isActive }) => `flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition sm:px-4 sm:text-sm ${
+                      isActive
+                        ? "border-(--color-accent) bg-(--color-primary-light) text-white"
+                        : "border-white/15 text-(--color-text-muted)/80 hover:border-white/35 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    <i className={`${icon} text-base`} aria-hidden="true" />
+                    <span>{label}</span>
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </nav>
 
-      {/* ── Main footer body ───────────────────────────────────── */}
-      <div className="max-w-4xl mx-auto px-6 py-10">
+          <div className="h-px w-full bg-white/15" />
 
-        {/* Brand + tagline — centered */}
-        <div className="text-center mb-10">
-          <h2 className="
-            font-rajdhani text-2xl font-bold tracking-[.12em] uppercase
-            text-(--color-text-muted)
-          ">
-            Sonu Book Group
-          </h2>
-          <p className="text-sm text-(--color-text-muted)/60 mt-1 font-nunito tracking-wide">
-            Trusted · Transparent · Fair Play
+          <p className="text-center text-xs tracking-wide text-(--color-text-muted)/55">
+            © {new Date().getFullYear()} Sonu Book Group. All rights reserved.
           </p>
         </div>
-
-        {/* Link columns — centered, responsive */}
-        <div className="
-          grid grid-cols-2 md:grid-cols-2
-          gap-8 md:gap-16
-          justify-items-center
-          mb-10
-        ">
-          <LinkList title="Navigation" links={NAV_LINKS}  />
-          <LinkList title="Matches"    links={MATCH_LINKS} />
-        </div>
-
-        {/* Social icons — centered row */}
-        <div className="flex items-center justify-center gap-3 mb-10">
-          {SOCIAL_LINKS.map(({ href, icon, label }) => (
-            <a
-              key={label}
-              href={href}
-              aria-label={label}
-              className="
-                flex items-center justify-center
-                w-9 h-9 rounded-full
-                border border-(--color-text-muted)/25
-                text-(--color-text-muted)/70
-                transition-all duration-150
-                hover:border-(--color-text-muted)/60
-                hover:text-(--color-text-muted)
-                hover:bg-(--color-text-muted)/10
-                hover:scale-110
-              "
-            >
-              <i className={`${icon} text-base`} aria-hidden="true" />
-            </a>
-          ))}
-        </div>
-
-        {/* Divider */}
-        <div className="border-t border-(--color-text-muted)/20 mb-6" />
-
-        {/* Copyright — centered */}
-        <p className="text-center text-xs text-(--color-text-muted)/50 font-nunito tracking-wide">
-          © Copyright 2026 Sonu Book Group. All rights reserved.
-        </p>
-
       </div>
-
     </footer>
   );
-};
-
-export default Footer;
+}
