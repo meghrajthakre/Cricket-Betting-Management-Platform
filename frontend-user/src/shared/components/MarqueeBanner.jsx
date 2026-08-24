@@ -44,9 +44,9 @@ export default function MarqueeBanner() {
 
   const item = (
     <span className="flex items-center gap-3 px-10 whitespace-nowrap font-rajdhani text-xs sm:text-sm font-semibold tracking-widest uppercase text-[var(--color-text-muted)]">
-      <span className="text-[var(--color-accent)]">★</span>
+      <i className="ri-star-fill text-[var(--color-accent)]" aria-hidden="true" />
       {text}
-      <span className="text-[var(--color-accent)]">★</span>
+      <i className="ri-star-fill text-[var(--color-accent)]" aria-hidden="true" />
     </span>
   );
 

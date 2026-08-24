@@ -23,8 +23,8 @@ const NAV_ITEMS = [
 
 const CoinIcon = () => (
   <svg
-    width="20"
-    height="20"
+    width="16"
+    height="16"
     viewBox="0 0 64 64"
     xmlns="http://www.w3.org/2000/svg"
     style={{ display: "inline", verticalAlign: "middle", flexShrink: 0 }}
@@ -42,8 +42,8 @@ const CoinIcon = () => (
         0%,100% { filter: drop-shadow(0 0 2px #F5C51888); }
         50%      { filter: drop-shadow(0 0 6px #F5C518cc); }
       }
-      .coin-root  { animation: coinBob 2s ease-in-out infinite, glowPulse 2s ease-in-out infinite; }
-      .coin-shine { animation: shineFlash 2.5s ease-in-out infinite; }
+      .coin-root  { filter: drop-shadow(0 0 2px #F5C51866); }
+      .coin-shine { display: none; }
     `}</style>
 
     <g className="coin-root">
@@ -137,12 +137,21 @@ const Navbar = () => {
     fetchBalance();
   }, [setCoins, user?._id]);
 
+  useEffect(() => {
+    if (!showLogoutConfirm) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape" && !loggingOut) setShowLogoutConfirm(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [loggingOut, showLogoutConfirm]);
+
   const getActiveKey = () => {
     const path = location.pathname;
     if (path === "/dashboard") return "dashboard";
-    if (path === "/dashboard/live") return "live";
+    if (path.startsWith("/dashboard/live")) return "live";
     if (path.startsWith("/match/")) return "live";
-    return "dashboard";
+    return null;
   };
 
   const activeKey = getActiveKey();
@@ -235,17 +244,17 @@ const Navbar = () => {
             </div>
 
             {/* Coins row */}
-            <div className="flex min-w-0 items-center gap-1 mt-0.5">
+            <div className="mt-1 flex w-fit min-w-0 items-center gap-1.5 rounded-full border border-[#F5C518]/25 bg-[#F5C518]/10 px-2 py-0.5">
               <CoinIcon />
               <span
                 className="
-                text-[11px] sm:text-xs
-                font-semibold
+                text-[10px] sm:text-xs
+                font-bold tabular-nums
                 text-[#F5C518]
                 max-w-[90px] truncate tracking-wide
               "
               >
-                {Number(coins).toLocaleString()}
+                {Number(coins).toLocaleString("en-IN")}
               </span>
             </div>
           </div>
@@ -266,8 +275,7 @@ const Navbar = () => {
                 className={`
                   relative flex items-center justify-center
                   gap-1.5 lg:gap-2
-                  w-10 h-10 lg:w-auto lg:h-auto
-                  lg:px-4 lg:py-2
+                  h-10 px-2.5 sm:px-3 lg:px-4 lg:py-2
                   rounded-lg
                   font-rajdhani text-xs lg:text-sm font-semibold tracking-wide
                   text-(--color-text-muted)
@@ -277,14 +285,16 @@ const Navbar = () => {
                   ${
                     isActive
                       ? "border border-[rgba(214,228,245,0.65)] bg-[rgba(255,255,255,0.12)] after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:w-1/2 after:h-0.5 after:bg-(--color-accent) after:rounded-full"
-                      : "border border-transparent bg-transparent hover:bg-[rgba(255,255,255,0.12)]"
+                      : key === "logout"
+                        ? "border border-transparent bg-transparent hover:border-red-300/30 hover:bg-red-500/15 hover:text-red-100"
+                        : "border border-transparent bg-transparent hover:bg-[rgba(255,255,255,0.12)]"
                   }
                 `}
               >
                 {typeof Icon === "string"
                   ? <i className={`${Icon} text-lg`} aria-hidden="true" />
                   : <Icon className="text-xl" aria-hidden="true" />}
-                <span className="hidden lg:inline whitespace-nowrap">{label}</span>
+                <span className="hidden whitespace-nowrap sm:inline">{label}</span>
               </button>
             );
           })}
