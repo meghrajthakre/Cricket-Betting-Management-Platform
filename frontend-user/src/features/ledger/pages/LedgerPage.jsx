@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getLedgerMatchBets, getUserLedger, getWalletBalance } from "../../../shared/api/userService";
 import { useAuthStore } from "../../../store/authStore";
 import { useCoinStore } from "../../../store/coinStore";
+import LedgerSkeleton from "../LedgerSkeleton";
 import MatchBetDetails from "../MatchBetDetails";
 
 const money = (value) => Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -81,7 +82,7 @@ export default function LedgerPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="5" className="px-4 py-12 text-center text-slate-500">Loading ledger...</td></tr>
+                <LedgerSkeleton />
               ) : error ? (
                 <tr><td colSpan="5" className="px-4 py-12 text-center font-semibold text-red-600">{error}</td></tr>
               ) : entries.length === 0 ? (
