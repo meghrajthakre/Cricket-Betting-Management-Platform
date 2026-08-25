@@ -15,19 +15,10 @@
     return config;
   });
 
-  // ── Response interceptor — global 401 handler ─────────────────────────────────
+  // Feature screens handle authorization errors; a 401 must not erase the session.
   api.interceptors.response.use(
     (response) => response,
-    (error) => {
-      if (error.response?.status === 401 && !error.config?.skipAuthRedirect) {
-        sessionStorage.removeItem("accessToken");
-        sessionStorage.removeItem("superAdminVerified");
-        if (!window.location.pathname.includes("/login")) {
-          window.location.href = "/login";
-        }
-      }
-      return Promise.reject(error);
-    }
+    (error) => Promise.reject(error)
   );
 
   export default api;
