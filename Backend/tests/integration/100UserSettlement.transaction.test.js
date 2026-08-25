@@ -83,7 +83,7 @@ test.after(async () => {
 
 test("100 users: used limit, win/loss settlement, fee sharing and reversal stay consistent", { skip: !enabled, timeout: 120000 }, async () => {
   const before = await getCompanyLimitSummary(company._id);
-  assert.equal(before.usedLimit, USER_COUNT * STAKE);
+  assert.equal(before.usedLimit, USER_COUNT * (STAKE + ENTRY_FEE));
   assert.equal(before.allocatedLimit, USER_COUNT * STARTING_BALANCE);
 
   const settled = await settleMatchBets({ matchId, winningRunnerId: "a", settledBy: superAdmin._id });
@@ -128,7 +128,7 @@ test("100 users: used limit, win/loss settlement, fee sharing and reversal stay 
     User.find({ _id: { $in: users.map((user) => user._id) } }).lean(),
     Bet.find({ matchId }).lean(), SavedMatch.findOne({ matchId }).lean(), getSettlementLedger(company._id),
   ]);
-  assert.equal(reversedSummary.usedLimit, USER_COUNT * STAKE);
+  assert.equal(reversedSummary.usedLimit, USER_COUNT * (STAKE + ENTRY_FEE));
   assert.equal(reversedUsers.every((user) => user.coins === RESERVED_BALANCE && user.currentLimit === RESERVED_BALANCE), true);
   assert.equal(reversedBets.every((bet) => bet.status === BET_STATUS.PENDING && bet.limitReleasedAt === undefined), true);
   assert.equal(reversedMatch.isDeclared, false);

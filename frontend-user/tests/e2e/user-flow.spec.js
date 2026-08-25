@@ -235,20 +235,20 @@ test("authenticated user opens match odds and places a bet", async ({ page }) =>
   });
 });
 
-test("expired API session clears auth state and redirects to login", async ({ page }) => {
+test("a 401 response preserves auth state and does not force a global logout", async ({ page }) => {
   await seedAuthenticatedUser(page);
   await mockMatchApis(page, { expireOnMyBets: true });
 
   await page.goto("/match/e2e-match");
 
-  await expect(page).toHaveURL(/\/login$/);
+  await expect(page).toHaveURL(/\/match\/e2e-match$/);
   await expect.poll(() =>
     page.evaluate(() => ({
       token: localStorage.getItem("userAccessToken"),
-      auth: localStorage.getItem("auth-store"),
-      coins: localStorage.getItem("coin-store"),
+      isLoggedIn: JSON.parse(localStorage.getItem("auth-store") || "null")?.state?.isLoggedIn,
+      coins: JSON.parse(localStorage.getItem("coin-store") || "null")?.state?.coins,
     }))
-  ).toEqual({ token: null, auth: null, coins: null });
+  ).toEqual({ token: "e2e-user-token", isLoggedIn: true, coins: 1000 });
 });
 
 test("authenticated user places a YES session bet with run and session rate", async ({ page }) => {

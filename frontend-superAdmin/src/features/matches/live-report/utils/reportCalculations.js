@@ -11,7 +11,9 @@ export function calculateMatchPositions(runners, bets) {
     runners.map((runner) => [runner.runnerId, 0])
   );
   const matchBets = bets.filter(
-    (bet) => bet.marketType === "match" && bet.status === "pending"
+    (bet) =>
+      bet.marketType === "match" &&
+      ["pending", "won", "lost"].includes(bet.status)
   );
 
   for (const bet of matchBets) {
