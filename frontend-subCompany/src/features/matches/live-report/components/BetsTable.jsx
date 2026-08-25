@@ -13,7 +13,7 @@ export default function BetsTable({ bets }) {
               <th className="px-4 py-3">User</th>
               <th className="px-4 py-3">Team / Session</th>
               <th className="px-4 py-3">Market</th>
-              <th className="px-4 py-3">Bet</th>
+              <th className="px-4 py-3">Your Side</th>
               <th className="px-4 py-3 text-right">Rate</th>
               <th className="px-4 py-3 text-right">Amount</th>
               <th className="px-4 py-3 text-right">Win</th>
@@ -39,10 +39,10 @@ export default function BetsTable({ bets }) {
                 <td className="px-4 py-3">
                   <span
                     className={`font-bold ${
-                      bet.type === "yes" ? "text-blue-700" : "text-pink-700"
+                      bet.type === "yes" ? "text-pink-700" : "text-blue-700"
                     }`}
                   >
-                    {bet.type === "yes" ? "LAGAI" : "KHAI"}
+                    {bet.type === "yes" ? "KHAI" : "LAGAI"}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right">{bet.rate}</td>
