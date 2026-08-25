@@ -3,6 +3,7 @@ import useAuth from "../../features/auth/hooks/useAuth";
 import SupportLayout from "../layouts/SupportLayout";
 import LoginPage from "../../features/auth/pages/LoginPage";
 import SupportMatchesPage from "../../features/matches/SupportMatchesPage";
+import AddMatchesPage from "../../features/matches/AddMatchesPage";
 import SupportLivePage from "../../features/matches/live/SupportLivePage";
 import ManualPage from "../../features/matches/live/Manual/ManualPage";
 import ScorePage from "../../features/matches/live/ScorePage/ScorePage";
@@ -33,6 +34,7 @@ export default function AppRoutes() {
       {/* Protected — all share the same navbar via SupportLayout */}
       <Route element={<ProtectedRoute><SupportLayout /></ProtectedRoute>}>
         <Route path="/support/matches" element={<SupportMatchesPage />} />
+        <Route path="/support/matches/add" element={<AddMatchesPage />} />
         <Route path="/support/matches/:matchId/play" element={<SupportLivePage />} />
         <Route path="/support/matches/:matchId/manual" element={<ManualPage />} />
         <Route path="/support/matches/:matchId/manual/options" element={<Options />} />

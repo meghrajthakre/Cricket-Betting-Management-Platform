@@ -6,7 +6,7 @@ const COLOR = "#1E3A5F";
 
 const links = [
   { label: "HOME", path: "/support/matches" },
-  { label: "Add Match", path: "/support/matches/add" },
+  { label: "Add Matches", path: "/support/matches/add" },
   { label: "Master Page", path: "/support/master" },
 ];
 
