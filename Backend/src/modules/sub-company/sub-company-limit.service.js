@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 const { User, ROLES } = require("../user/user.model");
 const { Bet } = require("../bet/bet.model");
 const SavedMatch = require("../saved-match/saved-match.model");
+const MatchEntry = require("../saved-match/match-entry.model");
 const { setUserCoins } = require("../ledger/ledger.service");
 const AppError = require("../../utils/AppError");
 
@@ -71,6 +72,36 @@ const runTransaction = async (work) => {
   }
 };
 
+const getMatchEntryFeeUsage = async (userIds, session) => {
+  if (!userIds.length) return 0;
+  const query = MatchEntry.aggregate([
+    { $match: { userId: { $in: userIds.map((id) => new mongoose.Types.ObjectId(id)) } } },
+    {
+      $lookup: {
+        from: SavedMatch.collection.name,
+        let: { entryMatchId: "$matchId", entryOwnerId: "$rootSuperAdminId" },
+        pipeline: [{
+          $match: {
+            $expr: {
+              $and: [
+                { $eq: ["$matchId", "$$entryMatchId"] },
+                { $eq: ["$user", "$$entryOwnerId"] },
+                { $eq: ["$isDeclared", true] },
+              ],
+            },
+          },
+        }],
+        as: "declaredMatches",
+      },
+    },
+    { $match: { "declaredMatches.0": { $exists: false } } },
+    { $group: { _id: null, total: { $sum: "$fee" } } },
+  ]);
+  if (session) query.session(session);
+  const [row] = await query;
+  return Number(Number(row?.total || 0).toFixed(2));
+};
+
 const createUserWithinFixLimit = async (companyId, userData, getUsername) => {
   const fixLimit = normalizeCoins(userData.fixLimit ?? 0);
   const coins = normalizeCoins(userData.coins ?? fixLimit);
@@ -99,11 +130,11 @@ const setUserBalanceWithinFixLimit = async (companyId, userId, coins, actorId) =
     const company = await lockCompany(companyId, session);
     const user = await User.findOne({ _id: userId, role: ROLES.USER, createdBy: companyId }).session(session);
     if (!user) throw new AppError("User not found.", 404);
-    const [usage] = await Bet.aggregate([
+    const [[usage], entryFeeUsage] = await Promise.all([Bet.aggregate([
       { $match: { userId: new mongoose.Types.ObjectId(userId), status: "pending" } },
       { $group: { _id: null, total: { $sum: { $ifNull: ["$walletAdjustment", "$loss"] } } } },
-    ]).session(session);
-    const usedLimit = Number(Number(usage?.total || 0).toFixed(2));
+    ]).session(session), getMatchEntryFeeUsage([userId], session)]);
+    const usedLimit = Number((Number(usage?.total || 0) + entryFeeUsage).toFixed(2));
     if (Number(user.fixLimit || 0) > 0) validateUserLimitBounds(targetCoins, usedLimit, Number(user.fixLimit));
     const allocated = await allocatedToOtherUsers(companyId, session, user._id);
     const totalAllocated = checkFixLimit(allocated, targetCoins, company.fixLimit);
@@ -122,11 +153,11 @@ const updateUserFixLimitWithinCompany = async (companyId, userId, value, current
     const company = await lockCompany(companyId, session);
     const user = await User.findOne({ _id: userId, role: ROLES.USER, createdBy: companyId }).session(session);
     if (!user) throw new AppError("User not found.", 404);
-    const [usage] = await Bet.aggregate([
+    const [[usage], entryFeeUsage] = await Promise.all([Bet.aggregate([
       { $match: { userId: new mongoose.Types.ObjectId(userId), status: "pending" } },
       { $group: { _id: null, total: { $sum: { $ifNull: ["$walletAdjustment", "$loss"] } } } },
-    ]).session(session);
-    const usedLimit = Number(Number(usage?.total || 0).toFixed(2));
+    ]).session(session), getMatchEntryFeeUsage([userId], session)]);
+    const usedLimit = Number((Number(usage?.total || 0) + entryFeeUsage).toFixed(2));
     validateUserLimitBounds(fixLimit, usedLimit, Number(company.fixLimit || 0));
     if (currentLimit > fixLimit) {
       const error = new AppError(`Current limit cannot exceed the user fix limit of ${fixLimit}. Increase Fix Limit first.`, 409);
@@ -207,7 +238,7 @@ const getCompanyLimitSummary = async (companyId) => {
       { $group: { _id: null, total: { $sum: { $cond: [{ $gt: ["$fixLimit", 0] }, "$fixLimit", "$coins"] } } } },
     ]),
   ]);
-  const [row] = userIds.length ? await Bet.aggregate([
+  const [[row], entryFeeUsage] = userIds.length ? await Promise.all([Bet.aggregate([
     {
       $match: {
         userId: { $in: userIds },
@@ -254,8 +285,8 @@ const getCompanyLimitSummary = async (companyId) => {
         },
       },
     },
-  ]) : [];
-  const usedLimit = Number((row?.total || 0).toFixed(2));
+  ]), getMatchEntryFeeUsage(userIds)]) : [[], 0];
+  const usedLimit = Number((Number(row?.total || 0) + entryFeeUsage).toFixed(2));
   const allocatedLimit = Number((allocationRows[0]?.total || 0).toFixed(2));
   const fixLimit = Number(company.fixLimit || 0);
   return {

@@ -9,6 +9,7 @@ const SavedMatch = require("../../src/modules/saved-match/saved-match.model");
 const MatchEntry = require("../../src/modules/saved-match/match-entry.model");
 const { enterMatch, MATCH_ENTRY_FEE } = require("../../src/modules/saved-match/match-entry.service");
 const { getSettlementLedger } = require("../../src/modules/ledger/settlement-ledger.service");
+const { getCompanyLimitSummary } = require("../../src/modules/sub-company/sub-company-limit.service");
 
 const enabled = process.env.TEST_ALLOW_DB_WRITES === "true" && Boolean(process.env.TEST_MONGODB_URI);
 const ids = { users: [], matches: [] };
@@ -58,6 +59,8 @@ test("match entry transfers the fee to root Super Admin and writes both ledgers"
   assert.equal(entries.length, 1);
   assert.equal(ledgers.length, 2);
   assert.deepEqual(new Set(ledgers.map((entry) => entry.transactionCode)), new Set(["MATCH_ENTRY_FEE_DEBIT", "MATCH_ENTRY_FEE_CREDIT"]));
+  const limitSummary = await getCompanyLimitSummary(f.subCompany._id);
+  assert.equal(limitSummary.usedLimit, MATCH_ENTRY_FEE);
 });
 
 test("concurrent and repeated entry requests charge exactly once", { skip: !enabled }, async () => {
@@ -95,6 +98,7 @@ test("declared-match Super Admin ledger includes the match entry fee", { skip: !
   const f = await fixture();
   await enterMatch(f.user._id, f.matchId);
   await SavedMatch.updateOne({ matchId: f.matchId, user: f.superAdmin._id }, { $set: { isDeclared: true, settledAt: new Date() } });
+  assert.equal((await getCompanyLimitSummary(f.subCompany._id)).usedLimit, 0);
   const ledger = await getSettlementLedger(f.superAdmin._id);
   const row = ledger.rows.find((item) => item.matchId === f.matchId && String(item.companyId) === String(f.subCompany._id));
   assert.ok(row);

@@ -3,6 +3,7 @@
 const { User, ROLES } = require("../user/user.model");
 const { Bet } = require("../bet/bet.model");
 const SavedMatch = require("../saved-match/saved-match.model");
+const MatchEntry = require("../saved-match/match-entry.model");
 const asyncHandler = require("../../utils/asyncHandler");
 const AppError = require("../../utils/AppError");
 const {
@@ -197,7 +198,7 @@ const getCompanyUsers = asyncHandler(async (req, res) => {
   if (req.query.search?.trim()) filter.$or = [{ firstName: { $regex: req.query.search.trim(), $options: "i" } }, { username: { $regex: req.query.search.trim(), $options: "i" } }];
   const users = await User.find(filter).select("-password").sort({ createdAt: -1 });
   const userIds = users.map((user) => user._id);
-  const usedLimits = userIds.length ? await Bet.aggregate([
+  const [usedLimits, entryFees] = userIds.length ? await Promise.all([Bet.aggregate([
     { $match: { userId: { $in: userIds }, status: { $in: ["pending", "won", "lost"] }, limitReleasedAt: { $exists: false } } },
     {
       $lookup: {
@@ -243,11 +244,34 @@ const getCompanyUsers = asyncHandler(async (req, res) => {
         },
       },
     },
-  ]) : [];
+  ]), MatchEntry.aggregate([
+    { $match: { userId: { $in: userIds } } },
+    {
+      $lookup: {
+        from: SavedMatch.collection.name,
+        let: { entryMatchId: "$matchId", entryOwnerId: "$rootSuperAdminId" },
+        pipeline: [{
+          $match: {
+            $expr: {
+              $and: [
+                { $eq: ["$matchId", "$$entryMatchId"] },
+                { $eq: ["$user", "$$entryOwnerId"] },
+                { $eq: ["$isDeclared", true] },
+              ],
+            },
+          },
+        }],
+        as: "declaredMatches",
+      },
+    },
+    { $match: { "declaredMatches.0": { $exists: false } } },
+    { $group: { _id: "$userId", total: { $sum: "$fee" } } },
+  ])]) : [[], []];
   const usedLimitMap = new Map(usedLimits.map((item) => [String(item._id), {
     pending: Number(Number(item.pendingUsedLimit || 0).toFixed(2)),
     settled: Number(Number(item.settlementPnl || 0).toFixed(2)),
   }]));
+  const entryFeeMap = new Map(entryFees.map((item) => [String(item._id), Number(Number(item.total || 0).toFixed(2))]));
   res.json({ success: true, data: users.map((user) => ({
     ...user.toObject(),
     // Session settlements do not change the displayed limit. Match settlement
@@ -255,9 +279,11 @@ const getCompanyUsers = asyncHandler(async (req, res) => {
     currentLimit: user.currentLimit ?? (Number(user.fixLimit) > 0 ? user.fixLimit : user.coins),
     pendingUsedLimit: usedLimitMap.get(String(user._id))?.pending || 0,
     settlementPnl: usedLimitMap.get(String(user._id))?.settled || 0,
+    matchEntryFees: entryFeeMap.get(String(user._id)) || 0,
     usedLimit: Number((
       (usedLimitMap.get(String(user._id))?.pending || 0) +
-      (usedLimitMap.get(String(user._id))?.settled || 0)
+      (usedLimitMap.get(String(user._id))?.settled || 0) +
+      (entryFeeMap.get(String(user._id)) || 0)
     ).toFixed(2)),
   })) });
 });
