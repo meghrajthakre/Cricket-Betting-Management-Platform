@@ -57,10 +57,7 @@ const enterMatch = async (userId, rawMatchId) => {
       if (!superAdmin) throw new AppError("Root Super Admin account not found.", 409);
       const savedMatch = await SavedMatch.findOne({
         matchId,
-        $or: [
-          { user: superAdmin._id },
-          { source: "external" },
-        ],
+        user: superAdmin._id,
       }).session(session).lean();
       if (!savedMatch) throw new AppError("Match is not available for this account.", 404);
       if (savedMatch.isDeclared) throw new AppError("Settled match cannot be entered.", 409);

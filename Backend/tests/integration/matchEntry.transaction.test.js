@@ -94,26 +94,6 @@ test("user cannot enter a match owned by another Super Admin", { skip: !enabled 
   assert.equal((await User.findById(f.user._id).lean()).coins, 1000);
 });
 
-test("user can enter a global external match saved by Support", { skip: !enabled }, async () => {
-  const f = await fixture();
-  const stamp = `${Date.now()}${sequence++}`;
-  const support = await User.create({
-    username: `entrysupport${stamp}`.slice(0, 30),
-    password: "pass1234",
-    role: ROLES.SUPPORT,
-  });
-  ids.users.push(support._id);
-  await SavedMatch.updateOne(
-    { matchId: f.matchId },
-    { $set: { user: support._id, source: "external" } }
-  );
-
-  const result = await enterMatch(f.user._id, f.matchId);
-  assert.equal(result.alreadyEntered, false);
-  assert.equal((await User.findById(f.user._id).lean()).coins, 1000 - MATCH_ENTRY_FEE);
-  assert.equal((await User.findById(f.superAdmin._id).lean()).coins, 100 + MATCH_ENTRY_FEE);
-});
-
 test("declared-match Super Admin ledger includes the match entry fee", { skip: !enabled }, async () => {
   const f = await fixture();
   await enterMatch(f.user._id, f.matchId);

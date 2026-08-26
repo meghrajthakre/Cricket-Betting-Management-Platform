@@ -8,10 +8,7 @@ const { Bet, BET_STATUS } = require("../bet/bet.model");
  */
 
 const saveMatch = async (userId, matchData) => {
-  const {
-    matchId, homeTeam, awayTeam, commenceTime, sportKey, odds,
-    source, eventId, team1, team2, type, startTime, timeStatus,
-  } = matchData;
+  const { matchId, homeTeam, awayTeam, commenceTime, sportKey, odds } = matchData;
 
   // Check for duplicate
   const existing = await SavedMatch.findOne({ matchId });
@@ -29,13 +26,6 @@ const saveMatch = async (userId, matchData) => {
     commenceTime,
     sportKey,
     odds,
-    source,
-    eventId,
-    team1,
-    team2,
-    type,
-    startTime,
-    timeStatus,
   });
 
   return match;
